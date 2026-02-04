@@ -1,0 +1,16 @@
+{
+  "name": "@sherpadvisorylab/cms-root",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CMS, Form Builder and Chat – Clean Architecture. Consumed by Espresso Lab.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "node -e \"require('fs').rmSync('node_modules', { recursive: true, force: true })\""
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
