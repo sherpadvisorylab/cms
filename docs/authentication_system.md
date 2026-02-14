@@ -175,7 +175,9 @@ interface ResetPasswordFormProps {
 
 ## Email Templates
 
-The CMS provides a set of pre-configured email templates for the authentication flow. These templates are stored in a dedicated configuration file and are automatically registered in the Email System during CMS bootstrap.
+The CMS Authentication System provides a set of **base email templates** for the standard authentication flow. These templates are part of the CMS module and are offered to all verticals (e.g. Espresso Lab) that use the CMS. They are stored in a dedicated configuration file and are automatically registered in the Email System during CMS bootstrap.
+
+**Base templates for verticals**: The **activation email** and **password reset (recover password) email** are core templates of this module. Any vertical that implements the CMS authentication flow can use them: the CMS provides the templates and the flows that send them (registration/activation, recover password); verticals expose the same templates in their admin interface (e.g. Admin → CMS → Emails) so that subject and body can be customized without changing code.
 
 ### Email Templates Configuration
 
@@ -202,13 +204,13 @@ The email templates configuration file is part of the CMS base configuration. It
 
 **Important**: The authentication email templates are loaded automatically during CMS bootstrap. External projects do not need to manually load these templates - they are available immediately after CMS initialization.
 
-### Authentication Email Templates
+### Authentication Email Templates (base templates)
 
-The following email templates are provided:
+The following email templates are provided by the CMS as **base templates** for the authentication module. Verticals that use the CMS inherit these templates and can customize them via the admin Emails page.
 
 #### 1. User Activation Email
 
-**Template ID**: `user_activation`
+**Template ID**: `user_activation` (verticals may use an equivalent ID such as `account_activation` for the same flow)
 
 Sent when a user registers and needs to activate their account via email.
 
@@ -223,11 +225,11 @@ Sent when a user registers and needs to activate their account via email.
 
 The Authentication System uses this template when a user registers. The system calls the Email System's `send()` function with the template ID and required variables. The Email System retrieves the template, replaces variables with actual values, and sends the email to the user.
 
-#### 2. Password Reset Email
+#### 2. Password Reset Email (Recover Password)
 
 **Template ID**: `password_reset`
 
-Sent when a user requests a password reset.
+Sent when a user requests a password reset from the Recover Password / Forgot Password page (flow implemented by the CMS Authentication module).
 
 **Variables**:
 - `user_name`: User's full name

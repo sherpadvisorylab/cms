@@ -601,6 +601,8 @@ The CMS provides a comprehensive Authentication System that enables external pro
 - **Email Activation**: User account activation via email verification
 - **Password Recovery**: Secure password reset flow via email
 
+The **activation email** and **password reset (recover password) email** are provided as **base templates** by the CMS Authentication module. Verticals that use the CMS (e.g. Espresso Lab) inherit these templates and the flows that send them; they can expose the templates in their admin Emails page for customization of subject and body.
+
 For complete documentation of the Authentication System, including component usage, email templates, authentication flows, and integration guide, see [Authentication System Documentation](./authentication_system.md).
 
 ### CMS Implementation
