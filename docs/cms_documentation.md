@@ -11,7 +11,8 @@
 7. [Email System](#email-system)
 8. [Authentication System](#authentication-system)
 9. [Data Storage](#data-storage)
-10. [Technical Details](#technical-details)
+10. [Settings (Admin)](#settings-admin)
+11. [Technical Details](#technical-details)
 
 ---
 
@@ -145,7 +146,9 @@ These pages are essential for legal compliance and cannot be deleted, though the
 ## Areas Management
 
 ### Overview
-Areas (`pmp_admin_cms_areas.html`) are used to organize and configure groups of pages. Each area can have extensive configuration options.
+Areas (`pmp_admin_cms_areas.html`) are used to organize and configure groups of pages. Each area can have extensive configuration options: basic data, style (logos, favicon, fonts, color schemas), design structure (head/body templates with variables, area CSS/JS), legal pages and cookie consent, tracking, and access policy.
+
+For full documentation of the Areas list page, area creation, and the area edit page (all tabs and data model), see [CMS Areas Documentation](./cms_areas.md).
 
 ### Area List View
 - Displays all configured areas
@@ -294,7 +297,9 @@ Templates store a list of component names that will be added to pages created fr
 ## Components
 
 ### Overview
-Components (`pmp_admin_cms_components.html`) are UI building blocks sourced from shadcnblocks. The Components interface allows administrators to configure backend variables for each component.
+Components (`pmp_admin_cms_components.html`) are UI building blocks that can be sourced from libraries such as shadcnblocks or built in-house. The Components interface allows administrators to create and edit components with HTML (Liquid), CSS, JS, and backend variable configuration (attributes, positioning, preview).
+
+For complete documentation on CMS Components, including the list page, edit/add page, Liquid templates, CodeMirror editor, variable types, positioning, preview, import HTML, and data storage, see [CMS Components Documentation](./cms_components.md).
 
 ### Component Categories
 - **Hero Sections**: Landing page hero components
@@ -480,6 +485,36 @@ The CMS uses browser localStorage for data persistence:
   }
 }
 ```
+
+---
+
+## Settings (Admin)
+
+The **Settings** page (`pmp_admin_settings.html`) in the admin area configures platform-wide options. It does **not** store API keys, client secrets or other secrets.
+
+### API keys and secrets
+
+**API keys, client secrets and other secrets must not be entered or stored in the admin UI.** They must be loaded in one of these ways:
+
+- **`.env`** — Environment variables (e.g. `OPENAI_API_KEY`, `AZURE_CLIENT_SECRET`) loaded at build or runtime.
+- **External secret manager** — e.g. Cloudflare Secrets, AWS Secrets Manager, Azure Key Vault, HashiCorp Vault; the application reads secrets in memory at runtime.
+
+Integrations configured in Settings store only **non-sensitive** data (URLs, workspace IDs, pipeline names, field mappings). Secrets are never stored in the database or admin interface.
+
+### CMS System Variables
+
+Settings contain the **list of all managed system variables** that can be used inside CMS components (e.g. in HTML templates as `{{ variable }}`).
+
+**How system variable values are resolved at runtime:**
+
+1. **Preferences defined when creating the page structure** — Values can be overridden at area, template or page level when defining the structure.
+2. **Default values defined in Settings** — When no override is set, the default value configured in Admin → Settings is used.
+
+So: system variables are **populated** either from (a) preferences set at page-structure creation time, or (b) the default values defined in Settings. The Settings page lists every system variable the CMS manages and allows configuring their defaults.
+
+Examples of managed variables (see [CMS Components](./cms_components.md#system-variables-popup)): **style variables** (e.g. `bg-primary`, `text-muted`, `border-primary`) for color/context; **form (embed)** variables (`{{form:id}}`) for embedding CMS-generated forms.
+
+For the **embeddable component** that manages system variable defaults (usable in Settings or other contexts), see [Settings and system variables component](./settings.md).
 
 ---
 
