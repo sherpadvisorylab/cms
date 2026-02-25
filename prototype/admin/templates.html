@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Templates – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 600px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+    .structure-list { list-style: none; margin: 0; padding: 0; }
+    .structure-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); }
+    .preview-frame { border: 1px solid var(--color-border); border-radius: 6px; background: #f8f9fa; margin-top: 0.5rem; }
+    .preview-frame.desktop { width: 100%; min-height: 120px; }
+    .preview-frame.tablet { max-width: 768px; min-height: 100px; }
+    .preview-frame.mobile { max-width: 320px; min-height: 80px; }
+    .preview-devices { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html" class="active">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Templates</h1>
+        <p class="subtitle">Reusable page structures (component lists). Create pages from templates in Pages.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          Template list
+          <button type="button" class="btn btn-primary btn-sm" id="btnCreate">Create Template</button>
+        </div>
+        <div class="card-body table-wrap">
+          <table class="data-table" id="templatesTable">
+            <thead>
+              <tr>
+                <th>Template name</th>
+                <th>Description</th>
+                <th>Components</th>
+                <th>Last modified</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalEdit">
+    <div class="modal-card">
+      <div class="card-header"><span id="modalEditTitle">Create Template</span><button type="button" class="btn btn-sm" id="modalEditClose">×</button></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" class="form-control" id="tplName" placeholder="e.g. Standard Landing" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="form-control" id="tplDesc" rows="2" placeholder="Optional description"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Components (order)</label>
+          <ul class="structure-list" id="tplStructureList"></ul>
+          <button type="button" class="btn btn-sm mt-2" id="btnAddComp">Add component</button>
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalEditCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalEditSave">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalPreview">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="card-header">Preview <button type="button" class="btn btn-sm" id="modalPreviewClose">×</button></div>
+      <div class="card-body">
+        <div class="preview-devices">
+          <button type="button" class="btn btn-sm preview-device active" data-device="desktop">Desktop</button>
+          <button type="button" class="btn btn-sm preview-device" data-device="tablet">Tablet</button>
+          <button type="button" class="btn btn-sm preview-device" data-device="mobile">Mobile</button>
+        </div>
+        <div class="preview-frame desktop" id="previewFrame">
+          <div style="padding: 0.75rem; font-size: 0.9rem;" id="previewContent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalAddComp">
+    <div class="modal-card" style="max-width: 360px;">
+      <div class="card-header">Add component</div>
+      <div class="card-body">
+        <select class="form-control" id="compSelect"></select>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalAddCompCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalAddCompAdd">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var KEY = 'pmp_cms_templates';
+      var currentId = null;
+      var currentComponents = [];
+
+      function getAvailableComponents() {
+        var ids = getAllComponentIds();
+        if (ids.length) {
+          return ids.map(function(id) { var c = getComponent(id); return { id: id, name: (c && c.name) ? c.name : id }; });
+        }
+        return [{ id: 'hero-1', name: 'Hero' }, { id: 'content-1', name: 'Content block' }, { id: 'cta-1', name: 'CTA Banner' }];
+      }
+
+      function loadTable() {
+        var templates = getTemplates();
+        var tbody = document.querySelector('#templatesTable tbody');
+        tbody.innerHTML = templates.map(function(t) {
+          var comps = Array.isArray(t.components) ? t.components : [];
+          return '<tr data-id="' + (t.id || '') + '">' +
+            '<td>' + (t.name || '') + '</td>' +
+            '<td>' + (t.desc || t.description || '') + '</td>' +
+            '<td>' + comps.length + '</td>' +
+            '<td>' + (t.updated || '—') + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-preview" data-id="' + (t.id || '') + '">Preview</button> <button type="button" class="btn btn-sm btn-edit" data-id="' + (t.id || '') + '">Edit</button> <button type="button" class="btn btn-sm btn-del" data-id="' + (t.id || '') + '">Delete</button></td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      function renderStructureList() {
+        var comps = getAvailableComponents();
+        var map = {};
+        comps.forEach(function(c) { map[c.id] = c.name; });
+        var el = document.getElementById('tplStructureList');
+        el.innerHTML = currentComponents.map(function(cid, i) {
+          var name = typeof cid === 'string' ? (map[cid] || cid) : (map[cid.id] || cid.id);
+          var id = typeof cid === 'string' ? cid : (cid.id || cid);
+          return '<li><span>' + (i + 1) + '</span><span>' + name + '</span><button type="button" class="btn btn-sm btn-up" data-i="' + i + '">↑</button><button type="button" class="btn btn-sm btn-down" data-i="' + i + '">↓</button><button type="button" class="btn btn-sm btn-rem" data-i="' + i + '">Remove</button></li>';
+        }).join('');
+      }
+
+      function openEdit(id) {
+        currentId = id;
+        var templates = getTemplates();
+        var t = id ? templates.find(function(x) { return (x.id || x.name) === id; }) : null;
+        if (t) {
+          document.getElementById('modalEditTitle').textContent = 'Edit Template';
+          document.getElementById('tplName').value = t.name || '';
+          document.getElementById('tplDesc').value = t.desc || t.description || '';
+          currentComponents = (t.components || []).slice();
+        } else {
+          document.getElementById('modalEditTitle').textContent = 'Create Template';
+          document.getElementById('tplName').value = '';
+          document.getElementById('tplDesc').value = '';
+          currentComponents = [];
+        }
+        renderStructureList();
+        document.getElementById('modalEdit').classList.add('show');
+      }
+
+      function saveTemplate() {
+        var name = (document.getElementById('tplName').value || '').trim();
+        if (!name) { alert('Name is required.'); return; }
+        var templates = getTemplates();
+        var compIds = currentComponents.map(function(c) { return typeof c === 'string' ? c : (c.id || c); });
+        if (currentId) {
+          var idx = templates.findIndex(function(t) { return (t.id || t.name) === currentId; });
+          if (idx >= 0) {
+            templates[idx].name = name;
+            templates[idx].desc = document.getElementById('tplDesc').value.trim();
+            templates[idx].description = templates[idx].desc;
+            templates[idx].components = compIds;
+            templates[idx].updated = new Date().toLocaleDateString();
+            setJson(KEY, templates);
+            loadTable();
+            document.getElementById('modalEdit').classList.remove('show');
+            return;
+          }
+        }
+        templates.push({
+          id: 'tpl_' + Date.now(),
+          name: name,
+          desc: document.getElementById('tplDesc').value.trim(),
+          description: document.getElementById('tplDesc').value.trim(),
+          components: compIds,
+          updated: new Date().toLocaleDateString()
+        });
+        setJson(KEY, templates);
+        loadTable();
+        document.getElementById('modalEdit').classList.remove('show');
+      }
+
+      function openPreview(id) {
+        var templates = getTemplates();
+        var t = templates.find(function(x) { return (x.id || x.name) === id; });
+        if (!t) return;
+        var comps = getAvailableComponents();
+        var map = {};
+        comps.forEach(function(c) { map[c.id] = c.name; });
+        var list = (t.components || []).map(function(cid) { return map[cid] || cid; });
+        document.getElementById('previewContent').innerHTML = list.length ? list.map(function(name, i) { return '<div style="padding:0.5rem; background:#fff; margin:4px; border-radius:4px; border:1px solid #e2e6ea;">' + (i + 1) + '. ' + name + '</div>'; }).join('') : '<p class="text-muted">No components.</p>';
+        document.getElementById('modalPreview').classList.add('show');
+        document.querySelectorAll('.preview-device').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-device') === 'desktop'); });
+        document.getElementById('previewFrame').className = 'preview-frame desktop';
+      }
+
+      document.getElementById('btnCreate').onclick = function() { openEdit(null); };
+      document.getElementById('modalEditClose').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
+      document.getElementById('modalEditCancel').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
+      document.getElementById('modalEditSave').onclick = saveTemplate;
+      document.getElementById('btnAddComp').onclick = function() {
+        var comps = getAvailableComponents();
+        document.getElementById('compSelect').innerHTML = comps.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
+        document.getElementById('modalAddComp').classList.add('show');
+      };
+      document.getElementById('modalAddCompCancel').onclick = function() { document.getElementById('modalAddComp').classList.remove('show'); };
+      document.getElementById('modalAddCompAdd').onclick = function() {
+        var id = document.getElementById('compSelect').value;
+        if (id) currentComponents.push(id);
+        renderStructureList();
+        document.getElementById('modalAddComp').classList.remove('show');
+      };
+      document.getElementById('tplStructureList').addEventListener('click', function(e) {
+        var i = e.target.getAttribute('data-i');
+        if (i == null) return;
+        i = parseInt(i, 10);
+        if (e.target.classList.contains('btn-rem')) { currentComponents.splice(i, 1); renderStructureList(); }
+        else if (e.target.classList.contains('btn-up') && i > 0) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i-1]; currentComponents[i-1] = t; renderStructureList(); }
+        else if (e.target.classList.contains('btn-down') && i < currentComponents.length - 1) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i+1]; currentComponents[i+1] = t; renderStructureList(); }
+      });
+      document.getElementById('modalPreviewClose').onclick = function() { document.getElementById('modalPreview').classList.remove('show'); };
+      document.querySelectorAll('.preview-device').forEach(function(b) {
+        b.addEventListener('click', function() {
+          document.querySelectorAll('.preview-device').forEach(function(x) { x.classList.remove('active'); });
+          b.classList.add('active');
+          var dev = b.getAttribute('data-device');
+          document.getElementById('previewFrame').className = 'preview-frame ' + dev;
+        });
+      });
+      document.querySelector('#templatesTable tbody').addEventListener('click', function(e) {
+        var id = e.target.getAttribute('data-id');
+        if (!id) return;
+        if (e.target.classList.contains('btn-preview')) openPreview(id);
+        else if (e.target.classList.contains('btn-edit')) openEdit(id);
+        else if (e.target.classList.contains('btn-del')) {
+          if (!confirm('Delete this template?')) return;
+          var templates = getTemplates().filter(function(t) { return (t.id || t.name) !== id; });
+          setJson(KEY, templates);
+          loadTable();
+        }
+      });
+
+      loadTable();
+    })();
+  </script>
+</body>
+</html>

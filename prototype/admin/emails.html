@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emails – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 640px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html" class="active">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Email templates</h1>
+        <p class="subtitle">Edit subject and message; variables use {{ variable_name }}. Sent via API (loadTemplates, send).</p>
+      </div>
+      <div class="card">
+        <div class="card-header">Templates</div>
+        <div class="card-body table-wrap">
+          <table class="data-table" id="emailTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Subject</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="modal-overlay" id="modalEdit">
+    <div class="modal-card">
+      <div class="card-header"><span id="modalEditTitle">Edit template</span><button type="button" class="btn btn-sm" id="modalEditClose">×</button></div>
+      <div class="card-body" style="overflow-y:auto;">
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" class="form-control" id="emailSubject" placeholder="Subject line">
+        </div>
+        <div class="form-group">
+          <label>Message (variables: {{ variable_name }})</label>
+          <textarea class="form-control" id="emailMessage" rows="10" placeholder="Body content"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Variables (comma-separated)</label>
+          <input type="text" class="form-control" id="emailVars" placeholder="user_name, program_name, link">
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalEditCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalEditSave">Save</button>
+        <button type="button" class="btn btn-sm" id="modalEditReset">Reset to default</button>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var KEY = 'pmp_cms_email_templates';
+      var editId = null;
+      var DEFAULT_TEMPLATES = {
+        user_activation: { id: 'user_activation', name: 'User Activation', category: 'auth', subject: 'Activate Your Account', message: 'Dear {{user_name}},\n\nClick to activate: {{activation_link}}\n\nExpires: {{expiration_time}}', variables: ['user_name', 'activation_link', 'expiration_time'] },
+        password_reset: { id: 'password_reset', name: 'Password Reset', category: 'auth', subject: 'Reset Your Password', message: 'Dear {{user_name}},\n\nReset link: {{reset_link}}\n\nExpires: {{expiration_time}}', variables: ['user_name', 'reset_link', 'expiration_time'] },
+        welcome_email: { id: 'welcome_email', name: 'Welcome Email', category: 'auth', subject: 'Welcome to {{app_name}}', message: 'Hello {{user_name}},\n\nLogin: {{login_link}}\nDashboard: {{dashboard_link}}', variables: ['user_name', 'login_link', 'dashboard_link', 'app_name'] },
+        user_invitation: { id: 'user_invitation', name: 'User Invitation', category: 'auth', subject: "You've been invited to join {{program_name}}", message: 'Hello {{user_name}},\n\nInviter: {{inviter_name}}\nLink: {{invitation_link}}\nProgram: {{program_name}}\nStartup: {{startup_name}}', variables: ['user_name', 'inviter_name', 'invitation_link', 'program_name', 'startup_name'] }
+      };
+
+      function getTemplates() {
+        var t = getJson(KEY, null);
+        if (t && typeof t === 'object') return t;
+        setJson(KEY, DEFAULT_TEMPLATES);
+        return DEFAULT_TEMPLATES;
+      }
+
+      function loadTable() {
+        var t = getTemplates();
+        var list = Object.keys(t).map(function(id) { var x = t[id]; return { id: id, name: x.name, category: x.category, subject: x.subject }; });
+        document.querySelector('#emailTable tbody').innerHTML = list.map(function(x) {
+          return '<tr><td><code>' + x.id + '</code></td><td>' + (x.name || '') + '</td><td>' + (x.category || '') + '</td><td>' + (x.subject || '').substring(0, 50) + '</td><td><button type="button" class="btn btn-sm btn-edit-email" data-id="' + x.id + '">Edit</button></td></tr>';
+        }).join('');
+      }
+
+      function openEdit(id) {
+        editId = id;
+        var t = getTemplates();
+        var x = t[id];
+        if (!x) return;
+        document.getElementById('modalEditTitle').textContent = 'Edit: ' + (x.name || id);
+        document.getElementById('emailSubject').value = x.subject || '';
+        document.getElementById('emailMessage').value = x.message || '';
+        document.getElementById('emailVars').value = Array.isArray(x.variables) ? x.variables.join(', ') : (x.variables || '');
+        document.getElementById('modalEdit').classList.add('show');
+      }
+
+      function saveEdit() {
+        if (!editId) return;
+        var t = getTemplates();
+        var x = t[editId];
+        if (!x) return;
+        x.subject = document.getElementById('emailSubject').value;
+        x.message = document.getElementById('emailMessage').value;
+        x.variables = document.getElementById('emailVars').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        t[editId] = x;
+        setJson(KEY, t);
+        loadTable();
+        document.getElementById('modalEdit').classList.remove('show');
+      }
+
+      function resetEdit() {
+        if (!editId || !DEFAULT_TEMPLATES[editId]) return;
+        var def = DEFAULT_TEMPLATES[editId];
+        document.getElementById('emailSubject').value = def.subject || '';
+        document.getElementById('emailMessage').value = def.message || '';
+        document.getElementById('emailVars').value = (def.variables || []).join(', ');
+      }
+
+      document.getElementById('modalEditClose').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
+      document.getElementById('modalEditCancel').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
+      document.getElementById('modalEditSave').onclick = saveEdit;
+      document.getElementById('modalEditReset').onclick = resetEdit;
+      document.querySelector('#emailTable tbody').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-edit-email')) openEdit(e.target.getAttribute('data-id'));
+      });
+      loadTable();
+    })();
+  </script>
+</body>
+</html>

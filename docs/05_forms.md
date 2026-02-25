@@ -1,4 +1,8 @@
-# Form Generator
+# CMS – Forms
+
+This document describes the Form Generator and how forms are embedded in the CMS (e.g. `{{form:id}}` in components and area templates). For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
+
+---
 
 ## 1. Overview
 
@@ -400,3 +404,9 @@ The API will include **onsubmit** and other event/lifecycle methods in its signa
 - **Questionnaire Editor** (`pmp_admin_questionnaire_editor.html`): edit questionnaire fields; evaluation (Signal weight / Program points) and protected fields are added in the page business logic.
 
 **Note:** **Program Structure** (`pmp_admin_program_structure.html`) does **not** use the Form Generator. It uses a dedicated implementation (phases → sections → points of interest, with Quill WYSIWYG and links). See **docs/programs.md** §2.1 for the Program Structure implementation and full API.
+
+---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)

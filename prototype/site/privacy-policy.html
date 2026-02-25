@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy – CMS Site</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" id="siteLogo">CMS Site</a>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="privacy-policy.html">Privacy</a></li>
+          <li><a href="terms.html">Terms</a></li>
+          <li><a href="../admin/index.html">Admin</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main class="site-main">
+    <div class="container">
+      <div class="content-block">
+        <h1 id="legalTitle">Privacy Policy</h1>
+        <div id="legalContent">
+          <p>This is the default Privacy Policy page. Content can be configured in Admin → CMS → Areas → [Area] → Legal tab.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><a href="privacy-policy.html">Privacy Policy</a> · <a href="terms.html">Terms &amp; Conditions</a> · <a href="login.html">Login</a> · <a href="signup.html">Sign up</a> · <a href="../admin/index.html">Admin</a></p>
+    </div>
+  </footer>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    seedIfEmpty();
+    var areas = getAreas();
+    var area = areas.find(function(a) { return a.name === 'Public'; }) || areas[0];
+    if (area && area.legal && area.legal.pages && area.legal.pages.length) {
+      var page = area.legal.pages.find(function(p) { return (p.path || '').indexOf('privacy') !== -1; }) || area.legal.pages[0];
+      if (page) {
+        if (document.getElementById('legalTitle')) document.getElementById('legalTitle').textContent = page.title || 'Privacy Policy';
+        if (document.getElementById('legalContent')) document.getElementById('legalContent').innerHTML = page.content || '<p>No content.</p>';
+      }
+    }
+    if (document.getElementById('siteLogo') && area && area.siteName) document.getElementById('siteLogo').textContent = area.siteName;
+  </script>
+</body>
+</html>

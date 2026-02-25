@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign up – CMS Site</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo">CMS Site</a>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="login.html">Login</a></li>
+          <li><a href="signup.html">Sign up</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main class="site-main">
+    <div class="container" style="max-width: 400px; margin: 2rem auto;">
+      <div class="card">
+        <div class="card-header">Sign up</div>
+        <div class="card-body">
+          <form id="signupForm">
+            <div class="form-group">
+              <label>Full name</label>
+              <input type="text" class="form-control" name="fullName" required>
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" class="form-control" name="email" required>
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" class="form-control" name="password" required>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" name="terms" required> I accept the Terms &amp; Conditions</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Create account</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container"><p><a href="privacy-policy.html">Privacy</a> · <a href="terms.html">Terms</a></p></div>
+  </footer>
+  <script>document.getElementById('signupForm').addEventListener('submit', function(e) { e.preventDefault(); alert('Registration UI only (no backend).'); });</script>
+</body>
+</html>

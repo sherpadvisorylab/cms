@@ -1,97 +1,93 @@
-# Authentication System
+# CMS – Authentication
+
+This document describes the **Authentication** module of the CMS: **utility components**, email templates, flows, and integration. The CMS offers reusable components and flows so that any project (vertical) can implement login, signup, activation, recover password, and optionally OTP without reimplementing the UI or the email logic. For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Components](#components)
-3. [Email Templates](#email-templates)
-4. [Authentication Flows](#authentication-flows)
-5. [Integration Guide](#integration-guide)
+1. [Overview](#overview) — includes [Login page and Forgot password page](#login-page-and-forgot-password-page)
+2. [Authentication utility components](#authentication-utility-components)
+3. [Components (detail)](#components-detail)
+4. [Email Templates](#email-templates)
+5. [Authentication Flows](#authentication-flows)
+6. [Integration Guide](#integration-guide)
 
 ---
 
 ## Overview
 
-The CMS provides a comprehensive Authentication System that enables external projects to implement a complete authentication flow. The system includes pre-built UI components and a set of email templates required for user authentication, registration, activation, and password recovery.
+The CMS provides an **Authentication** module with **utility components** and email templates. Projects that use the CMS integrate these components into their pages (e.g. login page, signup page, activation page, recover-password page); the CMS does not assume the name or branding of the project.
+
+### Login page and Forgot password page
+
+The **Login page** is the route (e.g. `/login`) where the project embeds the **LoginForm** component: email/password fields, optional SSO block when enabled in Settings, and a link to the Forgot password page. See [Login Component](#login-component) for props and behaviour, and [Flow 3: Standard Login](#flow-3-standard-login) and [Flow 4: SSO Login](#flow-4-sso-login) for the flows.
+
+The **Forgot password page** (recover password) is the route (e.g. `/forgot-password`) where the project embeds the **ForgotPasswordForm** component: user enters email, receives reset email, then (via link) sets a new password with **ResetPasswordForm**. See [Password Recovery Component](#password-recovery-component) and [Reset Password Component](#password-reset-component), and [Flow 5: Password Recovery](#flow-5-password-recovery). The password reset email uses the CMS template `password_reset` ([Email Templates](#authentication-email-templates-base-templates)).
+
+### Authentication utility components (summary)
+
+The following are part of the CMS Authentication module and are documented in this file:
+
+| Component / flow | Description |
+|------------------|-------------|
+| **Login** (with optional SSO) | Login form: email/password; **SSO is optional**. When SSO is enabled (in [Settings](./08_settings.md#authentication--sso)), the form shows the SSO block; **which providers appear** (Google, Microsoft, etc.) is **delegated to the external auth layer** (e.g. Supabase, Auth0), not chosen in the CMS. Link to recover password. |
+| **Signup** (with optional SSO) | Registration form: email/password; SSO when enabled; provider list comes from the external auth layer. Terms acceptance; optional invitation context. |
+| **Activation flow** | Post-registration: user receives activation email, clicks link, account is activated; optional welcome email. |
+| **Recover password** | Forgot-password form → reset email → reset-password form with token; token invalidated after use. |
+| **OTP system** (optional) | Optional one-time password / two-factor component; can be enabled per project for extra security. |
+
+These components are **utility components**: the CMS defines their behaviour, props, and integration points; the vertical project uses them on its own routes and with its own layout and branding.
 
 ### Key Features
 
-- **Pre-built Components**: Ready-to-use UI components for login, registration, password recovery, and SSO authentication
-- **Email Templates**: Pre-configured email templates for the authentication flow
-- **Standard Authentication**: Email/password-based authentication
-- **SSO Support**: Single Sign-On integration with Google, Microsoft Teams, GitHub, and other providers
-- **Email Activation**: User account activation via email verification
-- **Password Recovery**: Secure password reset flow via email
-
-### What the CMS Provides
-
-The CMS Authentication System provides:
-
-1. **UI Components**: Pre-configured React/TypeScript components for:
-   - Login page (standard and SSO)
-   - Registration page (standard and SSO)
-   - Password recovery page
-   - Email activation page
-
-2. **Email Templates**: Pre-configured email templates in the Email System:
-   - User activation email
-   - Password reset email
-   - Welcome email
-   - Invitation email
-
-3. **Authentication Functions**: Library functions for:
-   - User registration
-   - User login (standard and SSO)
-   - Password reset request
-   - Email verification
-   - Token validation
+- **Utility components**: Login (standard + SSO), Signup (standard + SSO), activation page, recover password, optional OTP
+- **Email Templates**: Pre-configured templates for activation, password reset, welcome, invitation
+- **Flows**: Registration with email activation, SSO registration, login, password recovery (documented below)
+- **Library functions**: Registration, login (standard and SSO), password reset request, email verification, token validation
 
 ---
 
-## Components
+## Components (detail)
 
-The CMS provides pre-built authentication components that can be integrated into external projects.
+The CMS provides pre-built authentication components that can be integrated into external projects. These are the same utility components summarized in the [Overview](#overview) (Login with SSO, Signup with SSO, activation flow, recover password; OTP optional).
 
 ### Login Component
 
 **Component**: `LoginForm`
 
 A complete login form component that supports:
-- Standard email/password authentication
-- SSO authentication (Google, Microsoft Teams, GitHub, etc.)
-- Link to password recovery
-- Form validation
-- Error handling
+- **Standard email/password authentication** (always available).
+- **SSO authentication (optional)**: When SSO is **enabled** in the [Settings component](./08_settings.md#authentication--sso), the form shows an SSO block. **Which SSO providers are shown** (e.g. Google, Microsoft) is **not** configured in the CMS: it is **delegated to the external auth layer** (e.g. Supabase, Auth0). The CMS does not implement SSO logic; the project’s auth layer decides the provider list and handles credentials.
+- Link to **recover password** (forgot-password page).
+- Form validation and error handling.
 
 #### Props
 
 ```typescript
 interface LoginFormProps {
   onLogin: (credentials: { email: string; password: string }) => Promise<void>;
-  onSSO: (provider: 'google' | 'teams' | 'github' | string) => Promise<void>;
+  onSSO?: (provider: string) => Promise<void>;  // Optional; only used when SSO is enabled
   onForgotPassword?: () => void;
   redirectAfterLogin?: string;
-  ssoProviders?: string[]; // List of enabled SSO providers
+  ssoProviders?: string[];  // Optional. If SSO is enabled in Settings, the project passes the provider list from the external auth layer (e.g. Supabase). If empty or omitted, SSO block is hidden.
 }
 ```
 
 #### How It Works
 
 The `LoginForm` component provides a complete UI for user authentication. It handles:
-- Form validation for email and password fields
-- Display of SSO provider buttons
-- Error message display
-- Loading states during authentication
+- Form validation for email and password fields.
+- **Display of the SSO block** only when SSO is enabled (from Settings). The list of provider buttons comes from the **external auth layer** (e.g. Supabase), not from CMS Settings.
+- Error message display and loading states.
 
-The component calls the provided callback functions (`onLogin`, `onSSO`) when the user submits the form or clicks an SSO button. The actual authentication logic is implemented by the external project.
+The component calls the provided callbacks (`onLogin`, `onSSO` when present) when the user submits the form or clicks an SSO button. The actual authentication logic and **which SSO providers are available** are implemented by the external auth layer (e.g. Supabase). **Only whether SSO is enabled** is configured in the CMS Settings component.
 
 ### Registration Component
 
 **Component**: `RegistrationForm`
 
-A complete registration form component that supports:
+A complete registration (signup) form component that supports:
 - Standard email/password registration
-- SSO registration
+- **Optional SSO registration** (same provider list as Login; enabled and configured in [Settings](./08_settings.md#authentication--sso))
 - Terms & Conditions acceptance
 - Form validation
 - Password strength validation
@@ -133,10 +129,10 @@ The component calls the provided callback functions (`onRegister`, `onSSO`) when
 
 **Component**: `ForgotPasswordForm`
 
-A password recovery form component that:
-- Collects user email
-- Sends password reset email
-- Shows success message
+The **Forgot Password** (recover password) page uses this component. It:
+- Collects the user’s email
+- Triggers sending of the password reset email (via the callback; the backend uses the CMS email template `password_reset`)
+- Shows a success message and a link back to login
 
 #### Props
 
@@ -156,6 +152,8 @@ The `ForgotPasswordForm` component provides a UI for password recovery. It handl
 
 The component calls the provided `onRequestReset` callback when the user submits their email. The actual password reset logic is implemented by the external project.
 
+**SSO and authentication settings**: **Enabling or disabling SSO** is managed in the **CMS Settings component**; see [08 – Settings](./08_settings.md#authentication--sso). Which SSO providers are shown is **delegated to the external auth layer** (e.g. Supabase, Auth0); the CMS does not implement SSO logic nor select providers in Settings.
+
 ### Password Reset Component
 
 **Component**: `ResetPasswordForm`
@@ -171,13 +169,22 @@ interface ResetPasswordFormProps {
 }
 ```
 
+### OTP component (optional)
+
+**Component**: `OTPForm` (or equivalent)
+
+An **optional** utility component for one-time password / two-factor authentication. When enabled by the project, it can be used at login (e.g. after password, require OTP) or for sensitive actions.
+
+- **Behaviour**: Display input for OTP code (e.g. 6 digits); optional “Resend code”; callback on submit with the code; the project validates the code against its own backend or the CMS token service.
+- **Integration**: The project enables or disables OTP in configuration; if enabled, the Login or other flow includes a step that renders this component. The CMS does not require OTP; it is an optional layer offered by the Authentication module.
+
 ---
 
 ## Email Templates
 
-The CMS Authentication System provides a set of **base email templates** for the standard authentication flow. These templates are part of the CMS module and are offered to all verticals (e.g. Espresso Lab) that use the CMS. They are stored in a dedicated configuration file and are automatically registered in the Email System during CMS bootstrap.
+The CMS Authentication System provides a set of **base email templates** for the standard authentication flow. These templates are part of the CMS module and are available to any project that uses the CMS. They are stored in a dedicated configuration file and are automatically registered in the Email System during CMS bootstrap.
 
-**Base templates for verticals**: The **activation email** and **password reset (recover password) email** are core templates of this module. Any vertical that implements the CMS authentication flow can use them: the CMS provides the templates and the flows that send them (registration/activation, recover password); verticals expose the same templates in their admin interface (e.g. Admin → CMS → Emails) so that subject and body can be customized without changing code.
+**Base templates**: The **activation email** and **password reset (recover password) email** are core templates of this module. Any project that implements the CMS authentication flow can use them: the CMS provides the templates and the flows that send them (registration/activation, recover password); projects expose the same templates in their admin interface (e.g. Admin → CMS → Emails) so that subject and body can be customized without changing code.
 
 ### Email Templates Configuration
 
@@ -853,3 +860,10 @@ The CMS provides:
 1. **Customize Templates**: Customize email templates to match your brand
 2. **Test Emails**: Test all email templates before going live
 3. **Email Variables**: Ensure all required variables are provided when sending emails
+
+---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)
+- **Emails**: [06 – Emails](./06_emails.md)

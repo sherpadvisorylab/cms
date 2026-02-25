@@ -1,4 +1,6 @@
-# Pages Management
+# CMS – Pages
+
+This document describes page management in detail: list, creation, structure, content, SEO, hierarchy. For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
 
 ## Table of Contents
 
@@ -349,88 +351,19 @@ Pages can have three different statuses:
 
 ## Default Pages
 
-The CMS provides a set of default pages that are available as reusable components. These pages can be used within vertical projects to manage standard pages required for legal compliance and system functionality.
+The CMS provides a set of **default pages** as reusable components for standard needs (legal compliance and 404). For a **detailed list, behaviour, and utility component props**, see **[03_pages_default.md](./03_pages_default.md)**.
 
-### Default Pages as Components
+Summary:
 
-Each default page is implemented as a component that can be used within vertical projects. This means:
+- **Page Not Found (404)** — Used when a requested page doesn’t exist; component `NotFoundPage`; customizable.
+- **Privacy Policy** — Legal page; component `PrivacyPolicyPage`; content configured in Area → Legal tab (or a CMS page).
+- **Terms & Conditions** — Legal page; component `TermsConditionsPage`; same as above.
 
-- **Reusable Components**: Default pages are components that can be imported and used in vertical projects
-- **Consistent Interface**: All default pages share the same interface signature, ensuring consistency
-- **Standard Implementation**: Default pages provide standard implementations that can be customized
-
-### Available Default Pages
-
-The CMS provides the following default pages:
-
-1. **Page Not Found (404)**
-   - Standard 404 error page
-   - Used when a requested page doesn't exist
-   - Can be customized with project-specific content
-
-2. **Privacy Policy**
-   - Required for legal compliance
-   - Standard privacy policy page structure
-   - Content can be customized per project
-
-3. **Terms & Conditions**
-   - Required for legal compliance
-   - Standard terms and conditions page structure
-   - Content can be customized per project
-
-### Default Pages Storage
-
-Default pages are stored in a dedicated folder within the CMS:
-
-- **Location**: Default pages are hosted in a specific folder in the CMS structure
-- **Organization**: All default pages are organized in this dedicated folder
-- **Access**: Default pages are accessible as components that can be imported by vertical projects
-
-### Default Page Interface
-
-All default pages implement a common interface that defines their signature:
-
-```typescript
-interface DefaultPage {
-  // Common interface properties and methods
-  // All default pages share this interface
-}
-```
-
-This common interface ensures:
-- **Consistency**: All default pages have the same structure and behavior
-- **Interoperability**: Default pages can be used interchangeably
-- **Type Safety**: TypeScript/JavaScript projects can rely on consistent types
-
-### Using Default Pages in Vertical Projects
-
-Vertical projects can use default pages by:
-
-1. **Importing the Component**: Import the default page component from the CMS
-2. **Configuring Content**: Customize the page content as needed
-3. **Integrating**: Use the page component in the project's routing or page structure
+If an area has no legal data, the CMS can add default Privacy Policy and Terms & Conditions entries (see [02 – Areas](./02_areas.md) Legal tab, `addDefaultLegalPages`). Login, Signup, Forgot password, and related flows are **authentication components**, not default pages — see [07 – Authentication](./07_authentication.md).
 
 ### System Pages
 
-Some pages are marked as "System" pages. These are essential pages required for legal compliance and system functionality.
-
-### System Page Characteristics
-
-- **Cannot be Deleted**: System pages cannot be removed from the system
-- **Can be Edited**: Content, structure, and settings can be modified
-- **Badge Indicator**: Displayed with a "System" badge in the page list
-
-### Default System Pages
-
-- **Privacy Policy**: Required for legal compliance
-- **Terms & Conditions**: Required for legal compliance
-
-### System Page Management
-
-- System pages are typically managed through the Areas management interface (Legal tab)
-- They can also be edited through the Pages management interface
-- System pages are automatically created when an area is set up
-- System pages use the default page components provided by the CMS
+Privacy Policy and Terms & Conditions are often treated as **system pages**: they are required for compliance and are managed via Area → Legal tab (and optionally in the Pages list). They use the default page components; see [03_pages_default.md](./03_pages_default.md) and [02 – Areas](./02_areas.md) (Legal).
 
 ---
 
@@ -596,6 +529,13 @@ Action buttons are displayed in each page row:
 4. **Test Components**: Verify components render correctly before publishing
 
 ---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)
+- **Areas**: [02 – Areas](./02_areas.md)
+- **Components**: [04 – Components](./04_components.md)
+- **Templates**: [09 – Templates](./09_templates.md)
 
 *Last Updated: [Current Date]*
 *Version: 1.0*

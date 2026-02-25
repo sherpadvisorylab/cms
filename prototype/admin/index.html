@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html" class="active">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Manage content areas, pages, components, templates, navigation, forms, emails, users, and settings.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">Quick links</div>
+        <div class="card-body">
+          <p>Use the sidebar to open each section. Data is stored in localStorage (keys as per docs).</p>
+          <ul>
+            <li><a href="areas.html">Areas</a> – List and edit areas (Basic Data, Style, Design, Legal, Tracking, Access Policy)</li>
+            <li><a href="pages.html">Pages</a> – Create and manage pages (structure, content, SEO)</li>
+            <li><a href="navigation.html">Navigation</a> – Navigation blocks (items, display template)</li>
+            <li><a href="components.html">Components</a> – Component library (Page, UI, Navigation)</li>
+            <li><a href="templates.html">Templates</a> – Reusable page structures</li>
+            <li><a href="forms.html">Forms</a> – Form generator and embed <code>{{form:id}}</code></li>
+            <li><a href="emails.html">Emails</a> – Email templates</li>
+            <li><a href="users.html">Users</a> – User management and roles</li>
+            <li><a href="settings.html">Settings</a> – System variables, branding, SSO</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>seedIfEmpty();</script>
+</body>
+</html>

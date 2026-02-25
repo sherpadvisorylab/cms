@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMS Prototype – Site</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" id="siteLogo">CMS Site</a>
+      <nav class="site-nav" id="siteNav">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="privacy-policy.html">Privacy</a></li>
+          <li><a href="terms.html">Terms</a></li>
+          <li><a href="../admin/index.html">Admin</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-main">
+    <div class="container">
+      <section class="hero-block">
+        <h1 id="heroTitle">Welcome to the CMS Prototype</h1>
+        <p class="lead" id="heroLead">This frontend demonstrates the capabilities of the CMS: areas, pages built from components, navigation, and embedded forms.</p>
+        <a href="../admin/index.html" class="btn btn-primary">Open Admin</a>
+      </section>
+      <section class="content-block">
+        <h2>What this site shows</h2>
+        <p>Content is driven by CMS data (areas, pages, components). The admin backend lets you manage areas, pages, components, templates, navigation, forms, emails, users, and settings. This page is the default public home when no custom content is set.</p>
+      </section>
+      <section class="cta-block" id="ctaBlock">
+        <h2>Contact</h2>
+        <p>Forms can be embedded via <code>{{form:id}}</code> in components or area templates.</p>
+        <p class="text-muted">(Configure forms in Admin → Forms and embed in components.)</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>
+        <a href="privacy-policy.html">Privacy Policy</a> ·
+        <a href="terms.html">Terms &amp; Conditions</a> ·
+        <a href="login.html">Login</a> ·
+        <a href="signup.html">Sign up</a> ·
+        <a href="../admin/index.html">Admin</a>
+      </p>
+      <p class="text-muted">CMS Prototype – Documentazione in docs/</p>
+    </div>
+  </footer>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var pages = getPages();
+      var navs = getNavigations();
+      var areas = getAreas();
+      var area = areas.find(function(a) { return a.name === 'Public'; }) || areas[0];
+      var siteName = (area && area.siteName) ? area.siteName : 'CMS Site';
+      var logoEl = document.getElementById('siteLogo');
+      if (logoEl) logoEl.textContent = siteName;
+      var home = pages.find(function(p) { return p.fullPath === '/' || p.slug === ''; });
+      if (home) {
+        var c = home.content || {};
+        var firstComp = (home.structure && home.structure[0]) ? home.structure[0].componentId : null;
+        var data = firstComp ? (c[firstComp] || {}) : c;
+        if (data.headline && document.getElementById('heroTitle')) document.getElementById('heroTitle').textContent = data.headline;
+        else if (data.title && document.getElementById('heroTitle')) document.getElementById('heroTitle').textContent = data.title;
+        if (data.subheadline && document.getElementById('heroLead')) document.getElementById('heroLead').textContent = data.subheadline;
+        else if (data.description && document.getElementById('heroLead')) document.getElementById('heroLead').textContent = data.description;
+      }
+      var navBlock = navs['main-header'] || navs['footer-links'];
+      if (navBlock && navBlock.items && document.getElementById('siteNav')) {
+        var ul = document.querySelector('.site-nav ul');
+        if (ul) {
+          ul.innerHTML = navBlock.items.map(function(item) {
+            var href = item.url === '/' ? 'index.html' : item.url.replace(/^\//, '') + (item.url.indexOf('.') === -1 && item.url !== '/' ? '.html' : '');
+            return '<li><a href="' + href + '">' + (item.label || '') + '</a></li>';
+          }).join('');
+          var adminLi = document.createElement('li');
+          adminLi.innerHTML = '<a href="../admin/index.html">Admin</a>';
+          ul.appendChild(adminLi);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

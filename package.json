@@ -2,7 +2,7 @@
   "name": "@sherpadvisorylab/cms-root",
   "version": "0.1.0",
   "private": true,
-  "description": "CMS, Form Builder and Chat – Clean Architecture. Consumed by Espresso Lab.",
+  "description": "CMS, Form Builder and Chat – Clean Architecture. Consumed by vertical projects.",
   "workspaces": [
     "packages/*"
   ],

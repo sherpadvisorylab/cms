@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Navigation – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .nav-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .nav-layout { grid-template-columns: 1fr; } }
+    .nav-block-card { padding: 0.75rem 1rem; margin-bottom: 0.5rem; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
+    .nav-block-card:hover { background: #f5f6f8; }
+    .nav-block-card.selected { border-color: var(--color-primary); background: #f0f4f8; }
+    .nav-block-card .name { font-weight: 600; }
+    .nav-block-card .count { font-size: 0.85rem; color: var(--color-text-muted); }
+    .items-list { list-style: none; margin: 0; padding: 0; }
+    .items-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 520px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+    .collapsible { margin-top: 1rem; }
+    .collapsible summary { cursor: pointer; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html" class="active">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Navigation</h1>
+        <p class="subtitle">Manage navigation blocks: items (page or custom link), display template, Additional CSS/JS.</p>
+      </div>
+      <div class="nav-layout">
+        <div class="card">
+          <div class="card-header">Blocks <button type="button" class="btn btn-primary btn-sm" id="btnAddBlock">+ Add</button></div>
+          <div class="card-body" id="blockList"></div>
+        </div>
+        <div class="card" id="editorPanel" style="display:none;">
+          <div class="card-header">
+            <input type="text" class="form-control" id="blockName" placeholder="Block name" style="max-width:240px; display:inline-block;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveBlock">Save</button>
+          </div>
+          <div class="card-body">
+            <h4 class="mb-2">Items</h4>
+            <button type="button" class="btn btn-sm mb-2" id="btnAddPage">Add existing page</button>
+            <button type="button" class="btn btn-sm mb-2" id="btnAddCustom">Add custom link</button>
+            <ul class="items-list" id="itemsList"></ul>
+            <h4 class="mb-2 mt-2">Display template (HTML + Liquid)</h4>
+            <textarea class="form-control" id="blockTemplate" rows="6" placeholder="e.g. &#10;&#10;&lt;ul&gt;&#10;{% for item in items %}&#10;  &lt;li&gt;&lt;a href=&quot;{{ item.url }}&quot;&gt;{{ item.label }}&lt;/a&gt;&lt;/li&gt;&#10;{% endfor %}&#10;&lt;/ul&gt;"></textarea>
+            <details class="collapsible">
+              <summary>Additional CSS</summary>
+              <textarea class="form-control mt-1" id="blockCss" rows="3" placeholder="Optional CSS"></textarea>
+            </details>
+            <details class="collapsible">
+              <summary>Additional JS</summary>
+              <textarea class="form-control mt-1" id="blockJs" rows="3" placeholder="Optional JavaScript"></textarea>
+            </details>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalItem">
+    <div class="modal-card">
+      <div class="card-header"><span id="modalItemTitle">Add item</span><button type="button" class="btn btn-sm" id="modalItemClose">×</button></div>
+      <div class="card-body" id="modalItemForm"></div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalItemCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalItemAdd">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalLoadComponent">
+    <div class="modal-card" style="max-width:400px;">
+      <div class="card-header">Load template from component <button type="button" class="btn btn-sm" id="modalLoadClose">×</button></div>
+      <div class="card-body">
+        <p class="text-muted small">Choose a Menu-type component to copy its HTML into the Display template.</p>
+        <ul id="menuComponentsList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var KEY = 'pmp_cms_navigations';
+      var currentBlockId = null;
+      var editItemIndex = null;
+
+      function getNav() {
+        var n = getNavigations();
+        if (typeof n !== 'object' || n === null) return {};
+        return n;
+      }
+
+      function getPagesForSelect() {
+        return getPages().map(function(p) {
+          return { title: p.title, path: p.fullPath || '/' + (p.slug || '') };
+        });
+      }
+
+      function idFromName(name) {
+        return (name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'block-' + Date.now();
+      }
+
+      function loadBlockList() {
+        var nav = getNav();
+        var ids = Object.keys(nav);
+        var el = document.getElementById('blockList');
+        el.innerHTML = ids.map(function(id) {
+          var b = nav[id];
+          var count = (b.items && b.items.length) || 0;
+          return '<div class="nav-block-card' + (id === currentBlockId ? ' selected' : '') + '" data-id="' + id + '"><div class="name">' + (b.name || id) + '</div><div class="count">' + count + ' items</div></div>';
+        }).join('');
+      }
+
+      function selectBlock(id) {
+        currentBlockId = id;
+        loadBlockList();
+        var nav = getNav();
+        var b = nav[id];
+        if (!b) {
+          document.getElementById('editorPanel').style.display = 'none';
+          return;
+        }
+        document.getElementById('editorPanel').style.display = 'block';
+        document.getElementById('blockName').value = b.name || '';
+        document.getElementById('blockTemplate').value = b.template || '';
+        document.getElementById('blockCss').value = b.additionalCss || '';
+        document.getElementById('blockJs').value = b.additionalJs || '';
+        var items = b.items || [];
+        var listEl = document.getElementById('itemsList');
+        listEl.innerHTML = items.map(function(item, i) {
+          return '<li data-i="' + i + '"><span>' + (item.label || '') + '</span> <span class="text-muted">' + (item.url || '') + '</span> <span class="badge badge-secondary">' + (item.type || '') + '</span> <button type="button" class="btn btn-sm btn-edit-item" data-i="' + i + '">Edit</button> <button type="button" class="btn btn-sm btn-del-item" data-i="' + i + '">Delete</button></li>';
+        }).join('');
+      }
+
+      function saveCurrentBlock() {
+        if (!currentBlockId) return;
+        var nav = getNav();
+        var b = nav[currentBlockId] || { items: [] };
+        b.name = document.getElementById('blockName').value.trim() || currentBlockId;
+        b.template = document.getElementById('blockTemplate').value;
+        b.additionalCss = document.getElementById('blockCss').value;
+        b.additionalJs = document.getElementById('blockJs').value;
+        nav[currentBlockId] = b;
+        setJson(KEY, nav);
+        loadBlockList();
+        selectBlock(currentBlockId);
+      }
+
+      function showItemModal(isPage, index) {
+        editItemIndex = index;
+        var nav = getNav();
+        var b = nav[currentBlockId];
+        var items = (b && b.items) || [];
+        var item = (index != null && items[index]) ? items[index] : null;
+        var title = index != null ? (item && item.type === 'custom' ? 'Edit custom link' : 'Edit existing page') : (isPage ? 'Add existing page' : 'Add custom link');
+        document.getElementById('modalItemTitle').textContent = title;
+        var pages = getPagesForSelect();
+        var html = '';
+        if (isPage || (item && item.type === 'page')) {
+          html += '<div class="form-group"><label>Page</label><select class="form-control" id="itemPage">' + pages.map(function(p) { return '<option value="' + (p.path || '').replace(/"/g, '&quot;') + '">' + (p.title || '') + ' (' + (p.path || '') + ')</option>'; }).join('') + '</select></div>';
+          html += '<div class="form-group"><label>Label</label><input type="text" class="form-control" id="itemLabel" placeholder="Link text"></div>';
+          html += '<div class="form-group"><label>URL</label><input type="text" class="form-control" id="itemUrl" placeholder="/path"></div>';
+        } else {
+          html += '<div class="form-group"><label>Label *</label><input type="text" class="form-control" id="itemLabel" placeholder="Link text" required></div>';
+          html += '<div class="form-group"><label>URL *</label><input type="text" class="form-control" id="itemUrl" placeholder="/path" required></div>';
+        }
+        html += '<div class="form-group"><label>Image (optional)</label><input type="text" class="form-control" id="itemImage" placeholder="URL"></div>';
+        html += '<div class="form-group"><label>Description (optional)</label><textarea class="form-control" id="itemDesc" rows="2"></textarea></div>';
+        document.getElementById('modalItemForm').innerHTML = html;
+        if (item) {
+          document.getElementById('itemLabel').value = item.label || '';
+          document.getElementById('itemUrl').value = item.url || '';
+          document.getElementById('itemImage').value = item.image || '';
+          document.getElementById('itemDesc').value = item.description || '';
+          if (item.type === 'page' && document.getElementById('itemPage')) {
+            var opt = document.querySelector('#itemPage option[value="' + (item.url || '').replace(/"/g, '&quot;') + '"]');
+            if (opt) opt.selected = true;
+            document.getElementById('itemUrl').value = item.url || '';
+            document.getElementById('itemLabel').value = item.label || '';
+          }
+        } else if (isPage && pages.length && document.getElementById('itemPage')) {
+          document.getElementById('itemPage').selectedIndex = 0;
+          var p = pages[0];
+          document.getElementById('itemLabel').value = p.title || '';
+          document.getElementById('itemUrl').value = p.path || '';
+        }
+        document.getElementById('modalItem').classList.add('show');
+      }
+
+      function addItemFromModal() {
+        var nav = getNav();
+        var b = nav[currentBlockId];
+        if (!b) return;
+        b.items = b.items || [];
+        var type = document.getElementById('itemPage') ? 'page' : 'custom';
+        var label = (document.getElementById('itemLabel').value || '').trim();
+        var url = (document.getElementById('itemUrl').value || '').trim();
+        if (!label || !url) { alert('Label and URL are required.'); return; }
+        var item = { type: type, label: label, url: url };
+        if (document.getElementById('itemImage')) item.image = document.getElementById('itemImage').value.trim();
+        if (document.getElementById('itemDesc')) item.description = document.getElementById('itemDesc').value.trim();
+        if (editItemIndex != null) {
+          b.items[editItemIndex] = item;
+        } else {
+          b.items.push(item);
+        }
+        nav[currentBlockId] = b;
+        setJson(KEY, nav);
+        selectBlock(currentBlockId);
+        document.getElementById('modalItem').classList.remove('show');
+      }
+
+      document.getElementById('btnAddBlock').onclick = function() {
+        var name = prompt('Block name (e.g. Main Header)');
+        if (!name) return;
+        var id = idFromName(name);
+        var nav = getNav();
+        if (nav[id]) { alert('A block with this id already exists.'); return; }
+        nav[id] = { name: name, items: [], template: '', additionalCss: '', additionalJs: '' };
+        setJson(KEY, nav);
+        loadBlockList();
+        selectBlock(id);
+      };
+      document.getElementById('blockList').addEventListener('click', function(e) {
+        var id = e.target.closest('.nav-block-card') && e.target.closest('.nav-block-card').getAttribute('data-id');
+        if (id) selectBlock(id);
+      });
+      document.getElementById('btnSaveBlock').onclick = saveCurrentBlock;
+      document.getElementById('btnAddPage').onclick = function() { showItemModal(true, null); };
+      document.getElementById('btnAddCustom').onclick = function() { showItemModal(false, null); };
+      document.getElementById('itemsList').addEventListener('click', function(e) {
+        var i = e.target.getAttribute('data-i');
+        if (i == null) return;
+        i = parseInt(i, 10);
+        var nav = getNav();
+        var b = nav[currentBlockId];
+        var item = (b && b.items && b.items[i]) ? b.items[i] : null;
+        if (e.target.classList.contains('btn-edit-item')) showItemModal(item && item.type === 'page', i);
+        else if (e.target.classList.contains('btn-del-item')) {
+          b.items.splice(i, 1);
+          setJson(KEY, nav);
+          selectBlock(currentBlockId);
+        }
+      });
+      document.getElementById('modalItemClose').onclick = function() { document.getElementById('modalItem').classList.remove('show'); };
+      document.getElementById('modalItemCancel').onclick = function() { document.getElementById('modalItem').classList.remove('show'); };
+      document.getElementById('modalItemAdd').onclick = addItemFromModal;
+      document.getElementById('modalItemForm').addEventListener('change', function(e) {
+        if (e.target.id === 'itemPage') {
+          var sel = document.getElementById('itemPage');
+          if (!sel) return;
+          var opt = sel.options[sel.selectedIndex];
+          if (opt) {
+            document.getElementById('itemLabel').value = (opt.text && opt.text.split(' (')[0]) || '';
+            document.getElementById('itemUrl').value = opt.value || '';
+          }
+        }
+      });
+
+      if (Object.keys(getNav()).length === 0) {
+        setJson(KEY, {
+          'main-header': { name: 'Main Header', items: [{ type: 'page', label: 'Home', url: '/' }, { type: 'custom', label: 'Privacy', url: '/privacy-policy' }, { type: 'custom', label: 'Terms', url: '/terms' }], template: '', additionalCss: '', additionalJs: '' },
+          'footer-links': { name: 'Footer Links', items: [{ type: 'custom', label: 'Privacy', url: '/privacy-policy' }, { type: 'custom', label: 'Terms', url: '/terms' }], template: '', additionalCss: '', additionalJs: '' }
+        });
+      }
+      loadBlockList();
+      currentBlockId = Object.keys(getNav())[0];
+      if (currentBlockId) selectBlock(currentBlockId);
+    })();
+  </script>
+</body>
+</html>

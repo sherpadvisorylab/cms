@@ -1,4 +1,6 @@
-# CMS Components
+# CMS – Components
+
+This document describes the Components feature in detail: list, edit/add, Liquid templates, schema, positioning, preview, system variables. For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
 
 ## Table of Contents
 
@@ -172,7 +174,7 @@ When editing the HTML template, typing **`{`** (a single open brace) opens a **s
 
 **Behaviour**: The popup closes on item click (insertion), **Escape**, or click outside. The inserted `{` (or `{{`) is replaced by the full `{{variable}}` or `{{form:id}}` string.
 
-**How system variable values are resolved at runtime**: System variables are **populated at runtime** in one of two ways: **(1)** from **preferences defined when creating the page structure** (e.g. area, template or page-level overrides), or **(2)** from **default values defined in Admin → Settings**. Settings contain the **list of all managed system variables** that can be used inside components; there you can view and set default values. When a variable is overridden at page/area/template level, that value takes precedence; otherwise the default from Settings is used. See [Settings (Admin)](./cms_documentation.md#settings-admin) in the main CMS documentation.
+**How system variable values are resolved at runtime**: System variables are **populated at runtime** in one of two ways: **(1)** from **preferences defined when creating the page structure** (e.g. area, template or page-level overrides), or **(2)** from **default values defined in Admin → Settings**. Settings contain the **list of all managed system variables** that can be used inside components; there you can view and set default values. When a variable is overridden at page/area/template level, that value takes precedence; otherwise the default from Settings is used. See [08 – Settings](./08_settings.md).
 
 ---
 
@@ -458,6 +460,12 @@ The main documentation refers to components as “UI building blocks” and “s
 - When adding new **variable types**, extend `VARIABLE_TYPES` and the Preview/Attributes rendering so new types are editable and visible in Preview.
 
 ---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)
+- **Settings and system variables**: [08 – Settings](./08_settings.md)
+- **Data and technical**: [10 – Data and technical](./10_data_and_technical.md)
 
 *Last Updated: February 2025*  
 *Version: 1.0*

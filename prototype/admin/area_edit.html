@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit Area – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; flex-wrap: wrap; }
+    .tabs a { padding: 0.6rem 1rem; color: var(--color-text-muted); font-size: 0.9rem; }
+    .tabs a:hover { color: var(--color-primary); }
+    .tabs a.active { font-weight: 600; color: var(--color-primary); border-bottom: 2px solid var(--color-primary); margin-bottom: -1px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html" class="active">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <a href="areas.html">← Back to Areas</a>
+        <h1 id="pageTitle">Edit Area</h1>
+        <p class="subtitle">Configure area settings and preferences.</p>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <a href="#" data-tab="basic" class="active">Basic Data</a>
+        <a href="#" data-tab="style">Style</a>
+        <a href="#" data-tab="design">Design</a>
+        <a href="#" data-tab="legal">Legal</a>
+        <a href="#" data-tab="tracking">Tracking</a>
+        <a href="#" data-tab="access">Access Policy</a>
+      </div>
+
+      <form id="areaForm">
+        <div id="pane-basic" class="tab-pane active">
+          <div class="card mb-2">
+            <div class="card-body">
+              <div class="form-group">
+                <label>Area Name (Internal ID)</label>
+                <input type="text" class="form-control" id="areaName" readonly>
+              </div>
+              <div class="form-group">
+                <label>Icon</label>
+                <input type="text" class="form-control" id="areaIcon" placeholder="fa-solid fa-globe">
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" id="areaDescription" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Site Name *</label>
+                <input type="text" class="form-control" id="siteName" required placeholder="Name shown in UI">
+              </div>
+              <div class="form-group">
+                <label>Root Path</label>
+                <input type="text" class="form-control" id="rootPath" placeholder="/ or /startup" value="/">
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select class="form-control" id="status">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pane-style" class="tab-pane">
+          <div class="card mb-2">
+            <div class="card-header">Logos</div>
+            <div class="card-body form-row">
+              <div class="form-group"><label>Light Logo (URL)</label><input type="text" class="form-control" id="logoLight" placeholder="URL or data URL"></div>
+              <div class="form-group"><label>Dark Logo (URL)</label><input type="text" class="form-control" id="logoDark" placeholder="URL or data URL"></div>
+            </div>
+            <div class="card-body"><div class="form-group"><label>Favicon (URL)</label><input type="text" class="form-control" id="favicon" placeholder="URL"></div></div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Color schema (default)</div>
+            <div class="card-body">
+              <div class="form-group"><label>Schema Name</label><input type="text" class="form-control" id="schemaName" value="Default"></div>
+              <div class="form-row">
+                <div class="form-group"><label>Primary</label><input type="text" class="form-control" id="colorPrimary" value="#2c5282"></div>
+                <div class="form-group"><label>Secondary</label><input type="text" class="form-control" id="colorSecondary" value="#4a5568"></div>
+                <div class="form-group"><label>Background</label><input type="text" class="form-control" id="colorBackground" value="#f8f9fa"></div>
+                <div class="form-group"><label>Text</label><input type="text" class="form-control" id="colorText" value="#1a1d21"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pane-design" class="tab-pane">
+          <div class="card mb-2">
+            <div class="card-header">Head Template</div>
+            <div class="card-body">
+              <textarea class="form-control" id="headTemplate" rows="6" placeholder="<head>... {{pageTitle}} {{siteName}} {{styles}} {{scripts}} {{metaTags}}</head>"></textarea>
+            </div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Body Template</div>
+            <div class="card-body">
+              <textarea class="form-control" id="bodyTemplate" rows="6" placeholder="<body>... {{header}} {{content}} {{footer}} {{trackingScripts}}</body>"></textarea>
+            </div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Area CSS</div>
+            <div class="card-body"><textarea class="form-control" id="areaCss" rows="4" placeholder="CSS for all pages in this area"></textarea></div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Area JS</div>
+            <div class="card-body"><textarea class="form-control" id="areaJs" rows="4" placeholder="JavaScript for all pages in this area"></textarea></div>
+          </div>
+        </div>
+
+        <div id="pane-legal" class="tab-pane">
+          <div class="card mb-2">
+            <div class="card-header">Legal Pages</div>
+            <div class="card-body" id="legalPagesList"></div>
+            <div class="card-body"><button type="button" class="btn btn-sm" id="btnAddLegalPage">Add Legal Page</button></div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Cookie Consent Bar</div>
+            <div class="card-body">
+              <div class="form-group">
+                <label><input type="checkbox" id="cookieBarEnabled" checked> Enable Cookie Consent Banner</label>
+              </div>
+              <div id="cookieBarFields">
+                <div class="form-group"><label>Label</label><input type="text" class="form-control" id="cookieBarLabel" value="Cookie Preferences"></div>
+                <div class="form-group"><label>Description</label><textarea class="form-control" id="cookieBarDescription" rows="2"></textarea></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pane-tracking" class="tab-pane">
+          <div class="card mb-2">
+            <div class="card-header">Google Analytics</div>
+            <div class="card-body form-row">
+              <div class="form-group"><label>GA ID</label><input type="text" class="form-control" id="gaId" placeholder="G-XXXXXXXXXX"></div>
+              <div class="form-group"><label>Position</label><select class="form-control" id="gaPosition"><option value="head">Head</option><option value="body-top">Body Top</option><option value="body-bottom">Body Bottom</option></select></div>
+            </div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Google Tag Manager</div>
+            <div class="card-body form-row">
+              <div class="form-group"><label>GTM ID</label><input type="text" class="form-control" id="gtmId" placeholder="GTM-XXXXXXX"></div>
+              <div class="form-group"><label>Position</label><select class="form-control" id="gtmPosition"><option value="head">Head</option><option value="body-top">Body Top</option><option value="body-bottom">Body Bottom</option></select></div>
+            </div>
+          </div>
+          <div class="card mb-2">
+            <div class="card-header">Custom Tracking Scripts</div>
+            <div class="card-body" id="customScriptsList"></div>
+            <div class="card-body"><button type="button" class="btn btn-sm" id="btnAddScript">Add Tracking Script</button></div>
+          </div>
+        </div>
+
+        <div id="pane-access" class="tab-pane">
+          <div class="card mb-2">
+            <div class="card-body">
+              <div class="form-group">
+                <label><input type="checkbox" id="isRestricted"> This is a restricted area (requires authentication)</label>
+              </div>
+              <div id="accessFields" style="display:none;">
+                <div class="form-group"><label>Redirect URL (if unauthorized)</label><input type="text" class="form-control" id="redirectUrl" placeholder="/login"></div>
+                <div class="form-group"><label><input type="checkbox" id="registrationEnabled"> Registration Page</label><input type="text" class="form-control" id="registrationPage" placeholder="/register"></div>
+                <div class="form-group"><label><input type="checkbox" id="recoverPasswordEnabled"> Recover Password Page</label><input type="text" class="form-control" id="recoverPasswordPage" placeholder="/recover-password"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <a href="areas.html" class="btn">Cancel</a>
+          <button type="submit" class="btn btn-primary">Save Area Settings</button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      var KEY = 'pmp_cms_areas';
+      var params = new URLSearchParams(location.search);
+      var areaName = params.get('area');
+      if (!areaName) { location.href = 'areas.html'; return; }
+      var areas = getAreas();
+      var area = areas.find(function(a) { return a.name === areaName; });
+      if (!area) { location.href = 'areas.html'; return; }
+
+      document.getElementById('pageTitle').textContent = 'Edit Area: ' + (area.displayName || area.name);
+
+      function showTab(name) {
+        document.querySelectorAll('.tabs a').forEach(function(a) { a.classList.remove('active'); });
+        document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+        var t = document.querySelector('.tabs a[data-tab="' + name + '"]');
+        var p = document.getElementById('pane-' + name);
+        if (t) t.classList.add('active');
+        if (p) p.classList.add('active');
+      }
+      document.getElementById('tabs').addEventListener('click', function(e) {
+        var t = e.target.closest('a[data-tab]');
+        if (t) { e.preventDefault(); showTab(t.getAttribute('data-tab')); }
+      });
+
+      function loadArea() {
+        document.getElementById('areaName').value = area.name || '';
+        document.getElementById('areaIcon').value = area.icon || '';
+        document.getElementById('areaDescription').value = area.description || '';
+        document.getElementById('siteName').value = area.siteName || area.displayName || '';
+        document.getElementById('rootPath').value = area.rootPath || '/';
+        document.getElementById('status').value = area.status || 'active';
+        var style = area.style || {};
+        document.getElementById('logoLight').value = style.logoLight || '';
+        document.getElementById('logoDark').value = style.logoDark || '';
+        document.getElementById('favicon').value = style.favicon || '';
+        var schema = (style.colorSchemas && style.colorSchemas[0]) || {};
+        document.getElementById('schemaName').value = schema.name || 'Default';
+        var c = schema.colors || {};
+        document.getElementById('colorPrimary').value = c.primary || '#2c5282';
+        document.getElementById('colorSecondary').value = c.secondary || '#4a5568';
+        document.getElementById('colorBackground').value = c.background || '#f8f9fa';
+        document.getElementById('colorText').value = c.text || '#1a1d21';
+        var design = area.design || {};
+        document.getElementById('headTemplate').value = design.headTemplate || '';
+        document.getElementById('bodyTemplate').value = design.bodyTemplate || '';
+        document.getElementById('areaCss').value = design.areaCss || '';
+        document.getElementById('areaJs').value = design.areaJs || '';
+        var legal = area.legal || {};
+        document.getElementById('cookieBarEnabled').checked = (legal.cookieBar && legal.cookieBar.enabled !== false);
+        document.getElementById('cookieBarLabel').value = (legal.cookieBar && legal.cookieBar.label) || 'Cookie Preferences';
+        document.getElementById('cookieBarDescription').value = (legal.cookieBar && legal.cookieBar.description) || '';
+        var tracking = area.tracking || {};
+        document.getElementById('gaId').value = tracking.gaId || '';
+        document.getElementById('gaPosition').value = tracking.gaPosition || 'body-bottom';
+        document.getElementById('gtmId').value = tracking.gtmId || '';
+        document.getElementById('gtmPosition').value = tracking.gtmPosition || 'body-top';
+        var ap = area.accessPolicy || {};
+        document.getElementById('isRestricted').checked = !!ap.isRestricted;
+        document.getElementById('redirectUrl').value = ap.redirectUrl || ap.loginPage || '/login';
+        document.getElementById('registrationEnabled').checked = !!ap.registrationEnabled;
+        document.getElementById('registrationPage').value = ap.registrationPage || '/register';
+        document.getElementById('recoverPasswordEnabled').checked = !!ap.recoverPasswordEnabled;
+        document.getElementById('recoverPasswordPage').value = ap.recoverPasswordPage || '/recover-password';
+        document.getElementById('accessFields').style.display = ap.isRestricted ? 'block' : 'none';
+        renderLegalPages(legal.pages || []);
+        renderCustomScripts(tracking.customScripts || []);
+      }
+
+      function escapeHtml(s) {
+        if (s == null) return '';
+        s = String(s);
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function renderLegalPages(pages) {
+        var el = document.getElementById('legalPagesList');
+        el.innerHTML = pages.map(function(p, i) {
+          return '<div class="card mb-2" data-index="' + i + '"><div class="card-body"><div class="form-group"><label>Title</label><input type="text" class="form-control legal-title" value="' + escapeHtml(p.title || '') + '"></div><div class="form-group"><label>Path</label><input type="text" class="form-control legal-path" value="' + escapeHtml(p.path || '') + '"></div><div class="form-group"><label>Content</label><textarea class="form-control legal-content" rows="3">' + escapeHtml(p.content || '') + '</textarea></div><button type="button" class="btn btn-sm btn-remove-legal">Remove</button></div></div>';
+        }).join('');
+      }
+
+      function renderCustomScripts(scripts) {
+        var el = document.getElementById('customScriptsList');
+        el.innerHTML = scripts.map(function(s, i) {
+          return '<div class="card mb-2" data-index="' + i + '"><div class="card-body"><div class="form-group"><label>Name</label><input type="text" class="form-control script-name" value="' + escapeHtml(s.name || '') + '"></div><div class="form-group"><label>Code</label><textarea class="form-control script-code" rows="2">' + escapeHtml(s.code || '') + '</textarea></div><div class="form-group"><label>Position</label><select class="form-control script-position"><option value="head"' + (s.position === 'head' ? ' selected' : '') + '>Head</option><option value="body-top"' + (s.position === 'body-top' ? ' selected' : '') + '>Body Top</option><option value="body-bottom"' + (s.position === 'body-bottom' ? ' selected' : '') + '>Body Bottom</option></select></div><button type="button" class="btn btn-sm btn-remove-script">Remove</button></div></div>';
+        }).join('');
+      }
+
+      document.getElementById('btnAddLegalPage').addEventListener('click', function() {
+        var legal = area.legal || {};
+        var pages = legal.pages || [];
+        pages.push({ title: 'New Legal Page', path: '/legal', content: '' });
+        area.legal = area.legal || {};
+        area.legal.pages = pages;
+        renderLegalPages(pages);
+      });
+      document.getElementById('legalPagesList').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-remove-legal')) {
+          var div = e.target.closest('[data-index]');
+          var i = parseInt(div.getAttribute('data-index'), 10);
+          area.legal = area.legal || {};
+          area.legal.pages = (area.legal.pages || []).filter(function(_, j) { return j !== i; });
+          renderLegalPages(area.legal.pages);
+        }
+      });
+
+      document.getElementById('btnAddScript').addEventListener('click', function() {
+        area.tracking = area.tracking || {};
+        area.tracking.customScripts = area.tracking.customScripts || [];
+        area.tracking.customScripts.push({ name: '', code: '', position: 'body-bottom' });
+        renderCustomScripts(area.tracking.customScripts);
+      });
+      document.getElementById('customScriptsList').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-remove-script')) {
+          var div = e.target.closest('[data-index]');
+          var i = parseInt(div.getAttribute('data-index'), 10);
+          area.tracking.customScripts = (area.tracking.customScripts || []).filter(function(_, j) { return j !== i; });
+          renderCustomScripts(area.tracking.customScripts || []);
+        }
+      });
+
+      document.getElementById('cookieBarEnabled').addEventListener('change', function() {
+        document.getElementById('cookieBarFields').style.display = this.checked ? 'block' : 'none';
+      });
+      document.getElementById('isRestricted').addEventListener('change', function() {
+        document.getElementById('accessFields').style.display = this.checked ? 'block' : 'none';
+      });
+
+      document.getElementById('areaForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        area.displayName = area.displayName || area.name;
+        area.description = document.getElementById('areaDescription').value;
+        area.siteName = document.getElementById('siteName').value || area.name;
+        area.rootPath = document.getElementById('rootPath').value || '/';
+        area.status = document.getElementById('status').value;
+        area.icon = document.getElementById('areaIcon').value;
+        area.style = area.style || {};
+        area.style.logoLight = document.getElementById('logoLight').value;
+        area.style.logoDark = document.getElementById('logoDark').value;
+        area.style.favicon = document.getElementById('favicon').value;
+        area.style.colorSchemas = [{ id: 1, name: document.getElementById('schemaName').value, isDefault: true, colors: { primary: document.getElementById('colorPrimary').value, secondary: document.getElementById('colorSecondary').value, background: document.getElementById('colorBackground').value, text: document.getElementById('colorText').value } }];
+        area.design = area.design || {};
+        area.design.headTemplate = document.getElementById('headTemplate').value;
+        area.design.bodyTemplate = document.getElementById('bodyTemplate').value;
+        area.design.areaCss = document.getElementById('areaCss').value;
+        area.design.areaJs = document.getElementById('areaJs').value;
+        area.legal = area.legal || {};
+        area.legal.cookieBar = { enabled: document.getElementById('cookieBarEnabled').checked, label: document.getElementById('cookieBarLabel').value, description: document.getElementById('cookieBarDescription').value };
+        var legalDivs = document.querySelectorAll('#legalPagesList [data-index]');
+        area.legal.pages = [].map.call(legalDivs, function(d) {
+          return { title: d.querySelector('.legal-title').value, path: d.querySelector('.legal-path').value, content: d.querySelector('.legal-content').value };
+        });
+        area.tracking = area.tracking || {};
+        area.tracking.gaId = document.getElementById('gaId').value;
+        area.tracking.gaPosition = document.getElementById('gaPosition').value;
+        area.tracking.gtmId = document.getElementById('gtmId').value;
+        area.tracking.gtmPosition = document.getElementById('gtmPosition').value;
+        var scriptDivs = document.querySelectorAll('#customScriptsList [data-index]');
+        area.tracking.customScripts = [].map.call(scriptDivs, function(d) {
+          return { name: d.querySelector('.script-name').value, code: d.querySelector('.script-code').value, position: d.querySelector('.script-position').value };
+        });
+        area.accessPolicy = {
+          isRestricted: document.getElementById('isRestricted').checked,
+          redirectUrl: document.getElementById('redirectUrl').value,
+          registrationEnabled: document.getElementById('registrationEnabled').checked,
+          registrationPage: document.getElementById('registrationPage').value,
+          recoverPasswordEnabled: document.getElementById('recoverPasswordEnabled').checked,
+          recoverPasswordPage: document.getElementById('recoverPasswordPage').value
+        };
+        var idx = areas.findIndex(function(a) { return a.name === area.name; });
+        if (idx >= 0) areas[idx] = area;
+        setJson(KEY, areas);
+        location.href = 'areas.html';
+      });
+
+      loadArea();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forms – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 440px; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html" class="active">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Forms</h1>
+        <p class="subtitle">Form definitions for embedding as <code>{{form:id}}</code> in components and area templates.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          Form list
+          <button type="button" class="btn btn-primary btn-sm" id="btnAdd">Add Form</button>
+        </div>
+        <div class="card-body table-wrap">
+          <table class="data-table" id="formsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="text-muted small">Use these form IDs in component/area templates as <code>{{form:id}}</code>. Form builder (groups, fields, types) can be extended per docs/05_forms.md.</p>
+    </main>
+  </div>
+  <div class="modal-overlay" id="modalForm">
+    <div class="modal-card">
+      <div class="card-header"><span id="modalFormTitle">Add Form</span><button type="button" class="btn btn-sm" id="modalFormClose">×</button></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Form ID *</label>
+          <input type="text" class="form-control" id="formId" placeholder="e.g. contact" pattern="[A-Za-z0-9_-]+">
+          <small class="text-muted">Used as {{form:id}} in templates.</small>
+        </div>
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" class="form-control" id="formName" placeholder="e.g. Contact" required>
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalFormCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalFormSave">Save</button>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      var KEY = 'pmp_cms_forms';
+      var editId = null;
+      function getFormsList() {
+        var v = getJson(KEY, []);
+        return Array.isArray(v) ? v : Object.entries(v).map(function(e) { return { id: e[0], name: (e[1] && e[1].name) || e[0] }; });
+      }
+      function loadTable() {
+        var forms = getFormsList();
+        document.querySelector('#formsTable tbody').innerHTML = forms.map(function(f) {
+          return '<tr><td><code>' + (f.id || '') + '</code></td><td>' + (f.name || '') + '</td><td><button type="button" class="btn btn-sm btn-edit" data-id="' + (f.id || '').replace(/"/g, '&quot;') + '">Edit</button> <button type="button" class="btn btn-sm btn-del" data-id="' + (f.id || '').replace(/"/g, '&quot;') + '">Delete</button></td></tr>';
+        }).join('');
+      }
+      function openModal(id) {
+        editId = id;
+        var forms = getFormsList();
+        var f = id ? forms.find(function(x) { return x.id === id; }) : null;
+        document.getElementById('modalFormTitle').textContent = f ? 'Edit Form' : 'Add Form';
+        document.getElementById('formId').value = f ? f.id : '';
+        document.getElementById('formId').readOnly = !!f;
+        document.getElementById('formName').value = f ? f.name : '';
+        document.getElementById('modalForm').classList.add('show');
+      }
+      function saveForm() {
+        var fid = (document.getElementById('formId').value || '').trim().replace(/\s/g, '_');
+        var name = (document.getElementById('formName').value || '').trim();
+        if (!fid || !name) { alert('ID and Name required.'); return; }
+        if (!/^[A-Za-z0-9_-]+$/.test(fid)) { alert('ID: letters, numbers, underscore, hyphen only.'); return; }
+        var forms = getFormsList();
+        if (!editId && forms.some(function(x) { return x.id === fid; })) { alert('Form with this ID exists.'); return; }
+        if (editId) {
+          var idx = forms.findIndex(function(x) { return x.id === editId; });
+          if (idx >= 0) { forms[idx] = { id: fid, name: name }; setJson(KEY, forms); loadTable(); document.getElementById('modalForm').classList.remove('show'); return; }
+        }
+        forms.push({ id: fid, name: name });
+        setJson(KEY, forms);
+        loadTable();
+        document.getElementById('modalForm').classList.remove('show');
+      }
+      document.getElementById('btnAdd').onclick = function() { openModal(null); };
+      document.getElementById('modalFormClose').onclick = function() { document.getElementById('modalForm').classList.remove('show'); };
+      document.getElementById('modalFormCancel').onclick = function() { document.getElementById('modalForm').classList.remove('show'); };
+      document.getElementById('modalFormSave').onclick = saveForm;
+      document.querySelector('#formsTable tbody').addEventListener('click', function(e) {
+        var id = e.target.getAttribute('data-id');
+        if (!id) return;
+        if (e.target.classList.contains('btn-edit')) openModal(id);
+        else if (e.target.classList.contains('btn-del')) {
+          if (!confirm('Delete this form?')) return;
+          var forms = getFormsList().filter(function(x) { return x.id !== id; });
+          setJson(KEY, forms);
+          loadTable();
+        }
+      });
+      loadTable();
+    })();
+  </script>
+</body>
+</html>

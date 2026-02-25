@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pages – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .filter-bar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-bar select { max-width: 200px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 900px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+    .modal-card .card-body { overflow-y: auto; flex: 1; }
+    .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .two-cols { grid-template-columns: 1fr; } }
+    .structure-list { list-style: none; margin: 0; padding: 0; }
+    .structure-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); }
+    .structure-list li .ord { width: 2rem; color: var(--color-text-muted); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html" class="active">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Pages</h1>
+        <p class="subtitle">Create and manage pages: structure, content, SEO. Filter by area.</p>
+      </div>
+      <div class="filter-bar">
+        <label>Area:</label>
+        <select class="form-control" id="filterArea" style="width:auto;">
+          <option value="">All Pages</option>
+          <option value="Public">Public Area</option>
+          <option value="Startup">Startup Area</option>
+        </select>
+        <button type="button" class="btn btn-primary btn-sm" id="btnNewPage">New Page</button>
+        <label class="ml-2">From template:</label>
+        <select class="form-control" id="templateSelect" style="width:auto; max-width:200px;">
+          <option value="">None</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-header">Page list</div>
+        <div class="card-body table-wrap">
+          <table class="data-table" id="pagesTable">
+            <thead>
+              <tr>
+                <th>Page Title</th>
+                <th>URL Slug</th>
+                <th>Target Area</th>
+                <th>Status</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create / Edit Page modal -->
+  <div class="modal-overlay" id="modalPage">
+    <div class="modal-card">
+      <div class="card-header">
+        <span id="modalPageTitle">Create New Page</span>
+        <button type="button" class="btn btn-sm" id="modalPageClose">×</button>
+      </div>
+      <div class="card-body two-cols">
+        <div>
+          <h3 class="mb-2">Basic information</h3>
+          <div class="form-group">
+            <label>Page Title *</label>
+            <input type="text" class="form-control" id="pageTitle" placeholder="Page title" required>
+          </div>
+          <div class="form-group">
+            <label>Parent Page</label>
+            <select class="form-control" id="pageParent">
+              <option value="">None (Root)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>URL Slug</label>
+            <input type="text" class="form-control" id="pageSlug" placeholder="url-slug">
+            <small class="text-muted">Full path: <span id="fullPathPreview">/</span></small>
+          </div>
+          <div class="form-group">
+            <label>Target Area</label>
+            <select class="form-control" id="pageArea"></select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" id="pageStatus">
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <h3 class="mb-2">Page structure (components)</h3>
+          <ul class="structure-list" id="pageStructureList"></ul>
+          <button type="button" class="btn btn-sm mt-2" id="btnAddComponent">Add component</button>
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalPageCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalPageSave">Create Page</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Structure-only modal -->
+  <div class="modal-overlay" id="modalStructure">
+    <div class="modal-card" style="max-width:500px;">
+      <div class="card-header">Manage structure</div>
+      <div class="card-body">
+        <ul class="structure-list" id="structureList"></ul>
+        <button type="button" class="btn btn-sm mt-2" id="btnAddComponentStructure">Add component</button>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalStructureCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalStructureSave">Save structure</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content & SEO modal -->
+  <div class="modal-overlay" id="modalContent">
+    <div class="modal-card" style="max-width:700px;">
+      <div class="card-header">
+        Content & SEO
+        <button type="button" class="btn btn-sm" id="modalContentClose">×</button>
+      </div>
+      <div class="card-body">
+        <div class="tabs" style="border-bottom:1px solid var(--color-border); margin-bottom:1rem;">
+          <a href="#" data-tab="content" class="active">Content Data</a>
+          <a href="#" data-tab="style">Style & Theme</a>
+          <a href="#" data-tab="seo">SEO Settings</a>
+        </div>
+        <div id="pane-content" class="tab-pane active">
+          <div id="contentDataFields"></div>
+        </div>
+        <div id="pane-style" class="tab-pane">
+          <div class="form-group">
+            <label>Color palette</label>
+            <select class="form-control" id="contentColorPalette">
+              <option value="Default">Default</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Layout mode</label>
+            <select class="form-control" id="contentLayoutMode">
+              <option value="Full Width">Full Width</option>
+              <option value="Boxed">Boxed</option>
+            </select>
+          </div>
+        </div>
+        <div id="pane-seo" class="tab-pane">
+          <div class="form-group">
+            <label>Meta title</label>
+            <input type="text" class="form-control" id="seoMetaTitle" placeholder="Page title for search results">
+          </div>
+          <div class="form-group">
+            <label>Meta description</label>
+            <textarea class="form-control" id="seoMetaDescription" rows="2" placeholder="Brief summary for search engines"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Keywords</label>
+            <input type="text" class="form-control" id="seoKeywords" placeholder="keyword1, keyword2">
+          </div>
+        </div>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalContentCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalContentSave">Save Content & Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add component dropdown (simple) -->
+  <div class="modal-overlay" id="modalAddComponent">
+    <div class="modal-card" style="max-width:400px;">
+      <div class="card-header">Add component</div>
+      <div class="card-body">
+        <select class="form-control" id="componentSelect"></select>
+        <p class="text-muted mt-2" style="font-size:0.85rem;">Configured components appear in Components. Seed: Hero, Content block, CTA.</p>
+      </div>
+      <div class="card-body" style="border-top:1px solid var(--color-border);">
+        <button type="button" class="btn" id="modalAddComponentCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalAddComponentAdd">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var KEY = 'pmp_cms_pages';
+      var currentPageId = null;
+      var currentStructure = [];
+
+      function getAvailableComponents() {
+        var ids = getAllComponentIds();
+        if (ids.length) {
+          return ids.map(function(id) {
+            var c = getComponent(id);
+            return { id: id, name: (c && c.name) ? c.name : id };
+          });
+        }
+        return [{ id: 'hero-1', name: 'Hero' }, { id: 'content-1', name: 'Content block' }, { id: 'cta-1', name: 'CTA Banner' }];
+      }
+
+      function slugify(t) {
+        return (t || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
+
+      function updatePathPreview() {
+        var parentVal = document.getElementById('pageParent').value;
+        var slug = (document.getElementById('pageSlug').value || '').trim() || slugify(document.getElementById('pageTitle').value);
+        var parentPath = '';
+        if (parentVal) {
+          var pages = getPages();
+          var parent = pages.find(function(p) { return p.id === parentVal; });
+          if (parent) parentPath = (parent.fullPath || '/' + parent.slug).replace(/\/$/, '');
+        }
+        var full = parentPath ? parentPath + '/' + slug : '/' + (slug || '');
+        document.getElementById('fullPathPreview').textContent = full || '/';
+      }
+
+      function loadPagesTable() {
+        var areaFilter = document.getElementById('filterArea').value;
+        var pages = getPages();
+        if (areaFilter) pages = pages.filter(function(p) { return p.area === areaFilter; });
+        var tbody = document.querySelector('#pagesTable tbody');
+        tbody.innerHTML = pages.map(function(p) {
+          var statusClass = p.status === 'Published' ? 'success' : p.status === 'Archived' ? 'secondary' : 'warning';
+          var lastUpdated = p.updated || p.lastUpdated || '—';
+          return '<tr data-id="' + (p.id || '') + '">' +
+            '<td>' + (p.title || '') + '</td>' +
+            '<td>' + (p.slug || p.fullPath || '') + '</td>' +
+            '<td><span class="badge badge-info">' + (p.area || '') + '</span></td>' +
+            '<td><span class="badge badge-' + statusClass + '">' + (p.status || 'Draft') + '</span></td>' +
+            '<td>' + lastUpdated + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-structure" data-id="' + (p.id || '') + '">Structure</button> <button type="button" class="btn btn-sm btn-edit-content" data-id="' + (p.id || '') + '">Content & SEO</button> <button type="button" class="btn btn-sm btn-delete-page" data-id="' + (p.id || '') + '">Delete</button></td>' +
+            '</tr>';
+        }).join('');
+      }
+      refreshTemplateSelect();
+      }
+
+      function fillParentSelect(excludeId) {
+        var pages = getPages();
+        var sel = document.getElementById('pageParent');
+        var parentOptions = '<option value="">None (Root)</option>' + pages.filter(function(p) { return p.id !== excludeId; }).map(function(p) {
+          return '<option value="' + p.id + '">' + (p.title || '') + ' (' + (p.fullPath || p.slug) + ')</option>';
+        }).join('');
+        sel.innerHTML = parentOptions;
+      }
+
+      function fillAreaSelect() {
+        var areas = getAreas();
+        var sel = document.getElementById('pageArea');
+        sel.innerHTML = areas.filter(function(a) { return a.status === 'active'; }).map(function(a) {
+          return '<option value="' + (a.name || '') + '">' + (a.displayName || a.name) + '</option>';
+        }).join('');
+      }
+
+      function openPageModal(editId) {
+        fillAreaSelect();
+        fillParentSelect(editId);
+        var pages = getPages();
+        var page = editId ? pages.find(function(p) { return p.id === editId; }) : null;
+        if (page) {
+          document.getElementById('modalPageTitle').textContent = 'Edit Page';
+          document.getElementById('pageTitle').value = page.title || '';
+          document.getElementById('pageSlug').value = page.slug || '';
+          document.getElementById('pageParent').value = page.parentId || '';
+          document.getElementById('pageArea').value = page.area || 'Public';
+          document.getElementById('pageStatus').value = page.status || 'Draft';
+          document.getElementById('modalPageSave').textContent = 'Save Page';
+          currentPageId = page.id;
+          currentStructure = (page.structure || []).slice().sort(function(a,b) { return (a.order || 0) - (b.order || 0); });
+        } else {
+          document.getElementById('modalPageTitle').textContent = 'Create New Page';
+          document.getElementById('pageTitle').value = '';
+          document.getElementById('pageSlug').value = '';
+          document.getElementById('pageParent').value = '';
+          document.getElementById('pageArea').value = 'Public';
+          document.getElementById('pageStatus').value = 'Draft';
+          document.getElementById('modalPageSave').textContent = 'Create Page';
+          currentPageId = null;
+          currentStructure = [];
+        }
+        renderStructureList('pageStructureList', currentStructure);
+        updatePathPreview();
+        document.getElementById('modalPage').classList.add('show');
+      }
+
+      function renderStructureList(containerId, structure) {
+        var comps = getAvailableComponents();
+        var map = {};
+        comps.forEach(function(c) { map[c.id] = c.name; });
+        var list = structure.slice().sort(function(a,b) { return (a.order || 0) - (b.order || 0); });
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = list.map(function(s, i) {
+          var name = map[s.componentId] || s.componentId;
+          return '<li data-index="' + i + '"><span class="ord">' + (i + 1) + '</span><span>' + name + '</span><button type="button" class="btn btn-sm btn-up" data-index="' + i + '">↑</button><button type="button" class="btn btn-sm btn-down" data-index="' + i + '">↓</button><button type="button" class="btn btn-sm btn-rem" data-index="' + i + '">Remove</button></li>';
+        }).join('');
+      }
+
+      function openStructureModal(pageId) {
+        var pages = getPages();
+        var page = pages.find(function(p) { return p.id === pageId; });
+        if (!page) return;
+        currentPageId = pageId;
+        currentStructure = (page.structure || []).slice().sort(function(a,b) { return (a.order || 0) - (b.order || 0); });
+        renderStructureList('structureList', currentStructure);
+        document.getElementById('modalStructure').classList.add('show');
+      }
+
+      function openContentModal(pageId) {
+        var pages = getPages();
+        var page = pages.find(function(p) { return p.id === pageId; });
+        if (!page) return;
+        currentPageId = pageId;
+        document.getElementById('seoMetaTitle').value = (page.seo && page.seo.metaTitle) || page.title || '';
+        document.getElementById('seoMetaDescription').value = (page.seo && page.seo.metaDescription) || '';
+        document.getElementById('seoKeywords').value = (page.seo && page.seo.keywords) || '';
+        document.getElementById('contentColorPalette').value = (page.style && page.style.colorPalette) || 'Default';
+        document.getElementById('contentLayoutMode').value = (page.style && page.style.layoutMode) || 'Full Width';
+        var structure = (page.structure || []).sort(function(a,b) { return (a.order || 0) - (b.order || 0); });
+        var comps = getAvailableComponents();
+        var map = {};
+        comps.forEach(function(c) { map[c.id] = c.name; });
+        var html = '';
+        structure.forEach(function(s, i) {
+          var name = map[s.componentId] || s.componentId;
+          var content = (page.content && page.content[s.componentId]) || {};
+          function esc(v) { v = (v == null ? '' : String(v)); return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+          html += '<div class="card mb-2"><div class="card-header">Component ' + (i + 1) + ': ' + name + '</div><div class="card-body">';
+          html += '<div class="form-group"><label>Headline / Title</label><input type="text" class="form-control content-field" data-cid="' + s.componentId + '" data-key="headline" value="' + esc(content.headline || content.title) + '"></div>';
+          html += '<div class="form-group"><label>Subheadline / Description</label><textarea class="form-control content-field" data-cid="' + s.componentId + '" data-key="subheadline" rows="2">' + esc(content.subheadline || content.description) + '</textarea></div>';
+          html += '</div></div>';
+        });
+        document.getElementById('contentDataFields').innerHTML = html || '<p class="text-muted">Add components in structure first.</p>';
+        document.getElementById('modalContent').classList.add('show');
+      }
+
+      function savePage() {
+        var title = (document.getElementById('pageTitle').value || '').trim();
+        if (!title) { alert('Page title is required.'); return; }
+        var slug = (document.getElementById('pageSlug').value || '').trim() || slugify(title);
+        var parentId = document.getElementById('pageParent').value || null;
+        var area = document.getElementById('pageArea').value || 'Public';
+        var status = document.getElementById('pageStatus').value || 'Draft';
+        var pages = getPages();
+        var parent = parentId ? pages.find(function(p) { return p.id === parentId; }) : null;
+        var parentPath = parent ? (parent.fullPath || '/' + (parent.slug || '')).replace(/\/$/, '') : '';
+        var fullPath = parentPath ? parentPath + '/' + slug : (slug ? '/' + slug : '/');
+
+        var structure = currentStructure.map(function(s, i) { return { componentId: s.componentId, order: i + 1 }; });
+
+        if (currentPageId) {
+          var idx = pages.findIndex(function(p) { return p.id === currentPageId; });
+          if (idx >= 0) {
+            pages[idx].title = title;
+            pages[idx].slug = slug;
+            pages[idx].parentId = parentId;
+            pages[idx].area = area;
+            pages[idx].status = status;
+            pages[idx].fullPath = fullPath;
+            pages[idx].structure = structure;
+            pages[idx].updated = new Date().toLocaleDateString();
+            setJson(KEY, pages);
+            loadPagesTable();
+            closeModal('modalPage');
+            return;
+          }
+        }
+        var newId = String(Date.now());
+        pages.push({
+          id: newId,
+          title: title,
+          slug: slug,
+          fullPath: fullPath,
+          area: area,
+          status: status,
+          parentId: parentId,
+          structure: structure,
+          content: {},
+          seo: { metaTitle: title, metaDescription: '', keywords: '' },
+          style: { colorPalette: 'Default', layoutMode: 'Full Width' },
+          updated: new Date().toLocaleDateString()
+        });
+        setJson(KEY, pages);
+        loadPagesTable();
+        closeModal('modalPage');
+      }
+
+      function saveStructure() {
+        if (!currentPageId) return;
+        var structure = currentStructure.map(function(s, i) { return { componentId: s.componentId, order: i + 1 }; });
+        var pages = getPages();
+        var idx = pages.findIndex(function(p) { return p.id === currentPageId; });
+        if (idx >= 0) {
+          pages[idx].structure = structure;
+          pages[idx].updated = new Date().toLocaleDateString();
+          setJson(KEY, pages);
+        }
+        loadPagesTable();
+        closeModal('modalStructure');
+      }
+
+      function saveContent() {
+        if (!currentPageId) return;
+        var pages = getPages();
+        var idx = pages.findIndex(function(p) { return p.id === currentPageId; });
+        if (idx < 0) return;
+        var content = {};
+        document.querySelectorAll('.content-field').forEach(function(inp) {
+          var cid = inp.getAttribute('data-cid');
+          var key = inp.getAttribute('data-key');
+          if (!content[cid]) content[cid] = {};
+          content[cid][key] = inp.value || '';
+        });
+        pages[idx].content = content;
+        pages[idx].seo = {
+          metaTitle: document.getElementById('seoMetaTitle').value,
+          metaDescription: document.getElementById('seoMetaDescription').value,
+          keywords: document.getElementById('seoKeywords').value
+        };
+        pages[idx].style = {
+          colorPalette: document.getElementById('contentColorPalette').value,
+          layoutMode: document.getElementById('contentLayoutMode').value
+        };
+        pages[idx].updated = new Date().toLocaleDateString();
+        setJson(KEY, pages);
+        loadPagesTable();
+        closeModal('modalContent');
+      }
+
+      function closeModal(id) {
+        document.getElementById(id).classList.remove('show');
+      }
+
+      function addComponentToList(targetStructure) {
+        var comps = getAvailableComponents();
+        var sel = document.getElementById('componentSelect');
+        sel.innerHTML = comps.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
+        document.getElementById('modalAddComponent').classList.add('show');
+        document.getElementById('modalAddComponentAdd').onclick = function() {
+          var id = sel.value;
+          if (!id) return;
+          var maxOrder = targetStructure.length ? Math.max.apply(null, targetStructure.map(function(s) { return s.order || 0; })) : 0;
+          targetStructure.push({ componentId: id, order: maxOrder + 1 });
+          if (targetStructure === currentStructure) {
+            renderStructureList('pageStructureList', currentStructure);
+            renderStructureList('structureList', currentStructure);
+          }
+          closeModal('modalAddComponent');
+        };
+      }
+
+      document.getElementById('filterArea').addEventListener('change', loadPagesTable);
+      document.getElementById('btnNewPage').addEventListener('click', function() {
+        var tid = document.getElementById('templateSelect').value;
+        var templates = getTemplates();
+        var t = tid ? templates.find(function(x) { return (x.id || x.name) === tid; }) : null;
+        openPageModal(null);
+        if (t && t.components && t.components.length) {
+          document.getElementById('pageTitle').value = (t.name || 'Template') + ' Copy';
+          currentStructure = t.components.map(function(cid, i) { return { componentId: typeof cid === 'string' ? cid : cid.id, order: i + 1 }; });
+          renderStructureList('pageStructureList', currentStructure);
+        }
+      });
+      function refreshTemplateSelect() {
+        var sel = document.getElementById('templateSelect');
+        var templates = getTemplates();
+        sel.innerHTML = '<option value="">None</option>' + templates.map(function(t) { return '<option value="' + (t.id || t.name) + '">' + (t.name || '') + '</option>'; }).join('');
+      }
+      refreshTemplateSelect();
+      document.getElementById('pageTitle').addEventListener('input', function() { if (!document.getElementById('pageSlug').value) updatePathPreview(); });
+      document.getElementById('pageSlug').addEventListener('input', updatePathPreview);
+      document.getElementById('pageParent').addEventListener('change', updatePathPreview);
+      document.getElementById('modalPageClose').addEventListener('click', function() { closeModal('modalPage'); });
+      document.getElementById('modalPageCancel').addEventListener('click', function() { closeModal('modalPage'); });
+      document.getElementById('modalPageSave').addEventListener('click', savePage);
+      document.getElementById('btnAddComponent').addEventListener('click', function() { addComponentToList(currentStructure); });
+      document.getElementById('pageStructureList').addEventListener('click', function(e) {
+        var i = e.target.getAttribute('data-index');
+        if (i == null) return;
+        i = parseInt(i, 10);
+        if (e.target.classList.contains('btn-rem')) { currentStructure.splice(i, 1); renderStructureList('pageStructureList', currentStructure); }
+        else if (e.target.classList.contains('btn-up') && i > 0) { var t = currentStructure[i]; currentStructure[i] = currentStructure[i-1]; currentStructure[i-1] = t; renderStructureList('pageStructureList', currentStructure); }
+        else if (e.target.classList.contains('btn-down') && i < currentStructure.length - 1) { var t = currentStructure[i]; currentStructure[i] = currentStructure[i+1]; currentStructure[i+1] = t; renderStructureList('pageStructureList', currentStructure); }
+      });
+      document.getElementById('modalStructureCancel').addEventListener('click', function() { closeModal('modalStructure'); });
+      document.getElementById('modalStructureSave').addEventListener('click', saveStructure);
+      document.getElementById('btnAddComponentStructure').addEventListener('click', function() { addComponentToList(currentStructure); });
+      document.getElementById('structureList').addEventListener('click', function(e) {
+        var i = e.target.getAttribute('data-index');
+        if (i == null) return;
+        i = parseInt(i, 10);
+        if (e.target.classList.contains('btn-rem')) { currentStructure.splice(i, 1); renderStructureList('structureList', currentStructure); }
+        else if (e.target.classList.contains('btn-up') && i > 0) { var t = currentStructure[i]; currentStructure[i] = currentStructure[i-1]; currentStructure[i-1] = t; renderStructureList('structureList', currentStructure); }
+        else if (e.target.classList.contains('btn-down') && i < currentStructure.length - 1) { var t = currentStructure[i]; currentStructure[i] = currentStructure[i+1]; currentStructure[i+1] = t; renderStructureList('structureList', currentStructure); }
+      });
+      document.getElementById('modalContentClose').addEventListener('click', function() { closeModal('modalContent'); });
+      document.getElementById('modalContentCancel').addEventListener('click', function() { closeModal('modalContent'); });
+      document.getElementById('modalContentSave').addEventListener('click', saveContent);
+      document.getElementById('modalAddComponentCancel').addEventListener('click', function() { closeModal('modalAddComponent'); });
+      document.querySelector('#modalContent .tabs').addEventListener('click', function(e) {
+        var t = e.target.closest('a[data-tab]');
+        if (!t) return;
+        e.preventDefault();
+        document.querySelectorAll('#modalContent .tabs a').forEach(function(a) { a.classList.remove('active'); });
+        document.querySelectorAll('#modalContent .tab-pane').forEach(function(p) { p.classList.remove('active'); });
+        t.classList.add('active');
+        document.getElementById('pane-' + t.getAttribute('data-tab')).classList.add('active');
+      });
+      document.querySelector('#pagesTable tbody').addEventListener('click', function(e) {
+        var id = e.target.getAttribute('data-id');
+        if (!id) return;
+        if (e.target.classList.contains('btn-structure')) openStructureModal(id);
+        else if (e.target.classList.contains('btn-edit-content')) openContentModal(id);
+        else if (e.target.classList.contains('btn-delete-page')) {
+          if (!confirm('Delete this page?')) return;
+          var pages = getPages().filter(function(p) { return p.id !== id; });
+          setJson(KEY, pages);
+          loadPagesTable();
+        }
+      });
+
+      loadPagesTable();
+    })();
+  </script>
+</body>
+</html>

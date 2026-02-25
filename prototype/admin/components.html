@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Components – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .comp-layout { display: grid; grid-template-columns: 180px 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .comp-layout { grid-template-columns: 1fr; } }
+    .comp-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }
+    .comp-tabs a { padding: 0.6rem 1rem; color: var(--color-text-muted); }
+    .comp-tabs a.active { font-weight: 600; color: var(--color-primary); border-bottom: 2px solid var(--color-primary); margin-bottom: -1px; }
+    .cat-list { list-style: none; margin: 0; padding: 0; }
+    .cat-list li { padding: 0.4rem 0; cursor: pointer; }
+    .cat-list li:hover { color: var(--color-primary); }
+    .cat-list li.active { font-weight: 600; color: var(--color-primary); }
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .comp-card { border: 1px solid var(--color-border); border-radius: 6px; padding: 1rem; cursor: pointer; }
+    .comp-card:hover { border-color: var(--color-primary); background: #fafbfc; }
+    .comp-card .name { font-weight: 600; }
+    .comp-card .cat { font-size: 0.8rem; color: var(--color-text-muted); }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html" class="active">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>CMS Components</h1>
+        <p class="subtitle">Page, UI, and Navigation components. Variables in templates appear in Attributes.</p>
+      </div>
+      <div class="card mb-2">
+        <div class="card-header">
+          <div class="comp-tabs" id="typeTabs">
+            <a href="#" data-type="page" class="active">Page components</a>
+            <a href="#" data-type="ui">UI components</a>
+            <a href="#" data-type="navigation">Navigation components</a>
+          </div>
+          <a href="component_edit.html?id=new&name=Component" class="btn btn-primary btn-sm">Add component</a>
+        </div>
+      </div>
+      <div class="comp-layout">
+        <div class="card">
+          <div class="card-header">Categories</div>
+          <div class="card-body">
+            <ul class="cat-list" id="catList"></ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div class="comp-grid" id="compGrid"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var CATEGORIES = {
+        page: ['Hero', 'Content block', 'Features', 'Testimonials', 'CTA', 'Team', 'Pricing', 'FAQ', 'Contact', 'Footer', 'Gallery', 'Stats', 'Newsletter', 'Map'],
+        ui: ['Container', 'Wrapper', 'Grid', 'Columns', 'Spacer', 'Divider', 'Layout block', 'Fixed block', 'Decorative'],
+        navigation: ['Header', 'Navbar', 'Breadcrumb', 'Sidebar', 'Sidebar nav', 'Footer nav', 'Tabs', 'Pagination', 'Menu', 'Mega menu', 'Mobile menu']
+      };
+      var currentType = 'page';
+      var currentCategory = '';
+
+      function seedComponents() {
+        var ids = getAllComponentIds();
+        if (ids.indexOf('hero-1') === -1) {
+          setJson('pmp_component_hero-1', { id: 'hero-1', name: 'Hero', type: 'page', category: 'Hero', description: '', html: '<section><h1>{{ headline }}</h1><p>{{ subheadline }}</p><a href="{{ cta_url }}">{{ cta_text }}</a></section>', css: '', js: '', variables: { headline: { type: 'string', label: 'Headline' }, subheadline: { type: 'string', label: 'Subheadline' }, cta_url: { type: 'url', label: 'CTA URL' }, cta_text: { type: 'string', label: 'CTA Text' } }, variableOrder: ['headline', 'subheadline', 'cta_url', 'cta_text'], positioningStructure: [] });
+        }
+        if (ids.indexOf('content-1') === -1) {
+          setJson('pmp_component_content-1', { id: 'content-1', name: 'Content block', type: 'page', category: 'Content block', description: '', html: '<div><h2>{{ title }}</h2><div>{{ description }}</div></div>', css: '', js: '', variables: { title: { type: 'string', label: 'Title' }, description: { type: 'textarea', label: 'Description' } }, variableOrder: ['title', 'description'], positioningStructure: [] });
+        }
+        if (ids.indexOf('cta-1') === -1) {
+          setJson('pmp_component_cta-1', { id: 'cta-1', name: 'CTA Banner', type: 'page', category: 'CTA', description: '', html: '<section><h2>{{ title }}</h2><p>{{ message }}</p><a href="{{ link_url }}">{{ link_text }}</a></section>', css: '', js: '', variables: { title: { type: 'string', label: 'Title' }, message: { type: 'string', label: 'Message' }, link_url: { type: 'url', label: 'Link URL' }, link_text: { type: 'string', label: 'Link Text' } }, variableOrder: [], positioningStructure: [] });
+        }
+      }
+      seedComponents();
+
+      function getComponentsByType(type) {
+        var ids = getAllComponentIds();
+        return ids.map(function(id) {
+          var c = getComponent(id);
+          return c ? { id: c.id, name: c.name, type: c.type || 'page', category: c.category || '' } : null;
+        }).filter(Boolean).filter(function(c) { return c.type === type; });
+      }
+
+      function loadCategories() {
+        var cats = CATEGORIES[currentType] || [];
+        var comps = getComponentsByType(currentType);
+        var used = {};
+        comps.forEach(function(c) { used[c.category] = true; });
+        var el = document.getElementById('catList');
+        el.innerHTML = '<li class="' + (!currentCategory ? 'active' : '') + '" data-cat="">All</li>' + cats.map(function(c) {
+          return '<li class="' + (currentCategory === c ? 'active' : '') + '" data-cat="' + c + '">' + c + '</li>';
+        }).join('');
+      }
+
+      function loadGrid() {
+        var comps = getComponentsByType(currentType);
+        if (currentCategory) comps = comps.filter(function(c) { return c.category === currentCategory; });
+        var el = document.getElementById('compGrid');
+        el.innerHTML = comps.map(function(c) {
+          return '<div class="comp-card" data-id="' + c.id + '"><div class="name">' + (c.name || c.id) + '</div><div class="cat">' + (c.category || '') + '</div></div>';
+        }).join('');
+      }
+
+      function switchType(type) {
+        currentType = type;
+        currentCategory = '';
+        document.querySelectorAll('.comp-tabs a').forEach(function(a) { a.classList.remove('active'); if (a.getAttribute('data-type') === type) a.classList.add('active'); });
+        loadCategories();
+        loadGrid();
+      }
+
+      document.getElementById('typeTabs').addEventListener('click', function(e) {
+        var t = e.target.closest('a[data-type]');
+        if (t) { e.preventDefault(); switchType(t.getAttribute('data-type')); }
+      });
+      document.getElementById('catList').addEventListener('click', function(e) {
+        var li = e.target.closest('li[data-cat]');
+        if (li) {
+          currentCategory = li.getAttribute('data-cat') || '';
+          document.querySelectorAll('#catList li').forEach(function(x) { x.classList.remove('active'); });
+          li.classList.add('active');
+          loadGrid();
+        }
+      });
+      document.getElementById('compGrid').addEventListener('click', function(e) {
+        var card = e.target.closest('.comp-card');
+        if (card) location.href = 'component_edit.html?id=' + encodeURIComponent(card.getAttribute('data-id')) + '&name=' + encodeURIComponent(card.querySelector('.name').textContent);
+      });
+
+      loadCategories();
+      loadGrid();
+    })();
+  </script>
+</body>
+</html>

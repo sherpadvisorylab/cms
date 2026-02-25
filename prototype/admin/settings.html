@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }
+    .tabs a { padding: 0.6rem 1rem; color: var(--color-text-muted); }
+    .tabs a.active { font-weight: 600; color: var(--color-primary); border-bottom: 2px solid var(--color-primary); margin-bottom: -1px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .var-row { display: grid; grid-template-columns: 140px 1fr; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html" class="active">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Branding & defaults, Authentication/SSO, CMS System Variables.</p>
+      </div>
+      <div class="tabs" id="tabs">
+        <a href="#" data-tab="branding" class="active">Branding & defaults</a>
+        <a href="#" data-tab="auth">Authentication</a>
+        <a href="#" data-tab="variables">System variables</a>
+      </div>
+      <div id="pane-branding" class="tab-pane active">
+        <div class="card">
+          <div class="card-header">Branding & defaults</div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>Project name</label>
+              <input type="text" class="form-control" id="settingProjectName" placeholder="Display name for login/shell">
+            </div>
+            <div class="form-group">
+              <label>Default logo (URL)</label>
+              <input type="text" class="form-control" id="settingDefaultLogo" placeholder="URL">
+            </div>
+            <div class="form-group">
+              <label>Default font</label>
+              <input type="text" class="form-control" id="settingDefaultFont" placeholder="e.g. Inter, system-ui">
+            </div>
+            <div class="form-group">
+              <label>Default favicon (URL)</label>
+              <input type="text" class="form-control" id="settingFavicon" placeholder="URL">
+            </div>
+            <div class="form-group">
+              <label>Sender name (emails)</label>
+              <input type="text" class="form-control" id="settingSenderName" placeholder="No Reply">
+            </div>
+            <div class="form-group">
+              <label>Sender email (from)</label>
+              <input type="email" class="form-control" id="settingSenderEmail" placeholder="no-reply@example.com">
+            </div>
+            <button type="button" class="btn btn-primary" id="btnSaveBranding">Save</button>
+          </div>
+        </div>
+      </div> class="tab-pane">
+        <div class="card">
+          <div class="card-header">Authentication / SSO</div>
+          <div class="card-body">
+            <div class="form-group">
+              <label><input type="checkbox" id="settingSsoEnabled"> Enable SSO on Login and Signup pages</label>
+            </div>
+            <p class="text-muted small">Which SSO providers are shown is delegated to the external auth layer (e.g. Supabase, Auth0). CMS only stores enable/disable.</p>
+            <button type="button" class="btn btn-primary mt-2" id="btnSaveAuth">Save</button>
+          </div>
+        </div>
+      </div> class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            CMS System Variables
+            <button type="button" class="btn btn-sm" id="btnResetTheme">Reset to theme defaults</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnSaveVars">Save default values</button>
+          </div>
+          <div class="card-body" id="systemVarsForm"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      var KEY_DEFAULTS = 'pmp_cms_system_variable_defaults';
+      var KEY_SETTINGS = 'pmp_cms_settings';
+      var THEME_DEFAULTS = { 'bg-primary': 'bg-primary', 'bg-secondary': 'bg-secondary', 'bg-accent': 'bg-accent', 'bg-surface': 'bg-surface', 'text-primary': 'text-primary', 'text-secondary': 'text-secondary', 'text-muted': 'text-muted', 'text-accent': 'text-accent', 'border-primary': 'border-primary', 'border-secondary': 'border-secondary', 'border-muted': 'border-muted' };
+      var VARIABLE_IDS = Object.keys(THEME_DEFAULTS);
+
+      function showTab(name) {
+        document.querySelectorAll('#tabs a').forEach(function(a) { a.classList.remove('active'); if (a.getAttribute('data-tab') === name) a.classList.add('active'); });
+        document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+        var el = document.getElementById('pane-' + name);
+        if (el) el.classList.add('active');
+      }
+      document.getElementById('tabs').addEventListener('click', function(e) {
+        var t = e.target.closest('a[data-tab]');
+        if (t) { e.preventDefault(); showTab(t.getAttribute('data-tab')); }
+      });
+
+      function loadSettings() {
+        var s = getJson(KEY_SETTINGS, {});
+        document.getElementById('settingProjectName').value = s.projectName || '';
+        document.getElementById('settingDefaultLogo').value = s.defaultLogo || '';
+        document.getElementById('settingDefaultFont').value = s.defaultFont || '';
+        document.getElementById('settingFavicon').value = s.favicon || '';
+        document.getElementById('settingSenderName').value = s.senderName || '';
+        document.getElementById('settingSenderEmail').value = s.senderEmail || '';
+        document.getElementById('settingSsoEnabled').checked = !!s.ssoEnabled;
+      }
+      function saveSettings() {
+        var s = {
+          projectName: document.getElementById('settingProjectName').value.trim(),
+          defaultLogo: document.getElementById('settingDefaultLogo').value.trim(),
+          defaultFont: document.getElementById('settingDefaultFont').value.trim(),
+          favicon: document.getElementById('settingFavicon').value.trim(),
+          senderName: document.getElementById('settingSenderName').value.trim(),
+          senderEmail: document.getElementById('settingSenderEmail').value.trim(),
+          ssoEnabled: document.getElementById('settingSsoEnabled').checked
+        };
+        setJson(KEY_SETTINGS, s);
+      }
+
+      function loadVarsForm() {
+        var vals = getSystemVariableDefaults();
+        var html = VARIABLE_IDS.map(function(id) {
+          var v = (vals[id] != null ? vals[id] : THEME_DEFAULTS[id] || '');
+          return '<div class="var-row"><label>' + id + '</label><input type="text" class="form-control var-input" data-id="' + id + '" value="' + (v + '').replace(/"/g, '&quot;') + '"></div>';
+        }).join('');
+        document.getElementById('systemVarsForm').innerHTML = html;
+      }
+      function getVarValues() {
+        var o = {};
+        document.querySelectorAll('.var-input').forEach(function(inp) { o[inp.getAttribute('data-id')] = inp.value || ''; });
+        return o;
+      }
+      document.getElementById('btnResetTheme').onclick = function() {
+        VARIABLE_IDS.forEach(function(id) {
+          var inp = document.querySelector('.var-input[data-id="' + id + '"]');
+          if (inp) inp.value = THEME_DEFAULTS[id] || '';
+        });
+      };
+      document.getElementById('btnSaveVars').onclick = function() {
+        setJson(KEY_DEFAULTS, getVarValues());
+        alert('System variables saved.');
+      };
+      document.getElementById('btnSaveBranding').onclick = function() { saveSettings(); alert('Branding saved.'); };
+      document.getElementById('btnSaveAuth').onclick = function() { saveSettings(); alert('Authentication settings saved.'); };
+
+      document.getElementById('tabs').addEventListener('click', function(e) {
+        var t = e.target.closest('a[data-tab]');
+        if (t) {
+          e.preventDefault();
+          showTab(t.getAttribute('data-tab'));
+          if (t.getAttribute('data-tab') === 'variables') loadVarsForm();
+        }
+      });
+      loadSettings();
+      loadVarsForm();
+    })();
+  </script>
+</body>
+</html>

@@ -1,4 +1,6 @@
-# CMS Areas
+# CMS – Areas
+
+This document describes the Areas feature in detail: list page, area edit (all tabs), design variables, data model. For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
 
 ## Table of Contents
 
@@ -117,7 +119,7 @@ The list page does **not** edit root path, style, design, legal, tracking or acc
 
 ### Logos
 
-- **Light Logo** / **Dark Logo**: Two upload zones (hover to upload). Images stored as data URLs or paths; preview shown in the box. Default Espresso Lab logos can be used if none set.
+- **Light Logo** / **Dark Logo**: Two upload zones (hover to upload). Images stored as data URLs or paths; preview shown in the box. Default or placeholder logos can be used if none set.
 - **Favicon**: Single upload; preview in multiple sizes (16×16, 32×32, 48×48, 64×64, 128×128, 180×180) in two columns: light background and dark background (“Preview” and “Preview Dark”).
 
 ### Fonts
@@ -143,7 +145,12 @@ The list page does **not** edit root path, style, design, legal, tracking or acc
 - **Head Template**: Contenteditable div with placeholder showing example `<head>` with variables (e.g. `{{pageTitle}}`, `{{siteName}}`, `{{styles}}`, `{{scripts}}`).
 - **Body Template**: Contenteditable div with placeholder showing example `<body>` with `{{header}}`, `{{content}}`, `{{footer}}`, `{{trackingScripts}}`.
 
-Variables are **clickable**: clicking `{{name}}` opens a modal to edit that variable’s HTML content. Typing **`{`** opens a popup to insert navigation blocks or create a new variable (type name, `}}`, Enter to open the modal). Variables are stored in `designVariableContents` and saved as `design.bodyElements` (array of `{ variable, content }`).
+Variables are **clickable**: clicking `{{name}}` opens a modal to edit that variable’s HTML content. Typing **`{`** opens a **variable popup** near the cursor with three sections:
+- **Style variables**: Theme tokens (e.g. `{{bg-primary}}`, `{{text-muted}}`) from the area’s style settings.
+- **Form (embed)**: Forms from CMS Forms; inserts `{{form:id}}`.
+- **Navigation**: Blocks from CMS Navigation (e.g. Main Header, Footer Links); inserts `{{navigation:id}}`. If none are saved, default entries (Main Header, Footer Links) are shown.
+
+Click an item to insert it. To create a **custom variable**, type its name, then `}}` and press **Enter** to open the modal and set its HTML content. Variables are stored in `designVariableContents` and saved as `design.bodyElements` (array of `{ variable, content }`).
 
 ### Area CSS and Area JS
 
@@ -284,5 +291,12 @@ The list page only stores a subset (name, displayName, description, badgeColor, 
 6. **Design templates**: Keep head/body templates simple; use variables for content, header, footer, and tracking so the runtime can inject the right fragments.
 
 ---
+
+---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)
+- **Data model and technical**: [10 – Data and technical](./10_data_and_technical.md)
 
 *Last updated: February 2025*

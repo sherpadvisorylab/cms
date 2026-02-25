@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Areas – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html" class="active">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <h1>CMS Areas</h1>
+        <p class="subtitle">Manage content areas used to organize and filter pages in the CMS.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          Content Areas
+          <button type="button" class="btn btn-primary btn-sm" id="btnAddArea">Add Area</button>
+        </div>
+        <div class="card-body table-wrap">
+          <table class="data-table" id="areasTable">
+            <thead>
+              <tr>
+                <th>Area Name</th>
+                <th>Display Name</th>
+                <th>Badge</th>
+                <th>Pages</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:480px; width:90%; margin:1rem;">
+      <div class="card-header">Create New Area</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Area Name (Internal ID) *</label>
+          <input type="text" class="form-control" id="areaName" pattern="[A-Za-z0-9_]+" placeholder="e.g. Public" required>
+          <small class="text-muted">Letters, numbers, underscore only. Cannot be changed later.</small>
+        </div>
+        <div class="form-group">
+          <label>Display Name *</label>
+          <input type="text" class="form-control" id="areaDisplayName" placeholder="e.g. Public Area" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="form-control" id="areaDescription" rows="2" placeholder="Optional"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Badge Color</label>
+          <select class="form-control" id="areaBadgeColor">
+            <option value="info">Info (Blue)</option>
+            <option value="success">Success (Green)</option>
+            <option value="warning">Warning (Orange)</option>
+            <option value="danger">Danger (Red)</option>
+            <option value="secondary">Secondary (Gray)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Icon</label>
+          <input type="text" class="form-control" id="areaIcon" placeholder="fa-solid fa-globe">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select class="form-control" id="areaStatus">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+          <button type="button" class="btn" id="btnModalCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnModalSave">Save Area</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      seedIfEmpty();
+      var KEY = 'pmp_cms_areas';
+
+      function loadAreas() {
+        var areas = getAreas();
+        var tbody = document.querySelector('#areasTable tbody');
+        tbody.innerHTML = areas.map(function(a) {
+          var pagesCount = (a.pagesCount != null) ? a.pagesCount : 0;
+          var badgeClass = 'badge-' + (a.badgeColor || 'secondary');
+          return '<tr data-name="' + (a.name || '') + '">' +
+            '<td><span class="badge ' + badgeClass + '">' + (a.icon ? '<i class="' + a.icon + '"></i> ' : '') + (a.name || '') + '</span></td>' +
+            '<td>' + (a.displayName || '') + '</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + (a.badgeColor || '') + '</span></td>' +
+            '<td>' + pagesCount + '</td>' +
+            '<td><span class="badge badge-' + (a.status === 'active' ? 'success' : 'secondary') + '">' + (a.status || 'active') + '</span></td>' +
+            '<td><a href="area_edit.html?area=' + encodeURIComponent(a.name || '') + '" class="btn btn-sm">Edit</a> <button type="button" class="btn btn-sm btn-delete" data-name="' + (a.name || '') + '">Delete</button></td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      function openModal() {
+        document.getElementById('areaName').value = '';
+        document.getElementById('areaDisplayName').value = '';
+        document.getElementById('areaDescription').value = '';
+        document.getElementById('areaBadgeColor').value = 'info';
+        document.getElementById('areaIcon').value = 'fa-solid fa-globe';
+        document.getElementById('areaStatus').value = 'active';
+        document.getElementById('areaName').readOnly = false;
+        document.getElementById('modalOverlay').style.display = 'flex';
+      }
+
+      function closeModal() {
+        document.getElementById('modalOverlay').style.display = 'none';
+      }
+
+      function saveArea() {
+        var name = (document.getElementById('areaName').value || '').trim().replace(/\s+/g, '_');
+        if (!name) { alert('Area Name is required.'); return; }
+        if (!/^[A-Za-z0-9_]+$/.test(name)) { alert('Area Name must contain only letters, numbers, and underscore.'); return; }
+        var areas = getAreas();
+        if (areas.some(function(a) { return (a.name || '').toLowerCase() === name.toLowerCase(); })) {
+          alert('An area with this name already exists.');
+          return;
+        }
+        var newArea = {
+          name: name,
+          displayName: (document.getElementById('areaDisplayName').value || '').trim() || name,
+          description: (document.getElementById('areaDescription').value || '').trim(),
+          badgeColor: document.getElementById('areaBadgeColor').value || 'info',
+          icon: (document.getElementById('areaIcon').value || '').trim() || 'fa-solid fa-globe',
+          status: document.getElementById('areaStatus').value || 'active',
+          pagesCount: 0,
+          rootPath: '/'
+        };
+        areas.push(newArea);
+        setJson(KEY, areas);
+        loadAreas();
+        closeModal();
+      }
+
+      function deleteArea(name) {
+        if (!name || !confirm('Delete area "' + name + '"? Pages will need to be reassigned.')) return;
+        var areas = getAreas().filter(function(a) { return a.name !== name; });
+        setJson(KEY, areas);
+        loadAreas();
+      }
+
+      document.getElementById('btnAddArea').addEventListener('click', openModal);
+      document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+      document.getElementById('btnModalSave').addEventListener('click', saveArea);
+      document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+      document.querySelector('#areasTable tbody').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-delete')) deleteArea(e.target.getAttribute('data-name'));
+      });
+
+      loadAreas();
+    })();
+  </script>
+</body>
+</html>

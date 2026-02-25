@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit Component – CMS Admin</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+    .attr-list { list-style: none; margin: 0; padding: 0; }
+    .attr-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 1fr 120px 80px; gap: 0.5rem; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="brand">CMS Admin</div>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="areas.html">Areas</a>
+        <a href="pages.html">Pages</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="components.html" class="active">Components</a>
+        <a href="templates.html">Templates</a>
+        <a href="forms.html">Forms</a>
+        <a href="emails.html">Emails</a>
+        <a href="users.html">Users</a>
+        <a href="settings.html">Settings</a>
+        <a href="../site/index.html" target="_blank">View site</a>
+      </nav>
+    </aside>
+    <main class="admin-content">
+      <div class="page-header">
+        <a href="components.html">← Back to Components</a>
+        <h1 id="pageTitle">Edit Component</h1>
+        <p class="subtitle">Use {{ variable_name }} in the HTML; variables appear in Attributes.</p>
+      </div>
+      <form id="compForm">
+        <div class="card mb-2">
+          <div class="card-header">Component details</div>
+          <div class="card-body two-col">
+            <div>
+              <div class="form-group">
+                <label>Name *</label>
+                <input type="text" class="form-control" id="compName" required placeholder="Component name">
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select class="form-control" id="compType">
+                  <option value="page">Page</option>
+                  <option value="ui">UI</option>
+                  <option value="navigation">Navigation</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Category</label>
+                <input type="text" class="form-control" id="compCategory" list="catList" placeholder="e.g. Hero">
+                <datalist id="catList"></datalist>
+              </div>
+              <div class="form-group">
+                <label>Short description</label>
+                <textarea class="form-control" id="compDesc" rows="2"></textarea>
+              </div>
+            </div>
+            <div>
+              <p class="text-muted small">Variables like <code>{{ headline }}</code> in the HTML are listed in Attributes. Type <code>{</code> in the template to insert style variables or form embeds (when implemented).</p>
+            </div>
+          </div>
+        </div>
+        <div class="card mb-2">
+          <div class="card-header">HTML template (Liquid)</div>
+          <div class="card-body">
+            <textarea class="form-control" id="compHtml" rows="10" placeholder="<section>&#10;  <h1>{{ headline }}</h1>&#10;  <p>{{ subheadline }}</p>&#10;</section>" style="font-family: monospace;"></textarea>
+            <details class="mt-2">
+              <summary>Additional CSS</summary>
+              <textarea class="form-control mt-1" id="compCss" rows="4" style="font-family: monospace;"></textarea>
+            </details>
+            <details class="mt-2">
+              <summary>Additional JS</summary>
+              <textarea class="form-control mt-1" id="compJs" rows="4" style="font-family: monospace;"></textarea>
+            </details>
+          </div>
+        </div>
+        <div class="card mb-2">
+          <div class="card-header">Backend – Attributes (from {{ variable }})</div>
+          <div class="card-body">
+            <ul class="attr-list" id="attrList"></ul>
+          </div>
+        </div>
+        <div class="mt-2">
+          <a href="components.html" class="btn">Cancel</a>
+          <button type="submit" class="btn btn-primary">Save component</button>
+        </div>
+      </form>
+    </main>
+  </div>
+  <script src="../assets/js/storage.js"></script>
+  <script>
+    (function() {
+      var params = new URLSearchParams(location.search);
+      var id = params.get('id') || 'new';
+      var name = params.get('name') || 'Component';
+      var CATEGORIES = { page: 'Hero, Content block, Features, Testimonials, CTA, Team, Pricing, FAQ, Contact, Footer, Gallery, Stats, Newsletter, Map', ui: 'Container, Wrapper, Grid, Columns, Spacer, Divider, Layout block, Fixed block, Decorative', navigation: 'Header, Navbar, Breadcrumb, Sidebar, Sidebar nav, Footer nav, Tabs, Pagination, Menu, Mega menu, Mobile menu' };
+      var variableStore = {};
+
+      function syncVariablesFromHtml() {
+        var html = document.getElementById('compHtml').value || '';
+        var re = /\{\{([^}]+)\}\}/g;
+        var m;
+        var names = [];
+        while ((m = re.exec(html)) !== null) {
+          var v = (m[1] || '').trim();
+          if (v && names.indexOf(v) === -1) names.push(v);
+        }
+        names.forEach(function(n) {
+          if (!variableStore[n]) variableStore[n] = { type: 'string', label: n.replace(/_/g, ' '), placeholder: '' };
+        });
+        Object.keys(variableStore).forEach(function(n) {
+          if (names.indexOf(n) === -1) delete variableStore[n];
+        });
+        renderAttrList();
+      }
+
+      function renderAttrList() {
+        var names = Object.keys(variableStore);
+        var el = document.getElementById('attrList');
+        el.innerHTML = names.map(function(n) {
+          var v = variableStore[n];
+          return '<li><input type="text" class="form-control attr-label" data-name="' + n + '" value="' + (v.label || n).replace(/"/g, '&quot;') + '" placeholder="Label"><select class="form-control attr-type" data-name="' + n + '"><option value="string"' + (v.type === 'string' ? ' selected' : '') + '>Text</option><option value="textarea"' + (v.type === 'textarea' ? ' selected' : '') + '>Textarea</option><option value="url"' + (v.type === 'url' ? ' selected' : '') + '>URL</option><option value="number"' + (v.type === 'number' ? ' selected' : '') + '>Number</option><option value="boolean"' + (v.type === 'boolean' ? ' selected' : '') + '>Checkbox</option><option value="color"' + (v.type === 'color' ? ' selected' : '') + '>Color</option></select><span>' + n + '</span></li>';
+        }).join('');
+      }
+
+      function loadComponent() {
+        if (id === 'new') {
+          document.getElementById('pageTitle').textContent = 'New Component';
+          document.getElementById('compName').value = '';
+          document.getElementById('compType').value = 'page';
+          document.getElementById('compCategory').value = '';
+          document.getElementById('compDesc').value = '';
+          document.getElementById('compHtml').value = '';
+          document.getElementById('compCss').value = '';
+          document.getElementById('compJs').value = '';
+          variableStore = {};
+        } else {
+          var c = getComponent(id);
+          if (!c) { location.href = 'components.html'; return; }
+          document.getElementById('pageTitle').textContent = 'Edit: ' + (c.name || id);
+          document.getElementById('compName').value = c.name || '';
+          document.getElementById('compType').value = c.type || 'page';
+          document.getElementById('compCategory').value = c.category || '';
+          document.getElementById('compDesc').value = c.description || '';
+          document.getElementById('compHtml').value = c.html || '';
+          document.getElementById('compCss').value = c.css || '';
+          document.getElementById('compJs').value = c.js || '';
+          variableStore = (c.variables && typeof c.variables === 'object') ? JSON.parse(JSON.stringify(c.variables)) : {};
+        }
+        var t = document.getElementById('compType').value;
+        document.getElementById('catList').innerHTML = (CATEGORIES[t] || '').split(', ').map(function(c) { return '<option value="' + c + '">'; }).join('');
+        syncVariablesFromHtml();
+      }
+
+      document.getElementById('compHtml').addEventListener('input', syncVariablesFromHtml);
+      document.getElementById('compType').addEventListener('change', function() {
+        var t = this.value;
+        document.getElementById('catList').innerHTML = (CATEGORIES[t] || '').split(', ').map(function(c) { return '<option value="' + c + '">'; }).join('');
+      });
+      document.getElementById('compName').addEventListener('input', function() {
+        document.getElementById('pageTitle').textContent = (this.value || 'Component') ? 'Edit: ' + (this.value || 'Component') : 'Edit Component';
+      });
+      document.getElementById('attrList').addEventListener('change', function(e) {
+        var name = e.target.getAttribute('data-name');
+        if (!name) return;
+        if (e.target.classList.contains('attr-label')) variableStore[name].label = e.target.value;
+        if (e.target.classList.contains('attr-type')) variableStore[name].type = e.target.value;
+      });
+      document.getElementById('compForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var compName = (document.getElementById('compName').value || '').trim();
+        if (!compName) { alert('Name is required.'); return; }
+        var compId = id === 'new' ? compName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'comp-' + Date.now() : id;
+        var variables = {};
+        Object.keys(variableStore).forEach(function(n) {
+          variables[n] = { type: variableStore[n].type || 'string', label: variableStore[n].label || n, placeholder: variableStore[n].placeholder || '' };
+        });
+        var payload = {
+          id: compId,
+          name: compName,
+          type: document.getElementById('compType').value || 'page',
+          category: document.getElementById('compCategory').value.trim(),
+          description: document.getElementById('compDesc').value.trim(),
+          html: document.getElementById('compHtml').value,
+          css: document.getElementById('compCss').value,
+          js: document.getElementById('compJs').value,
+          variables: variables,
+          variableOrder: Object.keys(variableStore),
+          positioningStructure: []
+        };
+        setJson('pmp_component_' + compId, payload);
+        if (id === 'new') location.href = 'component_edit.html?id=' + encodeURIComponent(compId) + '&name=' + encodeURIComponent(compName);
+        else location.href = 'components.html';
+      });
+
+      loadComponent();
+    })();
+  </script>
+</body>
+</html>

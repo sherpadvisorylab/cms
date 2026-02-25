@@ -1,4 +1,6 @@
-# Email System
+# CMS – Emails
+
+This document describes the email system: templates, variables, API, integration. For the overall CMS logic and concepts, see [01 – Overview](./01_overview.md).
 
 ## Table of Contents
 
@@ -1002,6 +1004,10 @@ Potential areas for future development:
 - **Email Queues**: Queue system for high-volume email sending
 
 ---
+
+## References
+
+- **Overview and concepts**: [01 – Overview](./01_overview.md)
 
 *Last Updated: [Current Date]*
 *Version: 1.0*
