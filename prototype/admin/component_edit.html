@@ -4,108 +4,220 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Edit Component – CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
-  <style>
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
-    .attr-list { list-style: none; margin: 0; padding: 0; }
-    .attr-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 1fr 120px 80px; gap: 0.5rem; align-items: center; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html">Navigation</a>
-        <a href="components.html" class="active">Components</a>
-        <a href="templates.html">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <a href="components.html">← Back to Components</a>
-        <h1 id="pageTitle">Edit Component</h1>
-        <p class="subtitle">Use {{ variable_name }} in the HTML; variables appear in Attributes.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <a href="components.html" class="text-blue-800 hover:underline">← Back to Components</a>
+        <h1 id="pageTitle" class="m-0 mt-1 mb-1 text-2xl font-semibold">Edit Component</h1>
+        <p class="m-0 text-gray-500 text-sm">Use {{ variable_name }} in the HTML; variables appear in Attributes.</p>
       </div>
       <form id="compForm">
-        <div class="card mb-2">
-          <div class="card-header">Component details</div>
-          <div class="card-body two-col">
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">Component details</div>
+          <div class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <div class="form-group">
-                <label>Name *</label>
-                <input type="text" class="form-control" id="compName" required placeholder="Component name">
+              <div class="mb-4">
+                <label class="block mb-1 font-medium">Name *</label>
+                <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="compName" required placeholder="Component name">
               </div>
-              <div class="form-group">
-                <label>Type</label>
-                <select class="form-control" id="compType">
+              <div class="mb-4">
+                <label class="block mb-1 font-medium">Type</label>
+                <select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="compType">
                   <option value="page">Page</option>
                   <option value="ui">UI</option>
                   <option value="navigation">Navigation</option>
                 </select>
               </div>
-              <div class="form-group">
-                <label>Category</label>
-                <input type="text" class="form-control" id="compCategory" list="catList" placeholder="e.g. Hero">
+              <div class="mb-4">
+                <label class="block mb-1 font-medium">Category</label>
+                <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="compCategory" list="catList" placeholder="e.g. Hero">
                 <datalist id="catList"></datalist>
               </div>
-              <div class="form-group">
-                <label>Short description</label>
-                <textarea class="form-control" id="compDesc" rows="2"></textarea>
+              <div class="mb-4">
+                <label class="block mb-1 font-medium">Short description</label>
+                <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[80px] resize-y" id="compDesc" rows="2"></textarea>
               </div>
             </div>
             <div>
-              <p class="text-muted small">Variables like <code>{{ headline }}</code> in the HTML are listed in Attributes. Type <code>{</code> in the template to insert style variables or form embeds (when implemented).</p>
+              <p class="text-gray-500 text-sm">Variables like <code class="bg-gray-100 px-1 rounded">{{ headline }}</code> in the HTML are listed in Attributes. Type <code class="bg-gray-100 px-1 rounded">{</code> in the template to open the variable popup (style variables and form embeds, grouped by type).</p>
             </div>
           </div>
         </div>
-        <div class="card mb-2">
-          <div class="card-header">HTML template (Liquid)</div>
-          <div class="card-body">
-            <textarea class="form-control" id="compHtml" rows="10" placeholder="<section>&#10;  <h1>{{ headline }}</h1>&#10;  <p>{{ subheadline }}</p>&#10;</section>" style="font-family: monospace;"></textarea>
-            <details class="mt-2">
-              <summary>Additional CSS</summary>
-              <textarea class="form-control mt-1" id="compCss" rows="4" style="font-family: monospace;"></textarea>
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold">HTML template (Liquid)</div>
+          <div class="p-5 relative [&_.CodeMirror]:min-h-[200px] [&_.CodeMirror]:border [&_.CodeMirror]:border-gray-200 [&_.CodeMirror]:rounded" id="htmlEditorWrap">
+            <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono min-h-[80px] resize-y" id="compHtml" rows="10" placeholder="<section>&#10;  <h1>{{ headline }}</h1>&#10;  <p>{{ subheadline }}</p>&#10;</section>"></textarea>
+            <div id="variablePopup" class="absolute z-[1000] bg-white border border-gray-200 rounded-md shadow-lg max-h-[280px] overflow-y-auto min-w-[220px] hidden"></div>
+            <details class="mt-4">
+              <summary class="cursor-pointer">Additional CSS</summary>
+              <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono mt-2 min-h-[80px] resize-y" id="compCss" rows="4"></textarea>
             </details>
-            <details class="mt-2">
-              <summary>Additional JS</summary>
-              <textarea class="form-control mt-1" id="compJs" rows="4" style="font-family: monospace;"></textarea>
+            <details class="mt-4">
+              <summary class="cursor-pointer">Additional JS</summary>
+              <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono mt-2 min-h-[80px] resize-y" id="compJs" rows="4"></textarea>
             </details>
           </div>
         </div>
-        <div class="card mb-2">
-          <div class="card-header">Backend – Attributes (from {{ variable }})</div>
-          <div class="card-body">
-            <ul class="attr-list" id="attrList"></ul>
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold">Backend – Attributes (from {{ variable }})</div>
+          <div class="p-5">
+            <ul class="list-none m-0 p-0" id="attrList"></ul>
           </div>
         </div>
-        <div class="mt-2">
-          <a href="components.html" class="btn">Cancel</a>
-          <button type="submit" class="btn btn-primary">Save component</button>
+        <div class="mt-4">
+          <a href="components.html" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer no-underline">Cancel</a>
+          <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer">Save component</button>
         </div>
       </form>
     </main>
   </div>
   <script src="../assets/js/storage.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
   <script>
     (function() {
+      seedIfEmpty();
       var params = new URLSearchParams(location.search);
       var id = params.get('id') || 'new';
       var name = params.get('name') || 'Component';
       var CATEGORIES = { page: 'Hero, Content block, Features, Testimonials, CTA, Team, Pricing, FAQ, Contact, Footer, Gallery, Stats, Newsletter, Map', ui: 'Container, Wrapper, Grid, Columns, Spacer, Divider, Layout block, Fixed block, Decorative', navigation: 'Header, Navbar, Breadcrumb, Sidebar, Sidebar nav, Footer nav, Tabs, Pagination, Menu, Mega menu, Mobile menu' };
       var variableStore = {};
+      var cmHtml, cmCss, cmJs;
+      var STYLE_VARS = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-surface', 'text-primary', 'text-secondary', 'text-muted', 'text-accent', 'border-primary', 'border-secondary', 'border-muted'];
+
+      function getHtmlValue() { return cmHtml ? cmHtml.getValue() : (document.getElementById('compHtml').value || ''); }
+      function setHtmlValue(v) { if (cmHtml) cmHtml.setValue(v); else document.getElementById('compHtml').value = v; }
+
+      function showVariablePopup(editor) {
+        var popup = document.getElementById('variablePopup');
+        var forms = getForms();
+        var html = '<section class="py-2 border-b border-gray-200 last:border-b-0"><div class="text-xs font-semibold text-gray-500 py-1 px-3 uppercase">Style variables</div>';
+        STYLE_VARS.forEach(function(v) { html += '<div class="py-1.5 px-3 cursor-pointer font-mono text-sm hover:bg-gray-100 popup-item" data-insert="{{' + v + '}}">{{' + v + '}}</div>'; });
+        html += '</section><section class="py-2 border-b border-gray-200 last:border-b-0"><div class="text-xs font-semibold text-gray-500 py-1 px-3 uppercase">Form (embed)</div>';
+        if (forms.length) forms.forEach(function(f) { var fid = (f.id || f).toString(); html += '<div class="py-1.5 px-3 cursor-pointer font-mono text-sm hover:bg-gray-100 popup-item" data-insert="{{form:' + fid + '}}">{{form:' + fid + '}}</div>'; });
+        else html += '<div class="py-1.5 px-3 text-gray-500 cursor-default popup-item">No forms. Add in Forms.</div>';
+        html += '</section>';
+        popup.innerHTML = html;
+        var wrap = document.getElementById('htmlEditorWrap');
+        popup.style.position = 'absolute';
+        var leftPx = 0, topPx = 220;
+        if (editor && typeof editor.cursorCoords === 'function') {
+          var coords = editor.cursorCoords(null, 'window');
+          var wrapRect = wrap.getBoundingClientRect();
+          leftPx = coords.left - wrapRect.left;
+          topPx = coords.bottom - wrapRect.top + 2;
+          if (topPx < 4) topPx = 4;
+        } else if (editor && editor.nodeName === 'TEXTAREA') {
+          var ta = editor;
+          var style = getComputedStyle(ta);
+          var div = document.createElement('div');
+          div.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;font:' + style.font + ';padding:' + style.padding;
+          document.body.appendChild(div);
+          var text = ta.value.substring(0, ta.selectionStart);
+          div.textContent = text || '\u200b';
+          var span = document.createElement('span');
+          span.textContent = text ? '' : '\u200b';
+          div.appendChild(span);
+          var taRect = ta.getBoundingClientRect();
+          var wrapRect = wrap.getBoundingClientRect();
+          leftPx = (taRect.left - wrapRect.left) + span.offsetLeft;
+          topPx = taRect.bottom - wrapRect.top + 2;
+          document.body.removeChild(div);
+        }
+        if (leftPx < 0) leftPx = 0;
+        if (leftPx + 230 > wrap.getBoundingClientRect().width) leftPx = Math.max(0, wrap.getBoundingClientRect().width - 240);
+        popup.style.left = leftPx + 'px';
+        popup.style.top = topPx + 'px';
+        popup.classList.remove('hidden');
+        popup.querySelectorAll('.popup-item[data-insert]').forEach(function(el) {
+          el.addEventListener('click', function() {
+            var insert = this.getAttribute('data-insert');
+            if (editor && insert) {
+              if (typeof editor.replaceRange === 'function') {
+                var cursor = editor.getCursor();
+                var from = { line: cursor.line, ch: Math.max(0, cursor.ch - 1) };
+                editor.replaceRange(insert, from, cursor);
+              } else {
+                var ta = editor;
+                var start = ta.selectionStart - 1;
+                if (start < 0) start = 0;
+                var end = ta.selectionStart;
+                ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+                ta.selectionStart = ta.selectionEnd = start + insert.length;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }
+            popup.classList.add('hidden');
+          });
+        });
+        document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { popup.classList.add('hidden'); document.removeEventListener('keydown', esc); } });
+        setTimeout(function() { document.addEventListener('click', function out(e) { if (!popup.contains(e.target)) { popup.classList.add('hidden'); document.removeEventListener('click', out); } }); }, 0);
+      }
+
+      function initEditors() {
+        if (cmHtml) return;
+        var taHtml = document.getElementById('compHtml');
+        var taCss = document.getElementById('compCss');
+        var taJs = document.getElementById('compJs');
+        if (typeof CodeMirror !== 'undefined') {
+          var openBraceHandler = function(cm) {
+            cm.replaceRange('{', cm.getCursor());
+            showVariablePopup(cm);
+          };
+          cmHtml = CodeMirror.fromTextArea(taHtml, {
+            mode: 'htmlmixed',
+            lineNumbers: true,
+            lineWrapping: true,
+            extraKeys: {
+              '{': openBraceHandler,
+              'Shift-[': openBraceHandler
+            }
+          });
+          cmCss = CodeMirror.fromTextArea(taCss, { mode: 'text/css', lineNumbers: true, lineWrapping: true });
+          cmJs = CodeMirror.fromTextArea(taJs, { mode: 'javascript', lineNumbers: true, lineWrapping: true });
+          cmHtml.on('keydown', function(ed, e) {
+            var isBrace = e.key === '{' || (e.keyCode === 219 && e.shiftKey);
+            if (isBrace) { e.preventDefault(); ed.replaceRange('{', ed.getCursor()); showVariablePopup(ed); }
+          });
+          cmHtml.on('change', syncVariablesFromHtml);
+        } else {
+          taHtml.addEventListener('keydown', function(e) { if (e.key === '{' || (e.keyCode === 219 && e.shiftKey)) showVariablePopup(taHtml); });
+        }
+      }
+
+      function seedComponentsIfMissing() {
+        var ids = getAllComponentIds();
+        if (ids.indexOf('hero-1') === -1) setJson('pmp_component_hero-1', { id: 'hero-1', name: 'Hero', type: 'page', category: 'Hero', description: '', html: '<section><h1>{{ headline }}</h1><p>{{ subheadline }}</p><a href="{{ cta_url }}">{{ cta_text }}</a></section>', css: '', js: '', variables: { headline: { type: 'string', label: 'Headline' }, subheadline: { type: 'string', label: 'Subheadline' }, cta_url: { type: 'url', label: 'CTA URL' }, cta_text: { type: 'string', label: 'CTA Text' } }, variableOrder: ['headline', 'subheadline', 'cta_url', 'cta_text'], positioningStructure: [] });
+        if (ids.indexOf('content-1') === -1) setJson('pmp_component_content-1', { id: 'content-1', name: 'Content block', type: 'page', category: 'Content block', description: '', html: '<div><h2>{{ title }}</h2><div>{{ description }}</div></div>', css: '', js: '', variables: { title: { type: 'string', label: 'Title' }, description: { type: 'textarea', label: 'Description' } }, variableOrder: ['title', 'description'], positioningStructure: [] });
+        if (ids.indexOf('cta-1') === -1) setJson('pmp_component_cta-1', { id: 'cta-1', name: 'CTA Banner', type: 'page', category: 'CTA', description: '', html: '<section><h2>{{ title }}</h2><p>{{ message }}</p><a href="{{ link_url }}">{{ link_text }}</a></section>', css: '', js: '', variables: { title: { type: 'string', label: 'Title' }, message: { type: 'string', label: 'Message' }, link_url: { type: 'url', label: 'Link URL' }, link_text: { type: 'string', label: 'Link Text' } }, variableOrder: [], positioningStructure: [] });
+      }
+      seedComponentsIfMissing();
 
       function syncVariablesFromHtml() {
-        var html = document.getElementById('compHtml').value || '';
+        var html = getHtmlValue();
         var re = /\{\{([^}]+)\}\}/g;
         var m;
         var names = [];
@@ -124,10 +236,11 @@
 
       function renderAttrList() {
         var names = Object.keys(variableStore);
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var el = document.getElementById('attrList');
         el.innerHTML = names.map(function(n) {
           var v = variableStore[n];
-          return '<li><input type="text" class="form-control attr-label" data-name="' + n + '" value="' + (v.label || n).replace(/"/g, '&quot;') + '" placeholder="Label"><select class="form-control attr-type" data-name="' + n + '"><option value="string"' + (v.type === 'string' ? ' selected' : '') + '>Text</option><option value="textarea"' + (v.type === 'textarea' ? ' selected' : '') + '>Textarea</option><option value="url"' + (v.type === 'url' ? ' selected' : '') + '>URL</option><option value="number"' + (v.type === 'number' ? ' selected' : '') + '>Number</option><option value="boolean"' + (v.type === 'boolean' ? ' selected' : '') + '>Checkbox</option><option value="color"' + (v.type === 'color' ? ' selected' : '') + '>Color</option></select><span>' + n + '</span></li>';
+          return '<li class="py-2 border-b border-gray-200 grid grid-cols-[1fr_120px_80px] gap-2 items-center"><input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 attr-label" data-name="' + esc(n) + '" value="' + esc(v.label || n) + '" placeholder="Label"><select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 attr-type" data-name="' + esc(n) + '"><option value="string"' + (v.type === 'string' ? ' selected' : '') + '>Text</option><option value="textarea"' + (v.type === 'textarea' ? ' selected' : '') + '>Textarea</option><option value="url"' + (v.type === 'url' ? ' selected' : '') + '>URL</option><option value="number"' + (v.type === 'number' ? ' selected' : '') + '>Number</option><option value="boolean"' + (v.type === 'boolean' ? ' selected' : '') + '>Checkbox</option><option value="color"' + (v.type === 'color' ? ' selected' : '') + '>Color</option></select><span>' + esc(n) + '</span></li>';
         }).join('');
       }
 
@@ -138,6 +251,7 @@
           document.getElementById('compType').value = 'page';
           document.getElementById('compCategory').value = '';
           document.getElementById('compDesc').value = '';
+          setHtmlValue('');
           document.getElementById('compHtml').value = '';
           document.getElementById('compCss').value = '';
           document.getElementById('compJs').value = '';
@@ -151,6 +265,7 @@
           document.getElementById('compCategory').value = c.category || '';
           document.getElementById('compDesc').value = c.description || '';
           document.getElementById('compHtml').value = c.html || '';
+          setHtmlValue(c.html || '');
           document.getElementById('compCss').value = c.css || '';
           document.getElementById('compJs').value = c.js || '';
           variableStore = (c.variables && typeof c.variables === 'object') ? JSON.parse(JSON.stringify(c.variables)) : {};
@@ -161,6 +276,7 @@
       }
 
       document.getElementById('compHtml').addEventListener('input', syncVariablesFromHtml);
+      document.getElementById('compHtml').addEventListener('keydown', function(e) { if ((e.key === '{' || (e.keyCode === 219 && e.shiftKey)) && !cmHtml) showVariablePopup(this); });
       document.getElementById('compType').addEventListener('change', function() {
         var t = this.value;
         document.getElementById('catList').innerHTML = (CATEGORIES[t] || '').split(', ').map(function(c) { return '<option value="' + c + '">'; }).join('');
@@ -189,9 +305,9 @@
           type: document.getElementById('compType').value || 'page',
           category: document.getElementById('compCategory').value.trim(),
           description: document.getElementById('compDesc').value.trim(),
-          html: document.getElementById('compHtml').value,
-          css: document.getElementById('compCss').value,
-          js: document.getElementById('compJs').value,
+          html: getHtmlValue(),
+          css: cmCss ? cmCss.getValue() : (document.getElementById('compCss').value || ''),
+          js: cmJs ? cmJs.getValue() : (document.getElementById('compJs').value || ''),
           variables: variables,
           variableOrder: Object.keys(variableStore),
           positioningStructure: []
@@ -202,6 +318,7 @@
       });
 
       loadComponent();
+      initEditors();
     })();
   </script>
 </body>

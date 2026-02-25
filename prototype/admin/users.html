@@ -4,52 +4,46 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>User Management – CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
-  <style>
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-overlay.show { display: flex; }
-    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 460px; width: 100%; max-height: 90vh; overflow-y: auto; }
-    #userStartupGroup { display: none; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html">Navigation</a>
-        <a href="components.html">Components</a>
-        <a href="templates.html">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html" class="active">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <h1>User Management</h1>
-        <p class="subtitle">Manage user accounts and access credentials.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <h1 class="m-0 mb-1 text-2xl font-semibold">User Management</h1>
+        <p class="m-0 text-gray-500 text-sm">Manage user accounts and access credentials.</p>
       </div>
-      <div class="card">
-        <div class="card-header">
+      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
           Users
-          <button type="button" class="btn btn-primary btn-sm" id="btnAddUser">Add User</button>
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnAddUser">Add User</button>
         </div>
-        <div class="card-body table-wrap">
-          <table class="data-table" id="usersTable">
+        <div class="p-5 overflow-x-auto">
+          <table class="w-full border-collapse text-sm" id="usersTable">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Last Login</th>
-                <th>Actions</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Name</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Email</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Role</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Status</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-50">Last Login</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Actions</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -58,44 +52,44 @@
       </div>
     </main>
   </div>
-  <div class="modal-overlay" id="modalUser">
-    <div class="modal-card">
-      <div class="card-header"><span id="modalUserTitle">Create New User</span><button type="button" class="btn btn-sm" id="modalUserClose">×</button></div>
-      <div class="card-body">
-        <p class="text-muted small" id="inviteNote">An invitation email will be sent; the recipient will get a registration link.</p>
-        <div class="form-group" id="userNameGroup" style="display:none;">
-          <label>Full Name *</label>
-          <input type="text" class="form-control" id="userName" required>
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center p-4" id="modalUser">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[460px] w-full max-h-[90vh] overflow-y-auto">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span id="modalUserTitle">Create New User</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalUserClose">×</button></div>
+      <div class="p-5">
+        <p class="text-gray-500 text-sm mb-4" id="inviteNote">An invitation email will be sent; the recipient will get a registration link.</p>
+        <div class="mb-4 hidden" id="userNameGroup">
+          <label class="block mb-1 font-medium">Full Name *</label>
+          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userName" required>
         </div>
-        <div class="form-group">
-          <label>Email *</label>
-          <input type="email" class="form-control" id="userEmail" required>
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Email *</label>
+          <input type="email" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userEmail" required>
         </div>
-        <div class="form-group">
-          <label>Role *</label>
-          <select class="form-control" id="userRole">
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Role *</label>
+          <select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userRole">
             <option value="super_admin">Super Admin</option>
             <option value="program_manager">Program Manager</option>
             <option value="advisor">Advisor</option>
             <option value="startup">Startup</option>
           </select>
         </div>
-        <div class="form-group" id="userStartupGroup">
-          <label>Startup (company)</label>
-          <input type="text" class="form-control" id="userStartup" placeholder="Company name">
+        <div class="mb-4 hidden" id="userStartupGroup">
+          <label class="block mb-1 font-medium">Startup (company)</label>
+          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userStartup" placeholder="Company name">
         </div>
-        <div class="form-group" id="userStatusGroup" style="display:none;">
-          <label>Status</label>
-          <select class="form-control" id="userStatus">
+        <div class="mb-4 hidden" id="userStatusGroup">
+          <label class="block mb-1 font-medium">Status</label>
+          <select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userStatus">
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="suspended">Suspended</option>
           </select>
         </div>
       </div>
-      <div class="card-body" style="border-top:1px solid var(--color-border);">
-        <button type="button" class="btn" id="modalUserCancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="modalUserSave">Save User</button>
+      <div class="p-5 border-t border-gray-200">
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalUserCancel">Cancel</button>
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalUserSave">Save User</button>
       </div>
     </div>
   </div>
@@ -109,14 +103,18 @@
 
       function loadTable() {
         var users = getUsers();
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        var badge = { success: 'bg-green-100 text-green-800', danger: 'bg-red-100 text-red-800', secondary: 'bg-gray-200 text-gray-700' };
         document.querySelector('#usersTable tbody').innerHTML = users.map(function(u) {
-          var statusClass = u.status === 'active' ? 'success' : u.status === 'suspended' ? 'danger' : 'secondary';
-          return '<tr data-id="' + (u.id || '') + '"><td>' + (u.name || '—') + '</td><td>' + (u.email || '') + '</td><td>' + (ROLES[u.role] || u.role) + '</td><td><span class="badge badge-' + statusClass + '">' + (u.status || 'active') + '</span></td><td>' + (u.lastLogin || '—') + '</td><td><button type="button" class="btn btn-sm btn-edit" data-id="' + u.id + '">Edit</button> <button type="button" class="btn btn-sm btn-reset" data-id="' + u.id + '">Reset password</button> <button type="button" class="btn btn-sm btn-del" data-id="' + u.id + '">Delete</button></td></tr>';
+          var statusClass = u.status === 'active' ? badge.success : u.status === 'suspended' ? badge.danger : badge.secondary;
+          return '<tr class="hover:bg-gray-50" data-id="' + esc(u.id || '') + '"><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(u.name || '—') + '</td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(u.email || '') + '</td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(ROLES[u.role] || u.role) + '</td><td class="px-4 py-3 text-left border-b border-gray-200"><span class="inline-block px-2 py-0.5 text-xs font-medium rounded ' + statusClass + '">' + esc(u.status || 'active') + '</span></td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(u.lastLogin || '—') + '</td><td class="px-4 py-3 text-left border-b border-gray-200"><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-edit" data-id="' + esc(u.id || '') + '">Edit</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-reset" data-id="' + esc(u.id || '') + '">Reset password</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-del" data-id="' + esc(u.id || '') + '">Delete</button></td></tr>';
         }).join('');
       }
 
       function toggleStartup() {
-        document.getElementById('userStartupGroup').style.display = document.getElementById('userRole').value === 'startup' ? 'block' : 'none';
+        var el = document.getElementById('userStartupGroup');
+        el.classList.toggle('hidden', document.getElementById('userRole').value !== 'startup');
+        el.classList.toggle('block', document.getElementById('userRole').value === 'startup');
       }
       document.getElementById('userRole').addEventListener('change', toggleStartup);
 
@@ -126,16 +124,19 @@
         var u = id ? users.find(function(x) { return x.id === id; }) : null;
         document.getElementById('modalUserTitle').textContent = u ? 'Edit User' : 'Create New User';
         document.getElementById('modalUserSave').textContent = u ? 'Save User' : 'Create User';
-        document.getElementById('inviteNote').style.display = u ? 'none' : 'block';
-        document.getElementById('userNameGroup').style.display = u ? 'block' : 'none';
-        document.getElementById('userStatusGroup').style.display = u ? 'block' : 'none';
+        document.getElementById('inviteNote').classList.toggle('hidden', !!u);
+        document.getElementById('userNameGroup').classList.toggle('hidden', !u);
+        document.getElementById('userNameGroup').classList.toggle('block', !!u);
+        document.getElementById('userStatusGroup').classList.toggle('hidden', !u);
+        document.getElementById('userStatusGroup').classList.toggle('block', !!u);
         document.getElementById('userName').value = u ? (u.name || '') : '';
         document.getElementById('userEmail').value = u ? (u.email || '') : '';
         document.getElementById('userRole').value = u ? (u.role || 'program_manager') : 'program_manager';
         document.getElementById('userStartup').value = u ? (u.company || '') : '';
         document.getElementById('userStatus').value = u ? (u.status || 'active') : 'active';
         toggleStartup();
-        document.getElementById('modalUser').classList.add('show');
+        document.getElementById('modalUser').classList.remove('hidden');
+        document.getElementById('modalUser').classList.add('flex');
       }
 
       function saveUser() {
@@ -156,26 +157,29 @@
             users[idx].status = status;
             setJson(KEY, users);
             loadTable();
-            document.getElementById('modalUser').classList.remove('show');
+            document.getElementById('modalUser').classList.add('hidden');
+            document.getElementById('modalUser').classList.remove('flex');
             return;
           }
         }
         users.push({ id: String(Date.now()), name: name || '', email: email, role: role, company: role === 'startup' ? startup : undefined, status: 'active', lastLogin: null });
         setJson(KEY, users);
         loadTable();
-        document.getElementById('modalUser').classList.remove('show');
+        document.getElementById('modalUser').classList.add('hidden');
+        document.getElementById('modalUser').classList.remove('flex');
       }
 
       document.getElementById('btnAddUser').onclick = function() { openModal(null); };
-      document.getElementById('modalUserClose').onclick = function() { document.getElementById('modalUser').classList.remove('show'); };
-      document.getElementById('modalUserCancel').onclick = function() { document.getElementById('modalUser').classList.remove('show'); };
+      document.getElementById('modalUserClose').onclick = function() { document.getElementById('modalUser').classList.add('hidden'); document.getElementById('modalUser').classList.remove('flex'); };
+      document.getElementById('modalUserCancel').onclick = function() { document.getElementById('modalUser').classList.add('hidden'); document.getElementById('modalUser').classList.remove('flex'); };
       document.getElementById('modalUserSave').onclick = saveUser;
       document.querySelector('#usersTable tbody').addEventListener('click', function(e) {
-        var id = e.target.getAttribute('data-id');
-        if (!id) return;
-        if (e.target.classList.contains('btn-edit')) openModal(id);
-        else if (e.target.classList.contains('btn-reset')) { if (confirm('Reset password? (Prototype: no email sent)')) alert('In production this would send a reset email.'); }
-        else if (e.target.classList.contains('btn-del')) {
+        var btn = e.target.closest('button[data-id]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        if (btn.classList.contains('btn-edit')) openModal(id);
+        else if (btn.classList.contains('btn-reset')) { if (confirm('Reset password? (Prototype: no email sent)')) alert('In production this would send a reset email.'); }
+        else if (btn.classList.contains('btn-del')) {
           if (!confirm('Delete this user?')) return;
           var users = getUsers().filter(function(x) { return x.id !== id; });
           setJson(KEY, users);

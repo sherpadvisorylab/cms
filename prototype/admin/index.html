@@ -4,45 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html" class="active">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html">Navigation</a>
-        <a href="components.html">Components</a>
-        <a href="templates.html">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <h1>Dashboard</h1>
-        <p class="subtitle">Manage content areas, pages, components, templates, navigation, forms, emails, users, and settings.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <h1 class="m-0 mb-1 text-2xl font-semibold">Dashboard</h1>
+        <p class="m-0 text-gray-500 text-sm">Manage content areas, pages, components, templates, navigation, forms, emails, users, and settings.</p>
       </div>
-      <div class="card">
-        <div class="card-header">Quick links</div>
-        <div class="card-body">
+      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">Quick links</div>
+        <div class="p-5">
           <p>Use the sidebar to open each section. Data is stored in localStorage (keys as per docs).</p>
-          <ul>
-            <li><a href="areas.html">Areas</a> – List and edit areas (Basic Data, Style, Design, Legal, Tracking, Access Policy)</li>
-            <li><a href="pages.html">Pages</a> – Create and manage pages (structure, content, SEO)</li>
-            <li><a href="navigation.html">Navigation</a> – Navigation blocks (items, display template)</li>
-            <li><a href="components.html">Components</a> – Component library (Page, UI, Navigation)</li>
-            <li><a href="templates.html">Templates</a> – Reusable page structures</li>
-            <li><a href="forms.html">Forms</a> – Form generator and embed <code>{{form:id}}</code></li>
-            <li><a href="emails.html">Emails</a> – Email templates</li>
-            <li><a href="users.html">Users</a> – User management and roles</li>
-            <li><a href="settings.html">Settings</a> – System variables, branding, SSO</li>
+          <ul class="list-disc pl-5 mt-2 space-y-1">
+            <li><a href="areas.html" class="text-blue-800 hover:underline">Areas</a> – List and edit areas (Basic Data, Style, Design, Legal, Tracking, Access Policy)</li>
+            <li><a href="pages.html" class="text-blue-800 hover:underline">Pages</a> – Create and manage pages (structure, content, SEO)</li>
+            <li><a href="navigation.html" class="text-blue-800 hover:underline">Navigation</a> – Navigation blocks (items, display template)</li>
+            <li><a href="components.html" class="text-blue-800 hover:underline">Components</a> – Component library (Page, UI, Navigation)</li>
+            <li><a href="templates.html" class="text-blue-800 hover:underline">Templates</a> – Reusable page structures</li>
+            <li><a href="forms.html" class="text-blue-800 hover:underline">Forms</a> – Form generator and embed <code class="bg-gray-100 px-1 rounded">{{form:id}}</code></li>
+            <li><a href="emails.html" class="text-blue-800 hover:underline">Emails</a> – Email templates</li>
+            <li><a href="users.html" class="text-blue-800 hover:underline">Users</a> – User management and roles</li>
+            <li><a href="settings.html" class="text-blue-800 hover:underline">Settings</a> – System variables, branding, SSO</li>
           </ul>
         </div>
       </div>

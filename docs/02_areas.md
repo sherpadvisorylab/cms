@@ -145,7 +145,7 @@ The list page does **not** edit root path, style, design, legal, tracking or acc
 - **Head Template**: Contenteditable div with placeholder showing example `<head>` with variables (e.g. `{{pageTitle}}`, `{{siteName}}`, `{{styles}}`, `{{scripts}}`).
 - **Body Template**: Contenteditable div with placeholder showing example `<body>` with `{{header}}`, `{{content}}`, `{{footer}}`, `{{trackingScripts}}`.
 
-Variables are **clickable**: clicking `{{name}}` opens a modal to edit that variable’s HTML content. Typing **`{`** opens a **variable popup** near the cursor with three sections:
+Variables are **clickable**: clicking `{{name}}` opens a modal to edit that variable’s HTML content. Typing **`{`** opens a **variable popup at the cursor** (positioned contextually where you typed) with three sections:
 - **Style variables**: Theme tokens (e.g. `{{bg-primary}}`, `{{text-muted}}`) from the area’s style settings.
 - **Form (embed)**: Forms from CMS Forms; inserts `{{form:id}}`.
 - **Navigation**: Blocks from CMS Navigation (e.g. Main Header, Footer Links); inserts `{{navigation:id}}`. If none are saved, default entries (Main Header, Footer Links) are shown.

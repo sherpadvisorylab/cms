@@ -177,6 +177,8 @@ Custom variables (e.g. `{{header}}`, `{{myBlock}}`) are defined in the area desi
 - **Font Awesome**: Icons and icon picker  
 - **CodeMirror** (where used): HTML/CSS/JS editors with syntax highlighting  
 
+**Editor and variable popup (requirement):** All editing surfaces for HTML, CSS, and JavaScript (component HTML/CSS/JS, area head/body templates and Area CSS/JS, navigation display template and Additional CSS/JS) **must** use a **code editor** (e.g. CodeMirror) with syntax highlighting and line numbers. In any editor where template variables are allowed (component HTML, area head/body, navigation display template), typing **`{`** **must** open a **variable popup at the cursor** (positioned contextually where the user typed). The popup must show a **bucket of variables grouped by type** (e.g. Style variables, Form (embed), Navigation) so the user can pick one to insert. Clicking an item inserts the full `{{variable}}` or `{{form:id}}` / `{{navigation:id}}` and closes the popup. See [04 – Components](./04_components.md#system-variables-popup), [02 – Areas](./02_areas.md#design-structure), [11 – Navigation](./11_navigation.md#display-template-and-item-variable-popup).
+
 In production, persistence is via the **driver** and a real database (see §1). In the **prototype** only, a client-side store (e.g. localStorage) may be used to simulate load/save; the CMS still uses the same load/save interface, with a driver that reads/writes localStorage.  
 
 ---

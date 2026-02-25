@@ -4,57 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Templates – CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
-  <style>
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem; }
-    .modal-overlay.show { display: flex; }
-    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 600px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
-    .structure-list { list-style: none; margin: 0; padding: 0; }
-    .structure-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); }
-    .preview-frame { border: 1px solid var(--color-border); border-radius: 6px; background: #f8f9fa; margin-top: 0.5rem; }
-    .preview-frame.desktop { width: 100%; min-height: 120px; }
-    .preview-frame.tablet { max-width: 768px; min-height: 100px; }
-    .preview-frame.mobile { max-width: 320px; min-height: 80px; }
-    .preview-devices { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html">Navigation</a>
-        <a href="components.html">Components</a>
-        <a href="templates.html" class="active">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <h1>Templates</h1>
-        <p class="subtitle">Reusable page structures (component lists). Create pages from templates in Pages.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <h1 class="m-0 mb-1 text-2xl font-semibold">Templates</h1>
+        <p class="m-0 text-gray-500 text-sm">Reusable page structures (component lists). Create pages from templates in Pages.</p>
       </div>
-      <div class="card">
-        <div class="card-header">
+      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
           Template list
-          <button type="button" class="btn btn-primary btn-sm" id="btnCreate">Create Template</button>
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnCreate">Create Template</button>
         </div>
-        <div class="card-body table-wrap">
-          <table class="data-table" id="templatesTable">
+        <div class="p-5 overflow-x-auto">
+          <table class="w-full border-collapse text-sm" id="templatesTable">
             <thead>
               <tr>
-                <th>Template name</th>
-                <th>Description</th>
-                <th>Components</th>
-                <th>Last modified</th>
-                <th>Actions</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Template name</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Description</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Components</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Last modified</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Actions</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -64,56 +52,56 @@
     </main>
   </div>
 
-  <div class="modal-overlay" id="modalEdit">
-    <div class="modal-card">
-      <div class="card-header"><span id="modalEditTitle">Create Template</span><button type="button" class="btn btn-sm" id="modalEditClose">×</button></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label>Name *</label>
-          <input type="text" class="form-control" id="tplName" placeholder="e.g. Standard Landing" required>
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center overflow-y-auto p-4" id="modalEdit">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[600px] w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span id="modalEditTitle">Create Template</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalEditClose">×</button></div>
+      <div class="p-5 overflow-y-auto flex-1">
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Name *</label>
+          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="tplName" placeholder="e.g. Standard Landing" required>
         </div>
-        <div class="form-group">
-          <label>Description</label>
-          <textarea class="form-control" id="tplDesc" rows="2" placeholder="Optional description"></textarea>
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Description</label>
+          <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[80px] resize-y" id="tplDesc" rows="2" placeholder="Optional description"></textarea>
         </div>
-        <div class="form-group">
-          <label>Components (order)</label>
-          <ul class="structure-list" id="tplStructureList"></ul>
-          <button type="button" class="btn btn-sm mt-2" id="btnAddComp">Add component</button>
+        <div class="mb-4">
+          <label class="block mb-1 font-medium">Components (order)</label>
+          <ul class="list-none m-0 p-0" id="tplStructureList"></ul>
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer mt-2" id="btnAddComp">Add component</button>
         </div>
       </div>
-      <div class="card-body" style="border-top:1px solid var(--color-border);">
-        <button type="button" class="btn" id="modalEditCancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="modalEditSave">Save Template</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="modalPreview">
-    <div class="modal-card" style="max-width: 500px;">
-      <div class="card-header">Preview <button type="button" class="btn btn-sm" id="modalPreviewClose">×</button></div>
-      <div class="card-body">
-        <div class="preview-devices">
-          <button type="button" class="btn btn-sm preview-device active" data-device="desktop">Desktop</button>
-          <button type="button" class="btn btn-sm preview-device" data-device="tablet">Tablet</button>
-          <button type="button" class="btn btn-sm preview-device" data-device="mobile">Mobile</button>
-        </div>
-        <div class="preview-frame desktop" id="previewFrame">
-          <div style="padding: 0.75rem; font-size: 0.9rem;" id="previewContent"></div>
-        </div>
+      <div class="p-5 border-t border-gray-200">
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalEditCancel">Cancel</button>
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalEditSave">Save Template</button>
       </div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="modalAddComp">
-    <div class="modal-card" style="max-width: 360px;">
-      <div class="card-header">Add component</div>
-      <div class="card-body">
-        <select class="form-control" id="compSelect"></select>
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center overflow-y-auto p-4" id="modalPreview">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[500px] w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between">Preview <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalPreviewClose">×</button></div>
+      <div class="p-5">
+        <div class="flex gap-2 mb-2">
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white cursor-pointer preview-device" data-device="desktop">Desktop</button>
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer preview-device" data-device="tablet">Tablet</button>
+          <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer preview-device" data-device="mobile">Mobile</button>
+        </div>
+        <div class="border border-gray-200 rounded-md bg-gray-100 mt-2 w-full min-h-[120px] preview-frame" id="previewFrame">
+          <div class="p-3 text-sm" id="previewContent"></div>
+        </div>
       </div>
-      <div class="card-body" style="border-top:1px solid var(--color-border);">
-        <button type="button" class="btn" id="modalAddCompCancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="modalAddCompAdd">Add</button>
+    </div>
+  </div>
+
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center overflow-y-auto p-4" id="modalAddComp">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[360px] w-full">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold">Add component</div>
+      <div class="p-5">
+        <select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="compSelect"></select>
+      </div>
+      <div class="p-5 border-t border-gray-200">
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalAddCompCancel">Cancel</button>
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalAddCompAdd">Add</button>
       </div>
     </div>
   </div>
@@ -136,16 +124,11 @@
 
       function loadTable() {
         var templates = getTemplates();
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var tbody = document.querySelector('#templatesTable tbody');
         tbody.innerHTML = templates.map(function(t) {
           var comps = Array.isArray(t.components) ? t.components : [];
-          return '<tr data-id="' + (t.id || '') + '">' +
-            '<td>' + (t.name || '') + '</td>' +
-            '<td>' + (t.desc || t.description || '') + '</td>' +
-            '<td>' + comps.length + '</td>' +
-            '<td>' + (t.updated || '—') + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-preview" data-id="' + (t.id || '') + '">Preview</button> <button type="button" class="btn btn-sm btn-edit" data-id="' + (t.id || '') + '">Edit</button> <button type="button" class="btn btn-sm btn-del" data-id="' + (t.id || '') + '">Delete</button></td>' +
-            '</tr>';
+          return '<tr class="hover:bg-gray-50" data-id="' + esc(t.id || '') + '"><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(t.name || '') + '</td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(t.desc || t.description || '') + '</td><td class="px-4 py-3 text-left border-b border-gray-200">' + comps.length + '</td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(t.updated || '—') + '</td><td class="px-4 py-3 text-left border-b border-gray-200"><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-preview" data-id="' + esc(t.id || '') + '">Preview</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-edit" data-id="' + esc(t.id || '') + '">Edit</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-del" data-id="' + esc(t.id || '') + '">Delete</button></td></tr>';
         }).join('');
       }
 
@@ -153,11 +136,12 @@
         var comps = getAvailableComponents();
         var map = {};
         comps.forEach(function(c) { map[c.id] = c.name; });
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var el = document.getElementById('tplStructureList');
         el.innerHTML = currentComponents.map(function(cid, i) {
           var name = typeof cid === 'string' ? (map[cid] || cid) : (map[cid.id] || cid.id);
           var id = typeof cid === 'string' ? cid : (cid.id || cid);
-          return '<li><span>' + (i + 1) + '</span><span>' + name + '</span><button type="button" class="btn btn-sm btn-up" data-i="' + i + '">↑</button><button type="button" class="btn btn-sm btn-down" data-i="' + i + '">↓</button><button type="button" class="btn btn-sm btn-rem" data-i="' + i + '">Remove</button></li>';
+          return '<li class="flex items-center gap-2 py-2 border-b border-gray-200"><span>' + (i + 1) + '</span><span>' + esc(name) + '</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-up" data-i="' + i + '">↑</button><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-down" data-i="' + i + '">↓</button><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-rem" data-i="' + i + '">Remove</button></li>';
         }).join('');
       }
 
@@ -177,7 +161,8 @@
           currentComponents = [];
         }
         renderStructureList();
-        document.getElementById('modalEdit').classList.add('show');
+        document.getElementById('modalEdit').classList.remove('hidden');
+        document.getElementById('modalEdit').classList.add('flex');
       }
 
       function saveTemplate() {
@@ -195,7 +180,8 @@
             templates[idx].updated = new Date().toLocaleDateString();
             setJson(KEY, templates);
             loadTable();
-            document.getElementById('modalEdit').classList.remove('show');
+            document.getElementById('modalEdit').classList.add('hidden');
+            document.getElementById('modalEdit').classList.remove('flex');
             return;
           }
         }
@@ -209,7 +195,8 @@
         });
         setJson(KEY, templates);
         loadTable();
-        document.getElementById('modalEdit').classList.remove('show');
+        document.getElementById('modalEdit').classList.add('hidden');
+        document.getElementById('modalEdit').classList.remove('flex');
       }
 
       function openPreview(id) {
@@ -220,51 +207,65 @@
         var map = {};
         comps.forEach(function(c) { map[c.id] = c.name; });
         var list = (t.components || []).map(function(cid) { return map[cid] || cid; });
-        document.getElementById('previewContent').innerHTML = list.length ? list.map(function(name, i) { return '<div style="padding:0.5rem; background:#fff; margin:4px; border-radius:4px; border:1px solid #e2e6ea;">' + (i + 1) + '. ' + name + '</div>'; }).join('') : '<p class="text-muted">No components.</p>';
-        document.getElementById('modalPreview').classList.add('show');
-        document.querySelectorAll('.preview-device').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-device') === 'desktop'); });
-        document.getElementById('previewFrame').className = 'preview-frame desktop';
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        document.getElementById('previewContent').innerHTML = list.length ? list.map(function(name, i) { return '<div class="p-2 bg-white m-1 rounded border border-gray-200">' + (i + 1) + '. ' + esc(name) + '</div>'; }).join('') : '<p class="text-gray-500">No components.</p>';
+        document.getElementById('modalPreview').classList.remove('hidden');
+        document.getElementById('modalPreview').classList.add('flex');
+        document.querySelectorAll('.preview-device').forEach(function(b) {
+          b.classList.remove('bg-blue-800', 'text-white');
+          b.classList.add('bg-white', 'text-gray-900', 'border-gray-200');
+          if (b.getAttribute('data-device') === 'desktop') { b.classList.add('bg-blue-800', 'text-white'); b.classList.remove('bg-white', 'text-gray-900'); }
+        });
+        document.getElementById('previewFrame').className = 'border border-gray-200 rounded-md bg-gray-100 mt-2 w-full min-h-[120px] preview-frame';
       }
 
       document.getElementById('btnCreate').onclick = function() { openEdit(null); };
-      document.getElementById('modalEditClose').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
-      document.getElementById('modalEditCancel').onclick = function() { document.getElementById('modalEdit').classList.remove('show'); };
+      document.getElementById('modalEditClose').onclick = function() { document.getElementById('modalEdit').classList.add('hidden'); document.getElementById('modalEdit').classList.remove('flex'); };
+      document.getElementById('modalEditCancel').onclick = function() { document.getElementById('modalEdit').classList.add('hidden'); document.getElementById('modalEdit').classList.remove('flex'); };
       document.getElementById('modalEditSave').onclick = saveTemplate;
       document.getElementById('btnAddComp').onclick = function() {
         var comps = getAvailableComponents();
-        document.getElementById('compSelect').innerHTML = comps.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
-        document.getElementById('modalAddComp').classList.add('show');
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        document.getElementById('compSelect').innerHTML = comps.map(function(c) { return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>'; }).join('');
+        document.getElementById('modalAddComp').classList.remove('hidden');
+        document.getElementById('modalAddComp').classList.add('flex');
       };
-      document.getElementById('modalAddCompCancel').onclick = function() { document.getElementById('modalAddComp').classList.remove('show'); };
+      document.getElementById('modalAddCompCancel').onclick = function() { document.getElementById('modalAddComp').classList.add('hidden'); document.getElementById('modalAddComp').classList.remove('flex'); };
       document.getElementById('modalAddCompAdd').onclick = function() {
         var id = document.getElementById('compSelect').value;
         if (id) currentComponents.push(id);
         renderStructureList();
-        document.getElementById('modalAddComp').classList.remove('show');
+        document.getElementById('modalAddComp').classList.add('hidden');
+        document.getElementById('modalAddComp').classList.remove('flex');
       };
       document.getElementById('tplStructureList').addEventListener('click', function(e) {
-        var i = e.target.getAttribute('data-i');
-        if (i == null) return;
-        i = parseInt(i, 10);
-        if (e.target.classList.contains('btn-rem')) { currentComponents.splice(i, 1); renderStructureList(); }
-        else if (e.target.classList.contains('btn-up') && i > 0) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i-1]; currentComponents[i-1] = t; renderStructureList(); }
-        else if (e.target.classList.contains('btn-down') && i < currentComponents.length - 1) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i+1]; currentComponents[i+1] = t; renderStructureList(); }
+        var btn = e.target.closest('button[data-i]');
+        if (!btn) return;
+        var i = parseInt(btn.getAttribute('data-i'), 10);
+        if (btn.classList.contains('btn-rem')) { currentComponents.splice(i, 1); renderStructureList(); }
+        else if (btn.classList.contains('btn-up') && i > 0) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i-1]; currentComponents[i-1] = t; renderStructureList(); }
+        else if (btn.classList.contains('btn-down') && i < currentComponents.length - 1) { var t = currentComponents[i]; currentComponents[i] = currentComponents[i+1]; currentComponents[i+1] = t; renderStructureList(); }
       });
-      document.getElementById('modalPreviewClose').onclick = function() { document.getElementById('modalPreview').classList.remove('show'); };
+      document.getElementById('modalPreviewClose').onclick = function() { document.getElementById('modalPreview').classList.add('hidden'); document.getElementById('modalPreview').classList.remove('flex'); };
       document.querySelectorAll('.preview-device').forEach(function(b) {
         b.addEventListener('click', function() {
-          document.querySelectorAll('.preview-device').forEach(function(x) { x.classList.remove('active'); });
-          b.classList.add('active');
+          document.querySelectorAll('.preview-device').forEach(function(x) { x.classList.remove('bg-blue-800', 'text-white'); x.classList.add('bg-white', 'text-gray-900', 'border-gray-200'); });
+          b.classList.add('bg-blue-800', 'text-white');
+          b.classList.remove('bg-white', 'text-gray-900');
           var dev = b.getAttribute('data-device');
-          document.getElementById('previewFrame').className = 'preview-frame ' + dev;
+          var frame = document.getElementById('previewFrame');
+          frame.className = 'border border-gray-200 rounded-md bg-gray-100 mt-2 min-h-[120px] preview-frame';
+          if (dev === 'tablet') frame.classList.add('max-w-[768px]');
+          if (dev === 'mobile') frame.classList.add('max-w-[320px]', 'min-h-[80px]');
         });
       });
       document.querySelector('#templatesTable tbody').addEventListener('click', function(e) {
-        var id = e.target.getAttribute('data-id');
-        if (!id) return;
-        if (e.target.classList.contains('btn-preview')) openPreview(id);
-        else if (e.target.classList.contains('btn-edit')) openEdit(id);
-        else if (e.target.classList.contains('btn-del')) {
+        var btn = e.target.closest('button[data-id]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        if (btn.classList.contains('btn-preview')) openPreview(id);
+        else if (btn.classList.contains('btn-edit')) openEdit(id);
+        else if (btn.classList.contains('btn-del')) {
           if (!confirm('Delete this template?')) return;
           var templates = getTemplates().filter(function(t) { return (t.id || t.name) !== id; });
           setJson(KEY, templates);

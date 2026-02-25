@@ -20,7 +20,7 @@ Questo file traccia l’avanzamento del prototipo HTML/CMS: frontend (sito di es
 | Auth (site) | site/login.html, signup.html, forgot-password.html | ✅ UI Login, Signup, Forgot password (senza backend) |
 | Default pages | site/404.html, privacy-policy.html, terms.html | ✅ 404, Privacy, Terms; contenuto da Area Legal |
 
-Mancano (opzionali o da estendere): variable popup in Design (Areas), CodeMirror, Form generator completo (groups/fields), Load template from component in Navigation, Positioning/Preview in Components.
+Mancano (opzionali o da estendere): Form generator completo (groups/fields), Load template from component in Navigation, Positioning/Preview in Components. Implementati: variable popup su `{` (Components, Area Design, Navigation display template) raggruppate per tipologia; CodeMirror in component_edit per HTML/CSS/JS.
 
 ---
 
@@ -65,7 +65,7 @@ Mancano (opzionali o da estendere): variable popup in Design (Areas), CodeMirror
 - [x] Tracking: GA, GTM, custom scripts (position)
 - [x] Access Policy: restricted, redirectUrl, registration, recover password
 - [x] localStorage: `pmp_cms_areas`
-- [ ] Style: Custom fonts, Icon fonts, multiple schemas, Import from URL; Design: variable popup, bodyElements
+- [ ] Style: Custom fonts, Icon fonts, multiple schemas, Import from URL; Design: bodyElements. **Variable popup** (typing `{` → Style / Form / Navigation) implementato in prototipo.
 
 #### 3.2 Pages (doc: 03_pages, 03_pages_default)
 - [x] Lista pagine con filtro per area
@@ -83,8 +83,9 @@ Mancano (opzionali o da estendere): variable popup in Design (Areas), CodeMirror
 - [x] Edit/Add: name, type, category, description
 - [x] HTML template (Liquid), textarea (no CodeMirror in prototype)
 - [x] Attributes tab (variable schema da regex `{{ var }}`)
+- [x] Variable popup: digitando `{` si apre popup con variabili raggruppate (Style, Form embed); CodeMirror per HTML/CSS/JS
 - [x] localStorage: `pmp_component_<id>`, seed hero-1, content-1, cta-1
-- [ ] System variables popup (`{`), CodeMirror html-liquid, Positioning (12-col), Preview modale, Import HTML
+- [ ] System variables popup (`{`), Positioning (12-col), Preview modale, Import HTML
 
 #### 3.4 Templates (doc: 09_templates)
 - [x] Lista: name, description, component count, last modified
@@ -104,8 +105,9 @@ Mancano (opzionali o da estendere): variable popup in Design (Areas), CodeMirror
 - [x] Items: Add existing page (select page → label, url), Add custom link
 - [x] Edit item (page/custom)
 - [x] Display template (textarea HTML + Liquid), Additional CSS/JS (collapsible)
+- [x] Variable popup: digitando `{` nel display template si apre popup variabili item (item.label, item.url, …)
 - [x] localStorage: `pmp_cms_navigations`
-- [ ] Item variable popup (`{`), Load template from component (Menu)
+- [ ] Load template from component (Menu)
 
 #### 3.7 Emails (doc: 06_emails)
 - [x] Lista template (id, name, category, subject)
@@ -164,6 +166,7 @@ Mancano (opzionali o da estendere): variable popup in Design (Areas), CodeMirror
 
 ## Note
 
+- **Styling**: il prototipo usa **solo Tailwind CSS** tramite CDN (`https://cdn.tailwindcss.com`) incluso in ogni pagina; nessun file CSS custom (main.css è vuoto/deprecato).
 - Implementazione fedele alla documentazione; non inventare funzionalità non descritte.
 - Grafica: professionale, neutra, funzionale.
 - Persistenza prototipo: localStorage (chiavi documentate in 10_data_and_technical e nei doc di dettaglio).

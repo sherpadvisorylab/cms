@@ -106,8 +106,8 @@ If the edited “page” item’s URL is not in the page list (e.g. custom path)
 
 The **Display template** is an HTML + Liquid template (e.g. `{% for item in items %}…{% endfor %}`). It is edited in a **CodeMirror** editor (mode `html-liquid`).
 
-- Typing **`{`** in the editor opens a **popup** (“Item properties”) that lists all available item properties: **label**, **url**, **image**, **description**, plus every **custom property name** that appears on at least one item in the current navigation (merge of all items). Clicking an entry inserts `{{ item.<property> }}` at the cursor (replacing the typed `{` or `{{`). If an item does not have that property, it renders empty at runtime.
-- The popup is positioned near the cursor; it closes on Escape or click outside.
+- Typing **`{`** in the editor opens a **popup** (“Item properties”) **at the cursor** (positioned contextually where you typed) that lists all available item properties: **label**, **url**, **image**, **description**, plus every **custom property name** that appears on at least one item in the current navigation (merge of all items). Clicking an entry inserts `{{ item.<property> }}` at the cursor (replacing the typed `{` or `{{`). If an item does not have that property, it renders empty at runtime.
+- The popup closes on Escape or click outside.
 
 This behaves like the **system variables popup** in the component HTML editor (e.g. style variables, form embeds), but the list is derived from the navigation’s item structure.
 

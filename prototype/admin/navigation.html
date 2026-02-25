@@ -4,71 +4,58 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Navigation – CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
-  <style>
-    .nav-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; }
-    @media (max-width: 900px) { .nav-layout { grid-template-columns: 1fr; } }
-    .nav-block-card { padding: 0.75rem 1rem; margin-bottom: 0.5rem; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
-    .nav-block-card:hover { background: #f5f6f8; }
-    .nav-block-card.selected { border-color: var(--color-primary); background: #f0f4f8; }
-    .nav-block-card .name { font-weight: 600; }
-    .nav-block-card .count { font-size: 0.85rem; color: var(--color-text-muted); }
-    .items-list { list-style: none; margin: 0; padding: 0; }
-    .items-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--color-border); }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem; }
-    .modal-overlay.show { display: flex; }
-    .modal-card { background: #fff; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,.15); max-width: 520px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
-    .collapsible { margin-top: 1rem; }
-    .collapsible summary { cursor: pointer; font-weight: 500; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html" class="active">Navigation</a>
-        <a href="components.html">Components</a>
-        <a href="templates.html">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <h1>Navigation</h1>
-        <p class="subtitle">Manage navigation blocks: items (page or custom link), display template, Additional CSS/JS.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <h1 class="m-0 mb-1 text-2xl font-semibold">Navigation</h1>
+        <p class="m-0 text-gray-500 text-sm">Manage navigation blocks: items (page or custom link), display template, Additional CSS/JS.</p>
       </div>
-      <div class="nav-layout">
-        <div class="card">
-          <div class="card-header">Blocks <button type="button" class="btn btn-primary btn-sm" id="btnAddBlock">+ Add</button></div>
-          <div class="card-body" id="blockList"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">Blocks <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnAddBlock">+ Add</button></div>
+          <div class="p-5" id="blockList"></div>
         </div>
-        <div class="card" id="editorPanel" style="display:none;">
-          <div class="card-header">
-            <input type="text" class="form-control" id="blockName" placeholder="Block name" style="max-width:240px; display:inline-block;">
-            <button type="button" class="btn btn-primary btn-sm" id="btnSaveBlock">Save</button>
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden hidden" id="editorPanel">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
+            <input type="text" class="max-w-[240px] w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="blockName" placeholder="Block name">
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnSaveBlock">Save</button>
           </div>
-          <div class="card-body">
-            <h4 class="mb-2">Items</h4>
-            <button type="button" class="btn btn-sm mb-2" id="btnAddPage">Add existing page</button>
-            <button type="button" class="btn btn-sm mb-2" id="btnAddCustom">Add custom link</button>
-            <ul class="items-list" id="itemsList"></ul>
-            <h4 class="mb-2 mt-2">Display template (HTML + Liquid)</h4>
-            <textarea class="form-control" id="blockTemplate" rows="6" placeholder="e.g. &#10;&#10;&lt;ul&gt;&#10;{% for item in items %}&#10;  &lt;li&gt;&lt;a href=&quot;{{ item.url }}&quot;&gt;{{ item.label }}&lt;/a&gt;&lt;/li&gt;&#10;{% endfor %}&#10;&lt;/ul&gt;"></textarea>
-            <details class="collapsible">
-              <summary>Additional CSS</summary>
-              <textarea class="form-control mt-1" id="blockCss" rows="3" placeholder="Optional CSS"></textarea>
+          <div class="p-5">
+            <h4 class="mb-2 text-base font-semibold">Items</h4>
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer mb-2" id="btnAddPage">Add existing page</button>
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer mb-2" id="btnAddCustom">Add custom link</button>
+            <ul class="list-none m-0 p-0" id="itemsList"></ul>
+            <h4 class="mb-2 mt-4 text-base font-semibold">Display template (HTML + Liquid)</h4>
+            <div class="relative">
+              <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono min-h-[80px] resize-y" id="blockTemplate" rows="6" placeholder="e.g. &#10;&#10;&lt;ul&gt;&#10;{% for item in items %}&#10;  &lt;li&gt;&lt;a href=&quot;{{ item.url }}&quot;&gt;{{ item.label }}&lt;/a&gt;&lt;/li&gt;&#10;{% endfor %}&#10;&lt;/ul&gt;"></textarea>
+              <div id="navVariablePopup" class="absolute z-[1000] bg-white border border-gray-200 rounded-md shadow-lg max-h-[240px] overflow-y-auto min-w-[220px] hidden"></div>
+            </div>
+            <details class="mt-4">
+              <summary class="cursor-pointer font-medium">Additional CSS</summary>
+              <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono mt-2 min-h-[80px] resize-y" id="blockCss" rows="3" placeholder="Optional CSS"></textarea>
             </details>
-            <details class="collapsible">
-              <summary>Additional JS</summary>
-              <textarea class="form-control mt-1" id="blockJs" rows="3" placeholder="Optional JavaScript"></textarea>
+            <details class="mt-4">
+              <summary class="cursor-pointer font-medium">Additional JS</summary>
+              <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono mt-2 min-h-[80px] resize-y" id="blockJs" rows="3" placeholder="Optional JavaScript"></textarea>
             </details>
           </div>
         </div>
@@ -76,23 +63,23 @@
     </main>
   </div>
 
-  <div class="modal-overlay" id="modalItem">
-    <div class="modal-card">
-      <div class="card-header"><span id="modalItemTitle">Add item</span><button type="button" class="btn btn-sm" id="modalItemClose">×</button></div>
-      <div class="card-body" id="modalItemForm"></div>
-      <div class="card-body" style="border-top:1px solid var(--color-border);">
-        <button type="button" class="btn" id="modalItemCancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="modalItemAdd">Add</button>
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center overflow-y-auto p-4" id="modalItem">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[520px] w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span id="modalItemTitle">Add item</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalItemClose">×</button></div>
+      <div class="p-5 overflow-y-auto flex-1" id="modalItemForm"></div>
+      <div class="p-5 border-t border-gray-200">
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalItemCancel">Cancel</button>
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalItemAdd">Add</button>
       </div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="modalLoadComponent">
-    <div class="modal-card" style="max-width:400px;">
-      <div class="card-header">Load template from component <button type="button" class="btn btn-sm" id="modalLoadClose">×</button></div>
-      <div class="card-body">
-        <p class="text-muted small">Choose a Menu-type component to copy its HTML into the Display template.</p>
-        <ul id="menuComponentsList"></ul>
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center overflow-y-auto p-4" id="modalLoadComponent">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[400px] w-full">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between">Load template from component <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalLoadClose">×</button></div>
+      <div class="p-5">
+        <p class="text-gray-500 text-sm">Choose a Menu-type component to copy its HTML into the Display template.</p>
+        <ul class="list-none m-0 p-0 mt-2" id="menuComponentsList"></ul>
       </div>
     </div>
   </div>
@@ -121,14 +108,51 @@
         return (name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'block-' + Date.now();
       }
 
+      var NAV_ITEM_VARS = [
+        { insert: '{{ item.label }}', label: 'item.label' },
+        { insert: '{{ item.url }}', label: 'item.url' },
+        { insert: '{{ item.image }}', label: 'item.image' },
+        { insert: '{{ item.description }}', label: 'item.description' },
+        { insert: '{% for item in items %}', label: 'for item in items' },
+        { insert: '{% endfor %}', label: 'endfor' }
+      ];
+      function showNavVariablePopup(ta) {
+        var popup = document.getElementById('navVariablePopup');
+        var html = '<section class="py-2 border-b border-gray-200 last:border-b-0"><div class="text-xs font-semibold text-gray-500 py-1 px-3 uppercase">Item variables</div>';
+        NAV_ITEM_VARS.forEach(function(v) { html += '<div class="py-1.5 px-3 cursor-pointer font-mono text-sm hover:bg-gray-100 popup-item" data-insert="' + (v.insert || '').replace(/"/g, '&quot;') + '">' + (v.label || v.insert) + '</div>'; });
+        html += '</section>';
+        popup.innerHTML = html;
+        var wrap = ta.closest('.relative') || ta.parentElement;
+        popup.style.position = 'absolute';
+        popup.style.left = (wrap.offsetLeft || 0) + 'px';
+        popup.style.top = (wrap.offsetTop + wrap.offsetHeight - 40) + 'px';
+        popup.classList.remove('hidden');
+        popup.querySelectorAll('.popup-item[data-insert]').forEach(function(el) {
+          el.addEventListener('click', function() {
+            var insert = this.getAttribute('data-insert');
+            if (ta && insert) {
+              var start = ta.selectionStart - 1;
+              if (start < 0) start = 0;
+              var end = ta.selectionStart;
+              ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
+              ta.selectionStart = ta.selectionEnd = start + insert.length;
+            }
+            popup.classList.add('hidden');
+          });
+        });
+        document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { popup.classList.add('hidden'); document.removeEventListener('keydown', esc); } });
+        setTimeout(function() { document.addEventListener('click', function out(e) { if (!popup.contains(e.target)) { popup.classList.add('hidden'); document.removeEventListener('click', out); } }); }, 0);
+      }
+
       function loadBlockList() {
         var nav = getNav();
         var ids = Object.keys(nav);
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var el = document.getElementById('blockList');
         el.innerHTML = ids.map(function(id) {
           var b = nav[id];
           var count = (b.items && b.items.length) || 0;
-          return '<div class="nav-block-card' + (id === currentBlockId ? ' selected' : '') + '" data-id="' + id + '"><div class="name">' + (b.name || id) + '</div><div class="count">' + count + ' items</div></div>';
+          return '<div class="p-3 mb-2 border rounded-md cursor-pointer hover:bg-gray-100 ' + (id === currentBlockId ? ' border-blue-800 bg-blue-50' : ' border-gray-200') + ' nav-block-card" data-id="' + esc(id) + '"><div class="font-semibold">' + esc(b.name || id) + '</div><div class="text-sm text-gray-500">' + count + ' items</div></div>';
         }).join('');
       }
 
@@ -138,18 +162,19 @@
         var nav = getNav();
         var b = nav[id];
         if (!b) {
-          document.getElementById('editorPanel').style.display = 'none';
+          document.getElementById('editorPanel').classList.add('hidden');
           return;
         }
-        document.getElementById('editorPanel').style.display = 'block';
+        document.getElementById('editorPanel').classList.remove('hidden');
         document.getElementById('blockName').value = b.name || '';
         document.getElementById('blockTemplate').value = b.template || '';
         document.getElementById('blockCss').value = b.additionalCss || '';
         document.getElementById('blockJs').value = b.additionalJs || '';
         var items = b.items || [];
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var listEl = document.getElementById('itemsList');
         listEl.innerHTML = items.map(function(item, i) {
-          return '<li data-i="' + i + '"><span>' + (item.label || '') + '</span> <span class="text-muted">' + (item.url || '') + '</span> <span class="badge badge-secondary">' + (item.type || '') + '</span> <button type="button" class="btn btn-sm btn-edit-item" data-i="' + i + '">Edit</button> <button type="button" class="btn btn-sm btn-del-item" data-i="' + i + '">Delete</button></li>';
+          return '<li data-i="' + i + '"><span>' + esc(item.label || '') + '</span> <span class="text-muted">' + esc(item.url || '') + '</span> <span class="badge badge-secondary">' + esc(item.type || '') + '</span> <button type="button" class="btn btn-sm btn-edit-item" data-i="' + i + '">Edit</button> <button type="button" class="btn btn-sm btn-del-item" data-i="' + i + '">Delete</button></li>';
         }).join('');
       }
 
@@ -177,8 +202,9 @@
         document.getElementById('modalItemTitle').textContent = title;
         var pages = getPagesForSelect();
         var html = '';
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         if (isPage || (item && item.type === 'page')) {
-          html += '<div class="form-group"><label>Page</label><select class="form-control" id="itemPage">' + pages.map(function(p) { return '<option value="' + (p.path || '').replace(/"/g, '&quot;') + '">' + (p.title || '') + ' (' + (p.path || '') + ')</option>'; }).join('') + '</select></div>';
+          html += '<div class="form-group"><label>Page</label><select class="form-control" id="itemPage">' + pages.map(function(p) { return '<option value="' + esc(p.path || '') + '">' + esc(p.title || '') + ' (' + esc(p.path || '') + ')</option>'; }).join('') + '</select></div>';
           html += '<div class="form-group"><label>Label</label><input type="text" class="form-control" id="itemLabel" placeholder="Link text"></div>';
           html += '<div class="form-group"><label>URL</label><input type="text" class="form-control" id="itemUrl" placeholder="/path"></div>';
         } else {
@@ -194,8 +220,10 @@
           document.getElementById('itemImage').value = item.image || '';
           document.getElementById('itemDesc').value = item.description || '';
           if (item.type === 'page' && document.getElementById('itemPage')) {
-            var opt = document.querySelector('#itemPage option[value="' + (item.url || '').replace(/"/g, '&quot;') + '"]');
-            if (opt) opt.selected = true;
+            var sel = document.getElementById('itemPage');
+            for (var o = 0; o < sel.options.length; o++) {
+              if (sel.options[o].value === (item.url || '')) { sel.selectedIndex = o; break; }
+            }
             document.getElementById('itemUrl').value = item.url || '';
             document.getElementById('itemLabel').value = item.label || '';
           }
@@ -205,7 +233,8 @@
           document.getElementById('itemLabel').value = p.title || '';
           document.getElementById('itemUrl').value = p.path || '';
         }
-        document.getElementById('modalItem').classList.add('show');
+        document.getElementById('modalItem').classList.remove('hidden');
+        document.getElementById('modalItem').classList.add('flex');
       }
 
       function addItemFromModal() {
@@ -228,7 +257,8 @@
         nav[currentBlockId] = b;
         setJson(KEY, nav);
         selectBlock(currentBlockId);
-        document.getElementById('modalItem').classList.remove('show');
+        document.getElementById('modalItem').classList.add('hidden');
+        document.getElementById('modalItem').classList.remove('flex');
       }
 
       document.getElementById('btnAddBlock').onclick = function() {
@@ -247,24 +277,25 @@
         if (id) selectBlock(id);
       });
       document.getElementById('btnSaveBlock').onclick = saveCurrentBlock;
+      document.getElementById('blockTemplate').addEventListener('keydown', function(e) { if (e.key === '{' || (e.keyCode === 219 && e.shiftKey)) showNavVariablePopup(this); });
       document.getElementById('btnAddPage').onclick = function() { showItemModal(true, null); };
       document.getElementById('btnAddCustom').onclick = function() { showItemModal(false, null); };
       document.getElementById('itemsList').addEventListener('click', function(e) {
-        var i = e.target.getAttribute('data-i');
-        if (i == null) return;
-        i = parseInt(i, 10);
+        var btn = e.target.closest('button[data-i]');
+        if (!btn) return;
+        var i = parseInt(btn.getAttribute('data-i'), 10);
         var nav = getNav();
         var b = nav[currentBlockId];
         var item = (b && b.items && b.items[i]) ? b.items[i] : null;
-        if (e.target.classList.contains('btn-edit-item')) showItemModal(item && item.type === 'page', i);
-        else if (e.target.classList.contains('btn-del-item')) {
+        if (btn.classList.contains('btn-edit-item')) showItemModal(item && item.type === 'page', i);
+        else if (btn.classList.contains('btn-del-item')) {
           b.items.splice(i, 1);
           setJson(KEY, nav);
           selectBlock(currentBlockId);
         }
       });
-      document.getElementById('modalItemClose').onclick = function() { document.getElementById('modalItem').classList.remove('show'); };
-      document.getElementById('modalItemCancel').onclick = function() { document.getElementById('modalItem').classList.remove('show'); };
+      document.getElementById('modalItemClose').onclick = function() { document.getElementById('modalItem').classList.add('hidden'); document.getElementById('modalItem').classList.remove('flex'); };
+      document.getElementById('modalItemCancel').onclick = function() { document.getElementById('modalItem').classList.add('hidden'); document.getElementById('modalItem').classList.remove('flex'); };
       document.getElementById('modalItemAdd').onclick = addItemFromModal;
       document.getElementById('modalItemForm').addEventListener('change', function(e) {
         if (e.target.id === 'itemPage') {

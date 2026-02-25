@@ -62,7 +62,7 @@ Pages can be created from **templates** (predefined component lists). Creating a
 - **Positioning**: Optional 12-column grid layout per view (desktop/tablet/mobile).
 - **Preview**: Rendered preview with variable labels.
 
-Components are used **inside pages** (page structure) and can use **system variables**: style variables (from area/theme) and form embeds (`{{form:id}}`). In the HTML editor, typing `{` opens a popup to insert these.
+Components are used **inside pages** (page structure) and can use **system variables**: style variables (from area/theme) and form embeds (`{{form:id}}`). **All HTML/CSS/JS editors must use a code editor** (e.g. CodeMirror). In the HTML editor, **typing `{` opens a popup at the cursor** with variables **grouped by type** (style variables, form embeds) to insert.
 
 → Full detail: [04 – Components](./04_components.md) (list, edit, Liquid, schema, positioning, system variables popup).
 
@@ -74,8 +74,8 @@ Components are used **inside pages** (page structure) and can use **system varia
 
 ### 2.5 Forms and navigation
 
-- **Forms**: The CMS **Form generator** defines forms (fields, behaviour). Each form has an ID. In area templates or components, you embed a form with `{{form:id}}`. The variable popup (when typing `{`) lists available forms.
-- **Navigation**: **Navigation** blocks (e.g. Main Header, Footer Links) are defined in CMS Navigation: items (pages or custom links, with optional image, description, and custom properties), display template (HTML + Liquid), and optional Additional CSS/JS. Items from pages use field mapping; custom links use fixed values. The display template editor offers an **item variable popup** (type `{` to insert `{{ item.label }}`, `{{ item.url }}`, etc.). Blocks are embedded in area head/body templates as `{{navigation:id}}`. The area design variable popup lists available navigation blocks.
+- **Forms**: The CMS **Form generator** defines forms (fields, behaviour). Each form has an ID. In area templates or components, you embed a form with `{{form:id}}`. The variable popup (when typing `{`, at the cursor) lists available forms.
+- **Navigation**: **Navigation** blocks (e.g. Main Header, Footer Links) are defined in CMS Navigation: items (pages or custom links, with optional image, description, and custom properties), display template (HTML + Liquid), and optional Additional CSS/JS. Items from pages use field mapping; custom links use fixed values. The display template editor offers an **item variable popup** (type `{` to open at the cursor and insert `{{ item.label }}`, `{{ item.url }}`, etc.). Blocks are embedded in area head/body templates as `{{navigation:id}}`. The area design variable popup lists available navigation blocks.
 
 Navigation block management (items, mapping, custom fields, display template, edit) is described in [11 – Navigation](./11_navigation.md). Design structure and variable popup: [02 – Areas](./02_areas.md). Form generator: [05 – Forms](./05_forms.md).
 

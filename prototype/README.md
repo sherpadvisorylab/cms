@@ -33,7 +33,7 @@ I file sono HTML statici; per evitare problemi CORS è consigliabile servirli co
 
 - **site/** — Pagine del sito pubblico (area Public, navigazione, contenuti da localStorage)
 - **admin/** — Interfaccia di gestione CMS
-- **assets/css/main.css** — Stili condivisi (neutri e professionali)
+- **assets/css/main.css** — Non usato: gli stili sono solo Tailwind via CDN (`https://cdn.tailwindcss.com`) incluso in ogni pagina.
 - **assets/js/storage.js** — Helper localStorage (chiavi come da documentazione)
 - **PROTOTYPE_CHECKLIST.md** — Checklist e avanzamento
 

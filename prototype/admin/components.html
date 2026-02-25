@@ -4,67 +4,51 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Components – CMS Admin</title>
-  <link rel="stylesheet" href="../assets/css/main.css">
-  <style>
-    .comp-layout { display: grid; grid-template-columns: 180px 1fr; gap: 1.5rem; }
-    @media (max-width: 768px) { .comp-layout { grid-template-columns: 1fr; } }
-    .comp-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-border); margin-bottom: 1rem; }
-    .comp-tabs a { padding: 0.6rem 1rem; color: var(--color-text-muted); }
-    .comp-tabs a.active { font-weight: 600; color: var(--color-primary); border-bottom: 2px solid var(--color-primary); margin-bottom: -1px; }
-    .cat-list { list-style: none; margin: 0; padding: 0; }
-    .cat-list li { padding: 0.4rem 0; cursor: pointer; }
-    .cat-list li:hover { color: var(--color-primary); }
-    .cat-list li.active { font-weight: 600; color: var(--color-primary); }
-    .comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
-    .comp-card { border: 1px solid var(--color-border); border-radius: 6px; padding: 1rem; cursor: pointer; }
-    .comp-card:hover { border-color: var(--color-primary); background: #fafbfc; }
-    .comp-card .name { font-weight: 600; }
-    .comp-card .cat { font-size: 0.8rem; color: var(--color-text-muted); }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div class="admin-layout">
-    <aside class="admin-sidebar">
-      <div class="brand">CMS Admin</div>
+<body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
+  <div class="flex min-h-screen">
+    <aside class="w-60 flex-shrink-0 bg-gray-900 text-gray-200 py-4">
+      <div class="px-5 pb-4 font-bold text-base border-b border-gray-700 mb-2">CMS Admin</div>
       <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="areas.html">Areas</a>
-        <a href="pages.html">Pages</a>
-        <a href="navigation.html">Navigation</a>
-        <a href="components.html" class="active">Components</a>
-        <a href="templates.html">Templates</a>
-        <a href="forms.html">Forms</a>
-        <a href="emails.html">Emails</a>
-        <a href="users.html">Users</a>
-        <a href="settings.html">Settings</a>
-        <a href="../site/index.html" target="_blank">View site</a>
+        <a href="index.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Dashboard</a>
+        <a href="areas.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Areas</a>
+        <a href="pages.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Pages</a>
+        <a href="navigation.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Navigation</a>
+        <a href="components.html" class="block py-2 px-5 text-sm bg-gray-800 text-white border-l-4 border-blue-500 no-underline">Components</a>
+        <a href="templates.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Templates</a>
+        <a href="forms.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Forms</a>
+        <a href="emails.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Emails</a>
+        <a href="users.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Users</a>
+        <a href="settings.html" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">Settings</a>
+        <a href="../site/index.html" target="_blank" class="block py-2 px-5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white no-underline">View site</a>
       </nav>
     </aside>
-    <main class="admin-content">
-      <div class="page-header">
-        <h1>CMS Components</h1>
-        <p class="subtitle">Page, UI, and Navigation components. Variables in templates appear in Attributes.</p>
+    <main class="flex-1 p-6 overflow-x-auto">
+      <div class="mb-6">
+        <h1 class="m-0 mb-1 text-2xl font-semibold">CMS Components</h1>
+        <p class="m-0 text-gray-500 text-sm">Page, UI, and Navigation components. Variables in templates appear in Attributes.</p>
       </div>
-      <div class="card mb-2">
-        <div class="card-header">
-          <div class="comp-tabs" id="typeTabs">
-            <a href="#" data-type="page" class="active">Page components</a>
-            <a href="#" data-type="ui">UI components</a>
-            <a href="#" data-type="navigation">Navigation components</a>
+      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
+        <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-0 border-b border-gray-200 -mb-px" id="typeTabs">
+            <a href="#" data-type="page" class="px-4 py-2.5 text-gray-500 font-semibold text-blue-800 border-b-2 border-blue-800 mb-[-1px] no-underline">Page components</a>
+            <a href="#" data-type="ui" class="px-4 py-2.5 text-gray-500 hover:text-blue-800 no-underline">UI components</a>
+            <a href="#" data-type="navigation" class="px-4 py-2.5 text-gray-500 hover:text-blue-800 no-underline">Navigation components</a>
           </div>
-          <a href="component_edit.html?id=new&name=Component" class="btn btn-primary btn-sm">Add component</a>
+          <a href="component_edit.html?id=new&name=Component" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 no-underline">Add component</a>
         </div>
       </div>
-      <div class="comp-layout">
-        <div class="card">
-          <div class="card-header">Categories</div>
-          <div class="card-body">
-            <ul class="cat-list" id="catList"></ul>
+      <div class="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6">
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold">Categories</div>
+          <div class="p-5">
+            <ul class="list-none m-0 p-0" id="catList"></ul>
           </div>
         </div>
-        <div class="card">
-          <div class="card-body">
-            <div class="comp-grid" id="compGrid"></div>
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+          <div class="p-5">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4" id="compGrid"></div>
           </div>
         </div>
       </div>
@@ -110,24 +94,34 @@
         var used = {};
         comps.forEach(function(c) { used[c.category] = true; });
         var el = document.getElementById('catList');
-        el.innerHTML = '<li class="' + (!currentCategory ? 'active' : '') + '" data-cat="">All</li>' + cats.map(function(c) {
-          return '<li class="' + (currentCategory === c ? 'active' : '') + '" data-cat="' + c + '">' + c + '</li>';
+        var allCls = !currentCategory ? 'py-1.5 font-semibold text-blue-800 cursor-pointer' : 'py-1.5 text-gray-700 hover:text-blue-800 cursor-pointer';
+        el.innerHTML = '<li class="' + allCls + '" data-cat="">All</li>' + cats.map(function(c) {
+          var cls = currentCategory === c ? 'py-1.5 font-semibold text-blue-800 cursor-pointer' : 'py-1.5 text-gray-700 hover:text-blue-800 cursor-pointer';
+          return '<li class="' + cls + '" data-cat="' + c + '">' + c + '</li>';
         }).join('');
       }
 
       function loadGrid() {
         var comps = getComponentsByType(currentType);
         if (currentCategory) comps = comps.filter(function(c) { return c.category === currentCategory; });
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var el = document.getElementById('compGrid');
         el.innerHTML = comps.map(function(c) {
-          return '<div class="comp-card" data-id="' + c.id + '"><div class="name">' + (c.name || c.id) + '</div><div class="cat">' + (c.category || '') + '</div></div>';
+          return '<div class="border border-gray-200 rounded-md p-4 cursor-pointer hover:border-blue-800 hover:bg-gray-50 comp-card" data-id="' + esc(c.id) + '"><div class="font-semibold">' + esc(c.name || c.id) + '</div><div class="text-sm text-gray-500">' + esc(c.category || '') + '</div></div>';
         }).join('');
       }
 
       function switchType(type) {
         currentType = type;
         currentCategory = '';
-        document.querySelectorAll('.comp-tabs a').forEach(function(a) { a.classList.remove('active'); if (a.getAttribute('data-type') === type) a.classList.add('active'); });
+        document.querySelectorAll('#typeTabs a').forEach(function(a) {
+          a.classList.remove('font-semibold', 'text-blue-800', 'border-b-2', 'border-blue-800', 'mb-[-1px]');
+          a.classList.add('text-gray-500');
+          if (a.getAttribute('data-type') === type) {
+            a.classList.add('font-semibold', 'text-blue-800', 'border-b-2', 'border-blue-800', 'mb-[-1px]');
+            a.classList.remove('text-gray-500');
+          }
+        });
         loadCategories();
         loadGrid();
       }
@@ -140,14 +134,18 @@
         var li = e.target.closest('li[data-cat]');
         if (li) {
           currentCategory = li.getAttribute('data-cat') || '';
-          document.querySelectorAll('#catList li').forEach(function(x) { x.classList.remove('active'); });
-          li.classList.add('active');
+          document.querySelectorAll('#catList li').forEach(function(x) {
+            x.classList.remove('font-semibold', 'text-blue-800');
+            x.classList.add('text-gray-700', 'hover:text-blue-800');
+          });
+          li.classList.add('font-semibold', 'text-blue-800');
+          li.classList.remove('text-gray-700');
           loadGrid();
         }
       });
       document.getElementById('compGrid').addEventListener('click', function(e) {
         var card = e.target.closest('.comp-card');
-        if (card) location.href = 'component_edit.html?id=' + encodeURIComponent(card.getAttribute('data-id')) + '&name=' + encodeURIComponent(card.querySelector('.name').textContent);
+        if (card) location.href = 'component_edit.html?id=' + encodeURIComponent(card.getAttribute('data-id')) + '&name=' + encodeURIComponent(card.querySelector('.font-semibold').textContent);
       });
 
       loadCategories();

@@ -32,7 +32,7 @@ The CMS Components module allows administrators to create and manage **reusable 
 - **Backend panel**: Attributes (variable config), Positioning (12-column grid per view), and Preview (form preview with desktop/tablet/mobile)
 - **Import HTML**: Paste HTML (e.g. Tailwind); text content is converted to Liquid variables
 - **Preview**: Modal preview of the HTML template with Tailwind CSS; variables are replaced by their labels
-- **System variables popup**: Type `{` in the HTML editor to open a popup that lists **style variables** (e.g. `{{bg-primary}}` for color/context) and **form (embed)** variables — CMS-generated forms that can be embedded as `{{form:id}}`. The popup is split by type for clarity.
+- **System variables popup**: Type `{` in the HTML editor to open a popup **at the cursor** that lists **style variables** (e.g. `{{bg-primary}}` for color/context) and **form (embed)** variables — CMS-generated forms that can be embedded as `{{form:id}}`. The popup is split by type for clarity.
 - **Persistence**: All component data is stored in browser **localStorage** under the key `pmp_component_<id>`
 
 ### Prototype Pages
@@ -161,7 +161,7 @@ Variables `headline`, `subheadline`, `cta_url`, and `cta_text` will appear in At
 
 ### System variables popup
 
-When editing the HTML template, typing **`{`** (a single open brace) opens a **system variables** popup positioned under the cursor. It helps insert two kinds of nestable system variables:
+When editing the HTML template, typing **`{`** (a single open brace) opens a **system variables** popup **at the cursor** (positioned contextually where you typed). It helps insert two kinds of nestable system variables:
 
 1. **Style variables** — Token names for color/context (e.g. for use in class attributes or CSS). The popup lists a fixed set of style tokens; selecting one inserts e.g. `{{bg-primary}}`, `{{text-muted}}`, `{{border-primary}}`. At runtime these can be resolved to the actual design tokens (e.g. Tailwind/area color schema).
    - Examples: `bg-primary`, `bg-secondary`, `bg-accent`, `bg-surface`, `text-primary`, `text-secondary`, `text-muted`, `text-accent`, `border-primary`, `border-secondary`, `border-muted`.
