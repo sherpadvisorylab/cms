@@ -2,6 +2,8 @@
 
 Prototipo HTML che mostra tutte le funzionalità del CMS: **frontend** (sito di esempio) e **backend** (admin) secondo la documentazione in `../docs/`.
 
+**Sviluppo**: per lo styling si usa **Tailwind CSS** (vedi anche `../docs/01_overview.md` e `../docs/10_data_and_technical.md`). Nel prototipo Tailwind è incluso via CDN in ogni pagina; per lo sviluppo dell’applicazione reale si raccomanda di usare Tailwind (npm + build) e di evitare CSS custom.
+
 ## Come aprire
 
 1. **Sito pubblico (frontend)**  
@@ -22,7 +24,7 @@ Prototipo HTML che mostra tutte le funzionalità del CMS: **frontend** (sito di 
    - `admin/components.html` — Componenti (tab Page/UI/Navigation, categorie, grid)
    - `admin/component_edit.html?id=...` — Edit component (HTML Liquid, Attributes)
    - `admin/templates.html` — Template (lista, Create/Edit, Preview device)
-   - `admin/forms.html` — Form (lista id/name per {{form:id}})
+   - `admin/forms.html` — Form (nome unico, variabile da nome normalizzato, gestione campi; embed <code>{{form:variable}}</code>)
    - `admin/emails.html` — Template email (edit subject, message, variables)
    - `admin/users.html` — Utenti (lista, Add, Edit, Reset password, Delete)
    - `admin/settings.html` — Impostazioni (Branding, Authentication/SSO, System Variables)

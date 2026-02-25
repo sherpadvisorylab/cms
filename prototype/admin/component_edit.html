@@ -6,6 +6,21 @@
   <title>Edit Component – CMS Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <style>
+    body.html-section-expanded .html-editor-expand-wrap { position: fixed; inset: 0; z-index: 1050; min-height: 100vh; background: #fff; display: flex; flex-direction: column; }
+    body.html-section-expanded .html-editor-expand-wrap [class*="CodeMirror"] { flex: 1; min-height: calc(100vh - 120px); }
+    body.html-section-expanded main > *:not(.html-editor-expand-wrap) { opacity: 0.4; pointer-events: none; }
+    body.html-section-expanded aside { opacity: 0.4; }
+    #modalImportHtml.flex, #modalPreviewHtml.flex { display: flex !important; }
+    .pos-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; min-height: 32px; }
+    .pos-var-block { position: relative; min-height: 36px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; align-items: center; padding: 0 6px; }
+    .pos-var-block .pos-var-chip { flex: 1; min-width: 0; cursor: grab; }
+    .pos-var-block .pos-var-chip:active { cursor: grabbing; }
+    .pos-resize-handle { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 1; }
+    .pos-resize-handle.left { left: 0; border-radius: 6px 0 0 6px; }
+    .pos-resize-handle.right { right: 0; border-radius: 0 6px 6px 0; }
+    .pos-resize-handle:hover { background: rgba(59, 130, 246, 0.2); }
+  </style>
 </head>
 <body class="m-0 font-sans text-[15px] leading-normal text-gray-900 bg-gray-100">
   <div class="flex min-h-screen">
@@ -63,8 +78,15 @@
             </div>
           </div>
         </div>
-        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
-          <div class="px-5 py-4 border-b border-gray-200 font-semibold">HTML template (Liquid)</div>
+        <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4 html-editor-expand-wrap">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
+            <span>HTML template (Liquid)</span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="btnImportHtml" title="Paste HTML and convert text to Liquid variables">Import</button>
+              <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="btnExpandHtml" title="Fullscreen editor (Escape to exit)">Expand</button>
+              <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="btnPreviewHtml" title="Preview template with Tailwind">Preview</button>
+            </div>
+          </div>
           <div class="p-5 relative [&_.CodeMirror]:min-h-[200px] [&_.CodeMirror]:border [&_.CodeMirror]:border-gray-200 [&_.CodeMirror]:rounded" id="htmlEditorWrap">
             <textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono min-h-[80px] resize-y" id="compHtml" rows="10" placeholder="<section>&#10;  <h1>{{ headline }}</h1>&#10;  <p>{{ subheadline }}</p>&#10;</section>"></textarea>
             <div id="variablePopup" class="absolute z-[1000] bg-white border border-gray-200 rounded-md shadow-lg max-h-[280px] overflow-y-auto min-w-[220px] hidden"></div>
@@ -79,9 +101,35 @@
           </div>
         </div>
         <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden mb-4">
-          <div class="px-5 py-4 border-b border-gray-200 font-semibold">Backend – Attributes (from {{ variable }})</div>
-          <div class="p-5">
+          <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
+            <span>Backend</span>
+            <div class="flex items-center gap-2 backend-view-toolbar hidden" id="backendViewToolbar">
+              <span class="text-gray-500 text-sm">View:</span>
+              <button type="button" class="backend-view-btn px-2 py-1 text-sm rounded border border-gray-200 bg-white cursor-pointer" data-view="desktop" title="Desktop">Desktop</button>
+              <button type="button" class="backend-view-btn px-2 py-1 text-sm rounded border border-gray-200 bg-white cursor-pointer" data-view="tablet" title="Tablet">Tablet</button>
+              <button type="button" class="backend-view-btn px-2 py-1 text-sm rounded border border-gray-200 bg-white cursor-pointer" data-view="mobile" title="Mobile">Mobile</button>
+            </div>
+          </div>
+          <div class="flex border-b border-gray-200">
+            <button type="button" class="backend-tab px-5 py-3 text-sm font-medium border-b-2 border-blue-800 text-blue-800 bg-white cursor-pointer" data-tab="attributes">Attributes</button>
+            <button type="button" class="backend-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 cursor-pointer" data-tab="positioning">Positioning</button>
+            <button type="button" class="backend-tab px-5 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 cursor-pointer" data-tab="preview">Preview</button>
+          </div>
+          <div class="p-5" id="backendTabAttributes">
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <span class="text-gray-600 text-sm">Variables from {{ variable }} in the template. Configure type, label, placeholder, required, validator.</span>
+              <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnAddAttr" title="Add variable manually">Add attribute</button>
+            </div>
             <ul class="list-none m-0 p-0" id="attrList"></ul>
+          </div>
+          <div class="p-5 hidden" id="backendTabPositioning">
+            <p class="text-gray-500 text-sm mb-3">Group and order variables for the backend form. Use the view buttons above to set width per device.</p>
+            <div class="space-y-4" id="positioningGroups"></div>
+            <button type="button" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="btnAddGroup">Add group</button>
+          </div>
+          <div class="p-5 hidden" id="backendTabPreview">
+            <p class="text-gray-500 text-sm mb-3">How the backend form will look for copywriters. Use the view buttons above to change preview width.</p>
+            <div id="previewFormContainer" class="rounded border border-gray-200 bg-gray-50 p-4 min-h-[200px]"></div>
           </div>
         </div>
         <div class="mt-4">
@@ -90,6 +138,29 @@
         </div>
       </form>
     </main>
+  </div>
+  <!-- Import HTML modal -->
+  <div class="hidden fixed inset-0 bg-black/40 z-[1100] items-center justify-center p-4" id="modalImportHtml">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-2xl w-full max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span>Import HTML</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalImportClose">×</button></div>
+      <div class="p-5 flex-1 min-h-0 flex flex-col">
+        <p class="text-gray-500 text-sm mb-3">Paste HTML below; text content will be converted to Liquid variables (e.g. <code class="bg-gray-100 px-1 rounded">{{ variable_name }}</code>).</p>
+        <textarea class="w-full flex-1 min-h-[200px] px-3 py-2 text-sm border border-gray-200 rounded-md bg-white font-mono resize-y" id="importHtmlText" placeholder="Paste your HTML here..."></textarea>
+      </div>
+      <div class="p-5 border-t border-gray-200 flex justify-end gap-2">
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalImportCancel">Cancel</button>
+        <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalImportConvert">Convert & insert</button>
+      </div>
+    </div>
+  </div>
+  <!-- Preview modal -->
+  <div class="hidden fixed inset-0 bg-black/40 z-[1100] items-center justify-center p-4" id="modalPreviewHtml">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span>HTML Preview</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalPreviewClose">×</button></div>
+      <div class="p-4 flex-1 min-h-0 overflow-auto bg-gray-100">
+        <iframe id="previewFrame" class="w-full min-h-[400px] border border-gray-200 rounded bg-white" title="Preview"></iframe>
+      </div>
+    </div>
   </div>
   <script src="../assets/js/storage.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -105,6 +176,10 @@
       var name = params.get('name') || 'Component';
       var CATEGORIES = { page: 'Hero, Content block, Features, Testimonials, CTA, Team, Pricing, FAQ, Contact, Footer, Gallery, Stats, Newsletter, Map', ui: 'Container, Wrapper, Grid, Columns, Spacer, Divider, Layout block, Fixed block, Decorative', navigation: 'Header, Navbar, Breadcrumb, Sidebar, Sidebar nav, Footer nav, Tabs, Pagination, Menu, Mega menu, Mobile menu' };
       var variableStore = {};
+      var variableOrder = [];
+      var positioningStructure = [];
+      var currentBackendView = 'desktop';
+      var currentBackendTab = 'attributes';
       var cmHtml, cmCss, cmJs;
       var STYLE_VARS = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-surface', 'text-primary', 'text-secondary', 'text-muted', 'text-accent', 'border-primary', 'border-secondary', 'border-muted'];
 
@@ -226,22 +301,169 @@
           if (v && names.indexOf(v) === -1) names.push(v);
         }
         names.forEach(function(n) {
-          if (!variableStore[n]) variableStore[n] = { type: 'string', label: n.replace(/_/g, ' '), placeholder: '' };
+          if (!variableStore[n]) variableStore[n] = { type: 'string', label: n.replace(/_/g, ' '), placeholder: '', required: false, validator: '' };
+          if (variableOrder.indexOf(n) === -1) variableOrder.push(n);
         });
+        variableOrder = variableOrder.filter(function(n) { return variableStore[n]; });
         Object.keys(variableStore).forEach(function(n) {
-          if (names.indexOf(n) === -1) delete variableStore[n];
+          if (names.indexOf(n) === -1) { /* keep in store, will hide in render */ }
         });
         renderAttrList();
       }
 
       function renderAttrList() {
-        var names = Object.keys(variableStore);
+        var html = getHtmlValue();
+        var re = /\{\{([^}]+)\}\}/g;
+        var m;
+        var namesInHtml = [];
+        while ((m = re.exec(html)) !== null) { var v = (m[1] || '').trim(); if (v && namesInHtml.indexOf(v) === -1) namesInHtml.push(v); }
         function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         var el = document.getElementById('attrList');
-        el.innerHTML = names.map(function(n) {
+        el.innerHTML = variableOrder.map(function(n, idx) {
           var v = variableStore[n];
-          return '<li class="py-2 border-b border-gray-200 grid grid-cols-[1fr_120px_80px] gap-2 items-center"><input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 attr-label" data-name="' + esc(n) + '" value="' + esc(v.label || n) + '" placeholder="Label"><select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 attr-type" data-name="' + esc(n) + '"><option value="string"' + (v.type === 'string' ? ' selected' : '') + '>Text</option><option value="textarea"' + (v.type === 'textarea' ? ' selected' : '') + '>Textarea</option><option value="url"' + (v.type === 'url' ? ' selected' : '') + '>URL</option><option value="number"' + (v.type === 'number' ? ' selected' : '') + '>Number</option><option value="boolean"' + (v.type === 'boolean' ? ' selected' : '') + '>Checkbox</option><option value="color"' + (v.type === 'color' ? ' selected' : '') + '>Color</option></select><span>' + esc(n) + '</span></li>';
+          if (!v) return '';
+          var hidden = namesInHtml.indexOf(n) === -1;
+          v.required = !!v.required;
+          v.placeholder = v.placeholder || '';
+          v.validator = v.validator || '';
+          var labelVal = esc(v.label || n);
+          var phVal = esc(v.placeholder);
+          var valVal = esc(v.validator);
+          return '<li class="attr-card border border-gray-200 rounded-md mb-2 ' + (hidden ? 'hidden' : '') + '" data-name="' + esc(n) + '" data-index="' + idx + '">' +
+            '<details class="group" open>' +
+            '<summary class="cursor-pointer px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 flex-wrap">' +
+            '<span class="font-medium">' + labelVal + '</span>' +
+            '<span class="text-gray-500 text-sm font-mono">' + esc(n) + '</span>' +
+            '<span class="flex items-center gap-1">' +
+            '<button type="button" class="attr-move-up px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move up">↑</button>' +
+            '<button type="button" class="attr-move-down px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move down">↓</button>' +
+            '<button type="button" class="attr-remove px-2 py-1 text-xs rounded border border-red-200 bg-white text-red-700 hover:bg-red-50 cursor-pointer" title="Remove">Remove</button>' +
+            '</span></summary>' +
+            '<div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+            '<div><label class="block text-xs font-medium text-gray-500 mb-1">Label</label><input type="text" class="attr-label w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white" data-name="' + esc(n) + '" value="' + labelVal + '" placeholder="Label"></div>' +
+            '<div><label class="block text-xs font-medium text-gray-500 mb-1">Type</label><select class="attr-type w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white" data-name="' + esc(n) + '"><option value="string"' + (v.type === 'string' ? ' selected' : '') + '>Text</option><option value="textarea"' + (v.type === 'textarea' ? ' selected' : '') + '>Textarea</option><option value="url"' + (v.type === 'url' ? ' selected' : '') + '>URL</option><option value="number"' + (v.type === 'number' ? ' selected' : '') + '>Number</option><option value="boolean"' + (v.type === 'boolean' ? ' selected' : '') + '>Checkbox</option><option value="color"' + (v.type === 'color' ? ' selected' : '') + '>Color</option></select></div>' +
+            '<div class="sm:col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">Placeholder</label><input type="text" class="attr-placeholder w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white" data-name="' + esc(n) + '" value="' + phVal + '" placeholder="Placeholder"></div>' +
+            '<div><label class="block text-xs font-medium text-gray-500 mb-1">Required</label><label class="flex items-center gap-2"><input type="checkbox" class="attr-required rounded border-gray-300" data-name="' + esc(n) + '"' + (v.required ? ' checked' : '') + '> Required</label></div>' +
+            '<div><label class="block text-xs font-medium text-gray-500 mb-1">Validator</label><input type="text" class="attr-validator w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white" data-name="' + esc(n) + '" value="' + valVal + '" placeholder="e.g. regex or rule"></div>' +
+            '</div></details></li>';
+        }).filter(Boolean).join('');
+      }
+
+      function normalizePositioningStructure(ps, order) {
+        if (Array.isArray(ps) && ps.length > 0 && ps[0].type === 'group' && Array.isArray(ps[0].items)) return ps;
+        return [{ type: 'group', id: 'default', label: '', description: '', items: (order || []).filter(function(n) { return variableStore[n]; }).map(function(n) { return { type: 'var', name: n }; }) }];
+      }
+      function computeGridLayout(items, widthKey) {
+        var layout = [];
+        var row = 0, col = 0;
+        items.forEach(function(it) {
+          var n = it.name || it;
+          var v = variableStore[n];
+          var span = (v && (v[widthKey] != null ? v[widthKey] : v.width != null ? v.width : null)) || 12;
+          if (span < 1) span = 1;
+          if (span > 12) span = 12;
+          if (col + span > 12) { row++; col = 0; }
+          layout.push({ name: n, row: row, col: col, span: span });
+          col += span;
+        });
+        return layout;
+      }
+      function renderPositioningTab() {
+        if (positioningStructure.length === 0) positioningStructure = normalizePositioningStructure([], variableOrder);
+        var el = document.getElementById('positioningGroups');
+        var view = currentBackendView;
+        var widthKey = view === 'desktop' ? 'widthDesktop' : view === 'tablet' ? 'widthTablet' : 'widthMobile';
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        el.innerHTML = positioningStructure.map(function(g, gi) {
+          var isDefault = g.id === 'default';
+          var items = (g.items || []).slice();
+          var defaultPlaceholder = 'Default group (no wrapper in rendered form)';
+          var label = esc(g.label || '');
+          var desc = esc(g.description || '');
+          if (isDefault && (label === defaultPlaceholder || desc === defaultPlaceholder)) {
+            label = '';
+            desc = '';
+          }
+          var layout = computeGridLayout(items, widthKey);
+          var blocksHtml = layout.map(function(l) {
+            var n = l.name;
+            var v = variableStore[n];
+            var labelText = esc(v ? v.label : n);
+            var nameText = esc(n);
+            var itemIndex = items.map(function(x) { return x.name || x; }).indexOf(n);
+            return '<div class="pos-var-block" style="grid-column: ' + (l.col + 1) + ' / span ' + l.span + '; grid-row: ' + (l.row + 1) + ';" data-var-name="' + esc(n) + '" data-group-index="' + gi + '" data-item-index="' + itemIndex + '" data-start-col="' + l.col + '" data-span="' + l.span + '">' +
+              '<div class="pos-resize-handle left" data-var-name="' + esc(n) + '" data-group-index="' + gi + '" data-edge="left" data-start-col="' + l.col + '" data-span="' + l.span + '" title="Drag to resize"></div>' +
+              '<span class="pos-var-chip inline-flex items-center gap-1 truncate px-1" draggable="true" data-var-name="' + esc(n) + '" data-group-index="' + gi + '" data-item-index="' + itemIndex + '" title="Drag to reorder or move to another group">' + labelText + ' <span class="text-gray-400 font-mono text-xs shrink-0">' + nameText + '</span></span>' +
+              '<div class="pos-resize-handle right" data-var-name="' + esc(n) + '" data-group-index="' + gi + '" data-edge="right" data-start-col="' + l.col + '" data-span="' + l.span + '" title="Drag to resize"></div>' +
+              '</div>';
+          }).join('');
+          return '<div class="border border-gray-200 rounded-md p-3 bg-gray-50 pos-group" data-group-index="' + gi + '">' +
+            (isDefault
+              ? '<div class="flex flex-wrap items-center gap-2 mb-2"><input type="text" class="pos-group-label px-2 py-1 text-sm border border-gray-200 rounded bg-white flex-1 min-w-0" placeholder="Default group (no wrapper in rendered form)" value="' + label + '" title="Optional title"><input type="text" class="pos-group-desc px-2 py-1 text-sm border border-gray-200 rounded bg-white flex-1 min-w-0" placeholder="Description (optional)" value="' + desc + '"></div>'
+              : '<div class="flex flex-wrap items-center gap-2 mb-2"><input type="text" class="pos-group-label px-2 py-1 text-sm border border-gray-200 rounded bg-white" placeholder="Group label" value="' + label + '"><input type="text" class="pos-group-desc px-2 py-1 text-sm border border-gray-200 rounded bg-white flex-1 min-w-0" placeholder="Description" value="' + desc + '"><button type="button" class="pos-remove-group px-2 py-1 text-xs rounded border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer">Remove group</button></div>') +
+            '<p class="text-xs text-gray-500 mb-2">Grid 12 columns. Resize with left/right edge of each block. View: <strong>' + view + '</strong> — changes apply only to this view.</p>' +
+            '<div class="pos-grid pos-group-items" data-group-index="' + gi + '" title="Drop variables here">' + blocksHtml + '</div></div>';
         }).join('');
+      }
+      function renderPreviewTab() {
+        var container = document.getElementById('previewFormContainer');
+        var view = currentBackendView;
+        var widthKey = view === 'desktop' ? 'widthDesktop' : view === 'tablet' ? 'widthTablet' : 'widthMobile';
+        var maxW = view === 'desktop' ? '100%' : view === 'tablet' ? '768px' : '320px';
+        container.style.maxWidth = maxW;
+        container.className = 'rounded border border-gray-200 bg-white p-4 min-h-[200px]';
+        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        function inputFor(v) {
+          if (!v) return '';
+          var type = v.type || 'string';
+          var label = esc(v.label || '');
+          var ph = esc(v.placeholder || '');
+          var span = v[widthKey] || v.width || 12;
+          if (span > 12) span = 12;
+          if (span < 1) span = 1;
+          var gridSpan = 'style="grid-column: span ' + span + ';"';
+          if (type === 'textarea') return '<div class="mb-3" ' + gridSpan + '><label class="block text-sm font-medium text-gray-700 mb-1">' + label + '</label><textarea class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white" rows="2" placeholder="' + ph + '"></textarea></div>';
+          if (type === 'boolean') return '<div class="mb-3" ' + gridSpan + '><label class="flex items-center gap-2"><input type="checkbox" class="rounded border-gray-300"> <span class="text-sm font-medium text-gray-700">' + label + '</span></label></div>';
+          return '<div class="mb-3" ' + gridSpan + '><label class="block text-sm font-medium text-gray-700 mb-1">' + label + '</label><input type="' + (type === 'number' ? 'number' : type === 'url' ? 'url' : 'text') + '" class="w-full px-3 py-2 text-sm border border-gray-200 rounded bg-white" placeholder="' + ph + '"></div>';
+        }
+        var html = '<div class="grid grid-cols-12 gap-3">';
+        positioningStructure.forEach(function(g) {
+          if (g.label || g.description) html += '<div class="col-span-12 pt-2 mt-2 border-t border-gray-200"><div class="text-sm font-medium text-gray-800">' + esc(g.label || '') + '</div><div class="text-xs text-gray-500">' + esc(g.description || '') + '</div></div>';
+          (g.items || []).forEach(function(it) {
+            if (it.type === 'var' && it.name) html += inputFor(variableStore[it.name]);
+          });
+        });
+        html += '</div>';
+        container.innerHTML = html;
+      }
+      function switchBackendTab(tab) {
+        currentBackendTab = tab;
+        document.querySelectorAll('.backend-tab').forEach(function(btn) {
+          var t = btn.getAttribute('data-tab');
+          btn.classList.toggle('border-blue-800', t === tab);
+          btn.classList.toggle('text-blue-800', t === tab);
+          btn.classList.toggle('border-transparent', t !== tab);
+          btn.classList.toggle('text-gray-600', t !== tab);
+        });
+        document.getElementById('backendTabAttributes').classList.toggle('hidden', tab !== 'attributes');
+        document.getElementById('backendTabPositioning').classList.toggle('hidden', tab !== 'positioning');
+        document.getElementById('backendTabPreview').classList.toggle('hidden', tab !== 'preview');
+        var showView = tab === 'positioning' || tab === 'preview';
+        document.getElementById('backendViewToolbar').classList.toggle('hidden', !showView);
+        document.getElementById('backendViewToolbar').classList.toggle('flex', showView);
+        document.querySelectorAll('.backend-view-btn').forEach(function(btn) {
+          btn.classList.toggle('bg-blue-100', btn.getAttribute('data-view') === currentBackendView);
+        });
+        if (tab === 'positioning') renderPositioningTab();
+        if (tab === 'preview') renderPreviewTab();
+      }
+      function setBackendView(view) {
+        currentBackendView = view;
+        document.querySelectorAll('.backend-view-btn').forEach(function(btn) {
+          btn.classList.toggle('bg-blue-100', btn.getAttribute('data-view') === view);
+        });
+        if (currentBackendTab === 'preview') renderPreviewTab();
+        if (currentBackendTab === 'positioning') renderPositioningTab();
       }
 
       function loadComponent() {
@@ -256,6 +478,8 @@
           document.getElementById('compCss').value = '';
           document.getElementById('compJs').value = '';
           variableStore = {};
+          variableOrder = [];
+          positioningStructure = [];
         } else {
           var c = getComponent(id);
           if (!c) { location.href = 'components.html'; return; }
@@ -269,6 +493,15 @@
           document.getElementById('compCss').value = c.css || '';
           document.getElementById('compJs').value = c.js || '';
           variableStore = (c.variables && typeof c.variables === 'object') ? JSON.parse(JSON.stringify(c.variables)) : {};
+          variableOrder = Array.isArray(c.variableOrder) && c.variableOrder.length ? c.variableOrder.slice() : Object.keys(variableStore);
+          variableOrder.forEach(function(n) {
+            if (variableStore[n]) {
+              if (variableStore[n].required === undefined) variableStore[n].required = false;
+              if (variableStore[n].placeholder === undefined) variableStore[n].placeholder = '';
+              if (variableStore[n].validator === undefined) variableStore[n].validator = '';
+            }
+          });
+          positioningStructure = normalizePositioningStructure(c.positioningStructure, variableOrder);
         }
         var t = document.getElementById('compType').value;
         document.getElementById('catList').innerHTML = (CATEGORIES[t] || '').split(', ').map(function(c) { return '<option value="' + c + '">'; }).join('');
@@ -286,10 +519,162 @@
       });
       document.getElementById('attrList').addEventListener('change', function(e) {
         var name = e.target.getAttribute('data-name');
-        if (!name) return;
+        if (!name || !variableStore[name]) return;
         if (e.target.classList.contains('attr-label')) variableStore[name].label = e.target.value;
         if (e.target.classList.contains('attr-type')) variableStore[name].type = e.target.value;
+        if (e.target.classList.contains('attr-placeholder')) variableStore[name].placeholder = e.target.value;
+        if (e.target.classList.contains('attr-validator')) variableStore[name].validator = e.target.value;
       });
+      document.getElementById('attrList').addEventListener('click', function(e) {
+        if (e.target.classList.contains('attr-required')) {
+          var name = e.target.getAttribute('data-name');
+          if (name) variableStore[name].required = e.target.checked;
+        }
+        if (e.target.classList.contains('attr-move-up')) {
+          var li = e.target.closest('.attr-card');
+          var idx = parseInt(li.getAttribute('data-index'), 10);
+          if (idx > 0) {
+            var n = variableOrder[idx];
+            variableOrder.splice(idx, 1);
+            variableOrder.splice(idx - 1, 0, n);
+            renderAttrList();
+          }
+        }
+        if (e.target.classList.contains('attr-move-down')) {
+          var li = e.target.closest('.attr-card');
+          var idx = parseInt(li.getAttribute('data-index'), 10);
+          if (idx < variableOrder.length - 1) {
+            var n = variableOrder[idx];
+            variableOrder.splice(idx, 1);
+            variableOrder.splice(idx + 1, 0, n);
+            renderAttrList();
+          }
+        }
+        if (e.target.classList.contains('attr-remove')) {
+          var li = e.target.closest('.attr-card');
+          var name = li.getAttribute('data-name');
+          if (name && confirm('Remove attribute "' + name + '" from backend? It will be hidden until you add {{ ' + name + ' }} back in the template.')) {
+            variableOrder = variableOrder.filter(function(n) { return n !== name; });
+            delete variableStore[name];
+            renderAttrList();
+          }
+        }
+      });
+      document.getElementById('btnAddAttr').addEventListener('click', function() {
+        var base = 'new_var';
+        var num = 1;
+        while (variableStore[base + '_' + num]) num++;
+        var newName = base + '_' + num;
+        variableStore[newName] = { type: 'string', label: 'New variable ' + num, placeholder: '', required: false, validator: '' };
+        variableOrder.push(newName);
+        var html = getHtmlValue();
+        if (html.indexOf('{{ ' + newName + ' }}') === -1 && html.indexOf('{{' + newName + '}}') === -1) {
+          setHtmlValue(html + '\n{{ ' + newName + ' }}');
+          if (cmHtml) cmHtml.setValue(getHtmlValue());
+        }
+        renderAttrList();
+      });
+
+      function openImportModal() {
+        document.getElementById('importHtmlText').value = '';
+        document.getElementById('modalImportHtml').classList.remove('hidden');
+        document.getElementById('modalImportHtml').classList.add('flex');
+      }
+      function closeImportModal() {
+        document.getElementById('modalImportHtml').classList.add('hidden');
+        document.getElementById('modalImportHtml').classList.remove('flex');
+      }
+      function toVariableName(text) {
+        return String(text).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '').substring(0, 28);
+      }
+      function ensureUniqueVarName(base, used, originalText) {
+        var name = base;
+        var suffix = 0;
+        while (used[name]) { suffix++; name = (base.substring(0, 24) + '_' + suffix); }
+        used[name] = true;
+        return name;
+      }
+      function htmlToLiquidVariables(htmlString) {
+        var div = document.createElement('div');
+        div.innerHTML = htmlString;
+        var used = {};
+        var labelByVar = {};
+        function walk(node) {
+          if (node.nodeType === 3) {
+            var text = (node.textContent || '').trim();
+            if (text.length > 0) {
+              var base = toVariableName(text);
+              if (!base) base = 'var';
+              var varName = ensureUniqueVarName(base, used, text);
+              labelByVar[varName] = text;
+              node.textContent = '{{ ' + varName + ' }}';
+            }
+            return;
+          }
+          if (node.nodeName === 'SCRIPT' || node.nodeName === 'STYLE') return;
+          for (var i = 0; i < node.childNodes.length; i++) walk(node.childNodes[i]);
+        }
+        walk(div);
+        return { html: div.innerHTML, labelByVar: labelByVar };
+      }
+      function applyImportHtml() {
+        var raw = (document.getElementById('importHtmlText').value || '').trim();
+        if (!raw) { alert('Paste some HTML first.'); return; }
+        var result = htmlToLiquidVariables(raw);
+        setHtmlValue(result.html);
+        if (cmHtml) cmHtml.setValue(result.html);
+        Object.keys(result.labelByVar || {}).forEach(function(varName) {
+          if (!variableStore[varName]) variableStore[varName] = { type: 'string', label: varName.replace(/_/g, ' '), placeholder: '', required: false, validator: '' };
+          variableStore[varName].label = (result.labelByVar[varName] || varName).replace(/_/g, ' ');
+          variableStore[varName].placeholder = result.labelByVar[varName] || '';
+          if (variableOrder.indexOf(varName) === -1) variableOrder.push(varName);
+        });
+        syncVariablesFromHtml();
+        closeImportModal();
+      }
+      document.getElementById('btnImportHtml').addEventListener('click', openImportModal);
+      document.getElementById('modalImportClose').addEventListener('click', closeImportModal);
+      document.getElementById('modalImportCancel').addEventListener('click', closeImportModal);
+      document.getElementById('modalImportConvert').addEventListener('click', applyImportHtml);
+
+      document.getElementById('btnExpandHtml').addEventListener('click', function() {
+        document.body.classList.toggle('html-section-expanded');
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.body.classList.contains('html-section-expanded')) {
+          document.body.classList.remove('html-section-expanded');
+        }
+      });
+
+      function openPreviewModal() {
+        var html = getHtmlValue();
+        var docHtml = html.replace(/\{\{([^}]+)\}\}/g, function(_, name) {
+          var n = (name || '').trim();
+          var v = variableStore[n];
+          return v && (v.label != null) ? String(v.label) : n;
+        });
+        var fullDoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"><\/script></head><body class="p-4">' + docHtml + '</body></html>';
+        var frame = document.getElementById('previewFrame');
+        try {
+          frame.srcdoc = fullDoc;
+        } catch (err) {
+          frame.contentDocument.open();
+          frame.contentDocument.write(fullDoc);
+          frame.contentDocument.close();
+        }
+        document.getElementById('modalPreviewHtml').classList.remove('hidden');
+        document.getElementById('modalPreviewHtml').classList.add('flex');
+      }
+      function closePreviewModal() {
+        document.getElementById('modalPreviewHtml').classList.add('hidden');
+        document.getElementById('modalPreviewHtml').classList.remove('flex');
+      }
+      document.getElementById('btnPreviewHtml').addEventListener('click', openPreviewModal);
+      document.getElementById('modalPreviewClose').addEventListener('click', closePreviewModal);
+      document.getElementById('modalPreviewHtml').addEventListener('click', function(e) {
+        if (e.target.id === 'modalPreviewHtml') closePreviewModal();
+      });
+
       document.getElementById('compForm').addEventListener('submit', function(e) {
         e.preventDefault();
         var compName = (document.getElementById('compName').value || '').trim();
@@ -297,7 +682,17 @@
         var compId = id === 'new' ? compName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'comp-' + Date.now() : id;
         var variables = {};
         Object.keys(variableStore).forEach(function(n) {
-          variables[n] = { type: variableStore[n].type || 'string', label: variableStore[n].label || n, placeholder: variableStore[n].placeholder || '' };
+          variables[n] = {
+            type: variableStore[n].type || 'string',
+            label: variableStore[n].label || n,
+            placeholder: variableStore[n].placeholder || '',
+            required: !!variableStore[n].required,
+            validator: variableStore[n].validator || '',
+            width: variableStore[n].width,
+            widthDesktop: variableStore[n].widthDesktop,
+            widthTablet: variableStore[n].widthTablet,
+            widthMobile: variableStore[n].widthMobile
+          };
         });
         var payload = {
           id: compId,
@@ -309,8 +704,8 @@
           css: cmCss ? cmCss.getValue() : (document.getElementById('compCss').value || ''),
           js: cmJs ? cmJs.getValue() : (document.getElementById('compJs').value || ''),
           variables: variables,
-          variableOrder: Object.keys(variableStore),
-          positioningStructure: []
+          variableOrder: variableOrder,
+          positioningStructure: positioningStructure
         };
         setJson('pmp_component_' + compId, payload);
         if (id === 'new') location.href = 'component_edit.html?id=' + encodeURIComponent(compId) + '&name=' + encodeURIComponent(compName);
@@ -319,6 +714,146 @@
 
       loadComponent();
       initEditors();
+
+      document.querySelectorAll('.backend-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() { switchBackendTab(btn.getAttribute('data-tab')); });
+      });
+      document.querySelectorAll('.backend-view-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { setBackendView(btn.getAttribute('data-view')); });
+      });
+      document.getElementById('btnAddGroup').addEventListener('click', function() {
+        positioningStructure.push({ type: 'group', id: 'group_' + Date.now(), label: '', description: '', items: [] });
+        if (currentBackendTab === 'positioning') renderPositioningTab();
+      });
+      document.getElementById('positioningGroups').addEventListener('change', function(e) {
+        var gi = e.target.closest('[data-group-index]');
+        if (!gi) return;
+        var idx = parseInt(gi.getAttribute('data-group-index'), 10);
+        if (isNaN(idx) || !positioningStructure[idx]) return;
+        if (e.target.classList.contains('pos-group-label')) positioningStructure[idx].label = e.target.value;
+        if (e.target.classList.contains('pos-group-desc')) positioningStructure[idx].description = e.target.value;
+      });
+      document.getElementById('positioningGroups').addEventListener('click', function(e) {
+        if (e.target.classList.contains('pos-remove-group')) {
+          var gi = e.target.closest('[data-group-index]');
+          if (!gi) return;
+          var idx = parseInt(gi.getAttribute('data-group-index'), 10);
+          if (positioningStructure[idx] && positioningStructure[idx].id !== 'default') {
+            positioningStructure.splice(idx, 1);
+            renderPositioningTab();
+          }
+        }
+      });
+      (function setupPositioningDragDrop() {
+        var container = document.getElementById('positioningGroups');
+        container.addEventListener('dragstart', function(e) {
+          var chip = e.target.closest('.pos-var-chip');
+          if (!chip) return;
+          var varName = chip.getAttribute('data-var-name');
+          var groupIndex = parseInt(chip.getAttribute('data-group-index'), 10);
+          var itemIndex = parseInt(chip.getAttribute('data-item-index'), 10);
+          e.dataTransfer.setData('application/json', JSON.stringify({ varName: varName, groupIndex: groupIndex, itemIndex: itemIndex }));
+          e.dataTransfer.effectAllowed = 'move';
+          chip.classList.add('opacity-50');
+        });
+        container.addEventListener('dragend', function(e) {
+          var chip = e.target.closest('.pos-var-chip');
+          if (chip) chip.classList.remove('opacity-50');
+        });
+        container.addEventListener('dragover', function(e) {
+          if (e.target.closest('.pos-var-chip') || e.target.closest('.pos-var-block') || e.target.closest('.pos-group-items')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var zone = e.target.closest('.pos-group-items');
+            if (zone) zone.classList.add('border-blue-400', 'bg-blue-50');
+          }
+        });
+        container.addEventListener('dragleave', function(e) {
+          var stillInside = e.relatedTarget && container.contains(e.relatedTarget);
+          if (!stillInside) document.querySelectorAll('.pos-group-items').forEach(function(z) { z.classList.remove('border-blue-400', 'bg-blue-50'); });
+        });
+        container.addEventListener('drop', function(e) {
+          e.preventDefault();
+          document.querySelectorAll('.pos-group-items').forEach(function(z) { z.classList.remove('border-blue-400', 'bg-blue-50'); });
+          var dataStr = e.dataTransfer.getData('application/json');
+          if (!dataStr) return;
+          var data = JSON.parse(dataStr);
+          var varName = data.varName;
+          var srcGi = data.groupIndex;
+          var srcIi = data.itemIndex;
+          var targetZone = e.target.closest('.pos-group-items');
+          var targetChip = e.target.closest('.pos-var-chip');
+          var targetBlock = e.target.closest('.pos-var-block');
+          var tgtGi, tgtIi;
+          if (targetChip) {
+            tgtGi = parseInt(targetChip.getAttribute('data-group-index'), 10);
+            tgtIi = parseInt(targetChip.getAttribute('data-item-index'), 10);
+          } else if (targetBlock) {
+            tgtGi = parseInt(targetBlock.getAttribute('data-group-index'), 10);
+            tgtIi = parseInt(targetBlock.getAttribute('data-item-index'), 10);
+          } else if (targetZone) {
+            tgtGi = parseInt(targetZone.getAttribute('data-group-index'), 10);
+            tgtIi = (positioningStructure[tgtGi].items || []).length;
+          } else return;
+          var srcItems = positioningStructure[srcGi].items || [];
+          var tgtItems = positioningStructure[tgtGi].items || [];
+          var item = { type: 'var', name: varName };
+          srcItems.splice(srcIi, 1);
+          if (srcGi === tgtGi && tgtIi > srcIi) tgtIi--;
+          if (!tgtItems.length) positioningStructure[tgtGi].items = [item];
+          else tgtItems.splice(tgtIi, 0, item);
+          renderPositioningTab();
+        });
+      })();
+      (function setupPositioningResize() {
+        var container = document.getElementById('positioningGroups');
+        var resizing = null;
+        function getWidthKey() {
+          return currentBackendView === 'desktop' ? 'widthDesktop' : currentBackendView === 'tablet' ? 'widthTablet' : 'widthMobile';
+        }
+        container.addEventListener('mousedown', function(e) {
+          var handle = e.target.closest('.pos-resize-handle');
+          if (!handle) return;
+          e.preventDefault();
+          var grid = handle.closest('.pos-grid');
+          if (!grid) return;
+          var varName = handle.getAttribute('data-var-name');
+          var groupIndex = handle.getAttribute('data-group-index');
+          var edge = handle.getAttribute('data-edge');
+          var startCol = parseInt(handle.getAttribute('data-start-col'), 10);
+          var span = parseInt(handle.getAttribute('data-span'), 10);
+          resizing = { varName: varName, groupIndex: groupIndex, edge: edge, startCol: startCol, span: span };
+        });
+        document.addEventListener('mousemove', function(e) {
+          if (!resizing) return;
+          var groupEl = document.querySelector('#positioningGroups .pos-group[data-group-index="' + resizing.groupIndex + '"]');
+          var grid = groupEl ? groupEl.querySelector('.pos-grid') : null;
+          if (!grid) return;
+          var rect = grid.getBoundingClientRect();
+          var colWidth = rect.width / 12;
+          var columnUnderMouse = Math.floor((e.clientX - rect.left) / colWidth);
+          if (columnUnderMouse < 0) columnUnderMouse = 0;
+          if (columnUnderMouse > 11) columnUnderMouse = 11;
+          var newSpan;
+          if (resizing.edge === 'right') {
+            newSpan = columnUnderMouse - resizing.startCol + 1;
+          } else {
+            var endCol = resizing.startCol + resizing.span - 1;
+            newSpan = endCol - columnUnderMouse + 1;
+          }
+          if (newSpan < 1) newSpan = 1;
+          if (newSpan > 12) newSpan = 12;
+          var v = variableStore[resizing.varName];
+          if (!v) return;
+          var widthKey = getWidthKey();
+          v[widthKey] = newSpan;
+          renderPositioningTab();
+          if (currentBackendTab === 'preview') renderPreviewTab();
+        });
+        document.addEventListener('mouseup', function() {
+          resizing = null;
+        });
+      })();
     })();
   </script>
 </body>

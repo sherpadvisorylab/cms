@@ -17,11 +17,11 @@ This document describes the **Users** management page in the CMS admin area: pur
 
 ## Overview
 
-The **Users** page is part of the CMS admin area. It allows authorized users (e.g. Super Admin, Program Manager) to:
+The **Users** page is part of the CMS admin area. It allows authorized users (e.g. Administrator, Editor) to:
 
 - View all platform users in a table (name, email, role, status, last login).
-- **Invite** new users (email + role; for Startup role, associate a startup/company).
-- **Edit** existing users (name, email, role, status; for Startup role, change startup association).
+- **Invite** new users (email + role; for Member role, optionally associate an organization).
+- **Edit** existing users (name, email, role, status; for Member role, change organization association).
 - **Reset password** (generate temporary password; in production this would trigger an email or API).
 - **Delete** users (with confirmation).
 
@@ -35,10 +35,10 @@ The Users page does **not** rely on a fixed list of roles. The available roles a
 
 | Role | Description |
 |------|-------------|
-| **Super Admin** | Top-level platform administrator; full access to all admin features. |
-| **Program Manager** | Program and operational manager; access to Admin Area (Dashboard, Programs, Startups, Advisors, Questionnaires, Insights, CMS, Users, Prompts, Settings). |
-| **Advisor** | Mentor or expert; access to Advisor Area (Dashboard, My Startups, evidence review, Calendar, Notifications). |
-| **Startup** | Representative of a startup in the program; access to Startup Area. Requires association with a **Startup** (company) when inviting or editing. |
+| **Administrator** | Top-level platform administrator; full access to all admin features. |
+| **Editor** | Content and operational editor; access to admin area (content, settings, users as configured). |
+| **Contributor** | Limited editor; can create and edit content within assigned scope. |
+| **Member** | Standard user; access to member area. May optionally be associated with an **Organization** when inviting or editing. |
 
 ### 2.1 Roles component (utility)
 
@@ -54,7 +54,7 @@ The CMS provides a dedicated **Roles** utility component that:
   - **Modify**: an existing role’s label, description, or permissions metadata can be updated; the Users page and any other consumer will show the new data.
   - **Delete**: a role can be removed from the configurable set. Behaviour for users who already have that role (e.g. remap to another role or block delete until no user has it) is defined at implementation level.
 
-**Implementation notes**: The component can be backed by a config file, a database table, or an API. The contract expected by the Users page is typically: a list of role entries, each with at least an **id** (e.g. `program_manager`) and a **label** (e.g. “Program Manager”), and optionally a description or permission flags. The Users page (and the rest of the CMS) does not assume a fixed enum of roles; it renders whatever the Roles component provides. This way, projects can add, modify, or remove roles without changing the Users UI code.
+**Implementation notes**: The component can be backed by a config file, a database table, or an API. The contract expected by the Users page is typically: a list of role entries, each with at least an **id** (e.g. `editor`) and a **label** (e.g. “Editor”), and optionally a description or permission flags. The Users page (and the rest of the CMS) does not assume a fixed enum of roles; it renders whatever the Roles component provides. This way, projects can add, modify, or remove roles without changing the Users UI code.
 
 ---
 
@@ -73,11 +73,11 @@ Clicking **Add User** opens a modal titled “Create New User” (or “Invite U
 
 - **Invitation flow note** (optional): Short text explaining that an invitation email will be sent, the recipient will get a registration link, and after completing their profile the account will be activated.
 - **Email** (required): Email address of the user to invite.
-- **Role** (required): Select from the list of roles provided by the [Roles component](#21-roles-component-utility) (e.g. Super Admin, Program Manager, Advisor, Startup in the default set).
-- **Startup** (conditional): If role is **Startup**, a dropdown appears to **Select Startup** (company). The list is filled from existing users with role Startup (company + email) and/or from other data sources (e.g. startups list in the app). Selecting a startup can pre-fill the email if the startup has an email. Required when role is Startup.
+- **Role** (required): Select from the list of roles provided by the [Roles component](#21-roles-component-utility) (e.g. Administrator, Editor, Contributor, Member in the default set).
+- **Organization** (optional): If role is **Member**, a field appears to enter or select an **Organization**. The value is stored as `company` on the user. Required when your deployment requires member–organization association.
 - **Name** and **Status** are hidden in invite mode; they are set when the user completes registration or when editing later.
 
-On submit, the system creates a user record (or sends an invitation) with the given email and role; for Startup, `company` is stored. In the prototype, the new user is appended to the list and persisted (e.g. localStorage).
+On submit, the system creates a user record (or sends an invitation) with the given email and role; for Member, `company` (organization) is stored if provided. In the prototype, the new user is appended to the list and persisted (e.g. localStorage).
 
 ---
 
@@ -89,8 +89,8 @@ Clicking **Edit** on a row opens the same modal in **edit** mode.
 - **Invitation note** is hidden.
 - **Full Name** (required): Editable.
 - **Email** (required): Editable.
-- **Role** (required): Same dropdown as invite (roles from the [Roles component](#21-roles-component-utility)). Changing role to **Startup** shows the Startup dropdown; changing from **Startup** hides it and clears the startup association.
-- **Startup** (conditional): Visible only when role is Startup; dropdown to select or change the associated startup (company).
+- **Role** (required): Same dropdown as invite (roles from the [Roles component](#21-roles-component-utility)). Changing role to **Member** shows the Organization field; changing from **Member** hides it and clears the organization association.
+- **Organization** (conditional): Visible only when role is Member; field to enter or change the associated organization (stored as `company`).
 - **Status** (required): Active, Inactive, or Suspended.
 
 On submit, the existing user record is updated and the list is re-rendered; data is persisted (e.g. localStorage).
@@ -113,9 +113,9 @@ On submit, the existing user record is updated and the list is re-rendered; data
   - `id`: Unique identifier (e.g. number).
   - `name`: Full name.
   - `email`: Email address.
-  - `role`: Role **id** from the [Roles component](#21-roles-component-utility) (e.g. `super_admin`, `program_manager`, `advisor`, `startup` in the default set). Valid values are those currently defined in the component; if a role is removed, existing users with that role need a migration or remap policy.
+  - `role`: Role **id** from the [Roles component](#21-roles-component-utility) (e.g. `admin`, `editor`, `contributor`, `member` in the default set). Valid values are those currently defined in the component; if a role is removed, existing users with that role need a migration or remap policy.
   - `status`: `active` | `inactive` | `suspended`.
-  - `company`: Optional; used when `role === 'startup'` (startup/company name).
+  - `company`: Optional; used when `role === 'member'` (organization name or identifier).
   - `lastLogin`: Optional string (e.g. “2 hours ago”) for display.
 
 The list of roles itself (ids and labels) is managed by the Roles component (config, database, or API). In a production implementation, users and roles would typically be stored in a database and managed via an API; authentication (login, SSO, password reset) is handled by the [Authentication](./07_authentication.md) and [Emails](./06_emails.md) systems.

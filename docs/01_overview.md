@@ -130,7 +130,7 @@ Use the overview above for the big picture and the logic of the CMS. Use the doc
 | Settings and system variables (defaults, embeddable component) | [08 – Settings](./08_settings.md) | CMS System Variables list, default values, how values are resolved, embeddable component for other contexts. |
 | Templates (reusable page structures) | [09 – Templates](./09_templates.md) | Template list, create/edit, component list, using templates when creating pages. |
 | Navigation (items, mapping, display template, edit) | [11 – Navigation](./11_navigation.md) | Navigation list and editor, item model (label, url, image, description, custom properties), Add page / Add custom link with mapping, edit items, display template and item variable popup, Additional CSS/JS, Load from component, storage. |
-| Users (platform user and role management) | [12 – Users](./12_users.md) | Users list, roles (Super Admin, Program Manager, Advisor, Startup), invite and edit flows, startup association, reset password, delete, storage. |
+| Users (platform user and role management) | [12 – Users](./12_users.md) | Users list, roles (Administrator, Editor, Contributor, Member), invite and edit flows, organization association, reset password, delete, storage. |
 | Data model, storage, technical details | [10 – Data and technical](./10_data_and_technical.md) | localStorage keys, area/page/template data structures, variable system (head/body), key functions, technologies, best practices. |
 | **Workflow, logic, and output** | [14 – Workflow, logic and output](./14_workflow_logic_and_output.md) | How elements intersect (Areas, Pages, Components, Templates, Navigation, Forms, Settings); diagrams; variable system (where and how); practical use cases; static output (Next.js export, Cloudflare). |
 
@@ -144,3 +144,15 @@ Use the overview above for the big picture and the logic of the CMS. Use the doc
 - **Page**: Content entity with path, area, component structure, content data, SEO, and style variants.
 - **System variable**: Managed variable (e.g. style token, form embed) whose value comes from structure preferences or Settings defaults.
 - **Template**: Saved list of components used to create new pages quickly.
+
+---
+
+## 6. Development guidelines (stack)
+
+Per lo sviluppo del CMS (admin, frontend pubblico e prototipo) si adotta il seguente stack:
+
+- **Styling**: **Tailwind CSS**. Tutti gli stili vanno realizzati con classi Tailwind; evitare CSS custom (file `.css` con regole ad hoc) salvo eccezioni documentate (es. editor CodeMirror). Nel prototipo HTML statico Tailwind può essere incluso via CDN; in un’applicazione vera (React, Next, ecc.) usare il pacchetto npm e il build con purge/content sui percorsi dei template.
+- **Markup**: HTML5 semantico.
+- **Logica e UI**: JavaScript (vanilla o framework di progetto). Il CMS definisce strutture dati e flussi; l’integrazione con store/API è demandata al driver.
+
+Dettagli tecnici e chiavi di storage: [10 – Data and technical](./10_data_and_technical.md). Il prototipo in `prototype/` è allineato a queste scelte.

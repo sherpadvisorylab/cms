@@ -39,8 +39,17 @@ function getPages() { return getJson(CMS_KEYS.pages, []); }
 function getNavigations() { return getJson(CMS_KEYS.navigations, {}); }
 function getForms() {
   const v = getJson(CMS_KEYS.forms, []);
-  if (Array.isArray(v)) return v;
-  return Object.entries(v).map(([id, o]) => ({ id, name: (o && o.name) ? o.name : id }));
+  const arr = Array.isArray(v) ? v : Object.entries(v).map(([id, o]) => ({ id, name: (o && o.name) != null ? o.name : id }));
+  return arr.map((f) => {
+    const name = f.name != null ? String(f.name) : '';
+    const id = f.id != null ? String(f.id) : normalizeFormName(name);
+    return { id, name: name || id, ...(f.fields && { fields: f.fields }) };
+  });
+}
+function normalizeFormName(name) {
+  if (name == null) return '';
+  const s = String(name).trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return s || 'form-' + Date.now();
 }
 function getUsers() { return getJson(CMS_KEYS.users, []); }
 function getSystemVariableDefaults() { return getJson(CMS_KEYS.systemVariableDefaults, {}); }
@@ -82,6 +91,7 @@ if (typeof window !== 'undefined') {
   window.getPages = getPages;
   window.getNavigations = getNavigations;
   window.getForms = getForms;
+  window.normalizeFormName = normalizeFormName;
   window.getUsers = getUsers;
   window.getSystemVariableDefaults = getSystemVariableDefaults;
   window.getComponent = getComponent;

@@ -27,44 +27,47 @@
     <main class="flex-1 p-6 overflow-x-auto">
       <div class="mb-6">
         <h1 class="m-0 mb-1 text-2xl font-semibold">Forms</h1>
-        <p class="m-0 text-gray-500 text-sm">Form definitions for embedding as <code class="bg-gray-100 px-1 rounded">{{form:id}}</code> in components and area templates.</p>
+        <p class="m-0 text-gray-500 text-sm break-words">Form definitions for embedding as <code class="bg-gray-100 px-1 rounded break-all">{{form:name}}</code> (variable from normalized form name) in components and area templates.</p>
       </div>
-      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden">
+      <div class="bg-white rounded-md shadow border border-gray-200 overflow-hidden min-w-0">
         <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-wrap gap-2">
           Form list
           <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnAdd">Add Form</button>
         </div>
-        <div class="p-5 overflow-x-auto">
-          <table class="w-full border-collapse text-sm" id="formsTable">
+        <div class="p-5 overflow-x-auto min-w-0">
+          <table class="w-full min-w-[320px] border-collapse text-sm" id="formsTable">
             <thead>
               <tr>
-                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">ID</th>
-                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Name</th>
-                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50">Actions</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50 min-w-0">Name</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50 whitespace-nowrap">Variable</th>
+                <th class="px-4 py-3 text-left border-b border-gray-200 font-semibold text-gray-500 bg-gray-50 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
-      <p class="text-gray-500 text-sm mt-4">Use these form IDs in component/area templates as <code class="bg-gray-100 px-1 rounded">{{form:id}}</code>. Form builder (groups, fields, types) can be extended per docs/05_forms.md.</p>
+      <p class="text-gray-500 text-sm mt-4 break-words max-w-full">Use the variable (normalized from the form name) in component/area templates as <code class="bg-gray-100 px-1 rounded break-all">{{form:variable}}</code>. Form builder (groups, fields, types) can be extended per docs/05_forms.md.</p>
     </main>
   </div>
-  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center p-4" id="modalForm">
-    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-[440px] w-full">
-      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between"><span id="modalFormTitle">Add Form</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalFormClose">×</button></div>
-      <div class="p-5">
+  <div class="hidden fixed inset-0 bg-black/40 z-[1000] items-center justify-center p-4 overflow-y-auto" id="modalForm">
+    <div class="bg-white rounded-md shadow-lg border border-gray-200 max-w-4xl w-full my-8 max-h-[90vh] flex flex-col">
+      <div class="px-5 py-4 border-b border-gray-200 font-semibold flex items-center justify-between flex-shrink-0"><span id="modalFormTitle">Add Form</span><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalFormClose">×</button></div>
+      <div class="p-5 overflow-y-auto flex-1 min-h-0">
         <div class="mb-4">
-          <label class="block mb-1 font-medium">Form ID *</label>
-          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="formId" placeholder="e.g. contact" pattern="[A-Za-z0-9_-]+">
-          <small class="text-gray-500">Used as {{form:id}} in templates.</small>
+          <label class="block mb-1 font-medium">Form name *</label>
+          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="formName" placeholder="e.g. Contact form" required>
+          <p class="mt-1 text-gray-500 text-xs">Variable for templates: <code class="bg-gray-100 px-1 rounded font-mono" id="formVariablePreview">—</code></p>
         </div>
-        <div class="mb-4">
-          <label class="block mb-1 font-medium">Name *</label>
-          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="formName" placeholder="e.g. Contact" required>
+        <div class="mb-4 pt-4 border-t border-gray-200">
+          <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h3 class="text-base font-semibold m-0">Form structure (groups &amp; fields)</h3>
+            <button type="button" class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="btnAddGroup">+ Add Group</button>
+          </div>
+          <div id="formGroupsContainer" class="space-y-4"></div>
         </div>
       </div>
-      <div class="p-5 border-t border-gray-200">
+      <div class="p-5 border-t border-gray-200 flex-shrink-0 flex justify-end gap-2">
         <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalFormCancel">Cancel</button>
         <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalFormSave">Save</button>
       </div>
@@ -75,46 +78,374 @@
     (function() {
       var KEY = 'pmp_cms_forms';
       var editId = null;
+      var FIELD_TYPES = [
+        { v: 'text', label: 'Text' },
+        { v: 'textarea', label: 'Textarea' },
+        { v: 'email', label: 'Email' },
+        { v: 'number', label: 'Number' },
+        { v: 'date', label: 'Date' },
+        { v: 'time', label: 'Time' },
+        { v: 'datetime', label: 'Date & Time' },
+        { v: 'url', label: 'URL' },
+        { v: 'phone', label: 'Phone' },
+        { v: 'select', label: 'Select' },
+        { v: 'radio', label: 'Radio' },
+        { v: 'checkbox', label: 'Checkbox' },
+        { v: 'yesno', label: 'Yes/No' },
+        { v: 'rating', label: 'Rating (Scale)' },
+        { v: 'file', label: 'File Upload' }
+      ];
+      var VALIDATORS = [ { v: '', label: 'None' }, { v: 'email', label: 'Email' }, { v: 'url', label: 'URL' }, { v: 'phone', label: 'Phone' }, { v: 'custom', label: 'Custom (regexp)' } ];
+      var WIDTHS = [
+        { v: 'col-span-12', label: 'Full (12/12)' },
+        { v: 'col-span-6', label: 'Half (6/12)' },
+        { v: 'col-span-4', label: 'Third (4/12)' },
+        { v: 'col-span-3', label: 'Quarter (3/12)' }
+      ];
+
+      function uid() { return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9); }
+      function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+      function normalizeFormName(name) {
+        if (name == null) return '';
+        var s = String(name).trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        return s || 'form-' + Date.now();
+      }
+
       function getFormsList() {
         var v = getJson(KEY, []);
-        return Array.isArray(v) ? v : Object.entries(v).map(function(e) { return { id: e[0], name: (e[1] && e[1].name) || e[0] }; });
+        var arr = Array.isArray(v) ? v : Object.entries(v).map(function(e) { return { name: (e[1] && e[1].name) != null ? e[1].name : e[0], groups: (e[1] && e[1].groups), fields: (e[1] && e[1].fields) }; });
+        return arr.map(function(f) {
+          var name = (f.name != null ? f.name : (f.id != null ? f.id : '')).toString().trim();
+          return { id: normalizeFormName(name) || ('form-' + Date.now()), name: name, groups: normalizeFormGroups(f) };
+        });
       }
+
+      function normalizeFormGroups(f) {
+        function toGridWidth(w) {
+          if (!w || w === 'full') return 'col-span-12';
+          if (w === 'half') return 'col-span-6';
+          return w;
+        }
+        if (f.groups && Array.isArray(f.groups) && f.groups.length > 0) {
+          return f.groups.map(function(g) {
+            return {
+              id: g.id || uid(),
+              label: g.label || '',
+              description: g.description || '',
+              fields: (g.fields || []).map(function(fld) {
+                return {
+                  id: fld.id || uid(),
+                  label: fld.label || '',
+                  type: fld.type || 'text',
+                  required: !!fld.required,
+                  width: toGridWidth(fld.width),
+                  validator: fld.validator || '',
+                  validatorRegexp: fld.validatorRegexp || '',
+                  defaultValue: fld.defaultValue || '',
+                  options: Array.isArray(fld.options) ? fld.options.map(function(o) { return { text: o.text || '', value: o.value, default: !!o.default }; }) : [],
+                  ratingMin: fld.ratingMin != null ? fld.ratingMin : 0,
+                  ratingMax: fld.ratingMax != null ? fld.ratingMax : 5
+                };
+              })
+            };
+          });
+        }
+        var legacyFields = f.fields || [];
+        if (legacyFields.length === 0) return [{ id: uid(), label: 'Fields', description: '', fields: [] }];
+        return [{
+          id: uid(),
+          label: 'Fields',
+          description: '',
+          fields: legacyFields.map(function(fld) {
+            return {
+              id: uid(),
+              label: fld.label || '',
+              type: fld.type || 'text',
+              required: !!fld.required,
+              width: toGridWidth(fld.width),
+              validator: fld.validator || '',
+              validatorRegexp: fld.validatorRegexp || '',
+              defaultValue: fld.defaultValue || '',
+              options: Array.isArray(fld.options) ? fld.options : [],
+              ratingMin: fld.ratingMin != null ? fld.ratingMin : 0,
+              ratingMax: fld.ratingMax != null ? fld.ratingMax : 5
+            };
+          })
+        }];
+      }
+
       function loadTable() {
         var forms = getFormsList();
-        function esc(s) { if (s == null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         document.querySelector('#formsTable tbody').innerHTML = forms.map(function(f) {
-          return '<tr class="hover:bg-gray-50"><td class="px-4 py-3 text-left border-b border-gray-200"><code class="bg-gray-100 px-1 rounded">' + esc(f.id || '') + '</code></td><td class="px-4 py-3 text-left border-b border-gray-200">' + esc(f.name || '') + '</td><td class="px-4 py-3 text-left border-b border-gray-200"><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-edit" data-id="' + esc(f.id || '') + '">Edit</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-del" data-id="' + esc(f.id || '') + '">Delete</button></td></tr>';
+          var variable = f.id ? '{{form:' + f.id + '}}' : '—';
+          return '<tr class="hover:bg-gray-50"><td class="px-4 py-3 text-left border-b border-gray-200 min-w-0">' + esc(f.name || '') + '</td><td class="px-4 py-3 text-left border-b border-gray-200"><code class="bg-gray-100 px-1 rounded text-xs break-all">' + esc(variable) + '</code></td><td class="px-4 py-3 text-left border-b border-gray-200 whitespace-nowrap"><button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer btn-edit" data-id="' + esc(f.id || '') + '">Edit</button> <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50 cursor-pointer btn-del" data-id="' + esc(f.id || '') + '">Delete</button></td></tr>';
         }).join('');
       }
+
+      function updateVariablePreview() {
+        var name = document.getElementById('formName').value || '';
+        document.getElementById('formVariablePreview').textContent = normalizeFormName(name) ? '{{form:' + normalizeFormName(name) + '}}' : '—';
+      }
+
+      function typesWithDefaultValue(type) { return ['text','textarea','email','number','date','time','datetime','url','phone','yesno'].indexOf(type) >= 0; }
+      function typesWithOptions(type) { return ['select','radio','checkbox'].indexOf(type) >= 0; }
+      function typeHasRating(type) { return type === 'rating'; }
+
+      function renderFieldRow(field, groupIndex, fieldIndex) {
+        var fId = field.id || uid();
+        var typeVal = field.type || 'text';
+        var typeOptsStr = FIELD_TYPES.map(function(t) { return '<option value="' + t.v + '"' + (typeVal === t.v ? ' selected' : '') + '>' + esc(t.label) + '</option>'; }).join('');
+        var valOptsStr = VALIDATORS.map(function(v) { return '<option value="' + v.v + '"' + ((field.validator || '') === v.v ? ' selected' : '') + '>' + esc(v.label) + '</option>'; }).join('');
+        var widthOptsStr = WIDTHS.map(function(w) { return '<option value="' + w.v + '"' + ((field.width || 'col-span-12') === w.v ? ' selected' : '') + '>' + esc(w.label) + '</option>'; }).join('');
+        var defaultValHtml = typesWithDefaultValue(typeVal) ? '<div class="field-default-value flex-1 min-w-0"><label class="block text-xs font-medium text-gray-500 mb-1">Default value (optional)</label><input type="text" class="field-default-value-input w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Default value" value="' + esc(field.defaultValue || '') + '"></div>' : '<div class="field-default-value flex-1 min-w-0" style="display:none"><label class="block text-xs font-medium text-gray-500 mb-1">Default value (optional)</label><input type="text" class="field-default-value-input w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white" placeholder="Default value"></div>';
+        var defaultValSection = '';
+        var optionsSection = '';
+        if (typesWithOptions(typeVal)) {
+          var opts = (field.options || []).map(function(opt, oi) {
+            return '<div class="flex items-center gap-2 mt-1 option-row" data-opt-index="' + oi + '"><input type="text" class="option-text flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-200 rounded bg-white" placeholder="Option text" value="' + esc(opt.text || '') + '"><label class="flex items-center gap-1 text-xs whitespace-nowrap"><input type="checkbox" class="option-default rounded border-gray-300 text-blue-600"' + (opt.default ? ' checked' : '') + '> Default</label><button type="button" class="btn-remove-option px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-red-50 cursor-pointer">Remove</button></div>';
+          }).join('');
+          optionsSection = '<div class="field-options mt-2"><label class="block text-xs font-medium text-gray-500 mb-1">Options</label>' + opts + '<button type="button" class="btn-add-option mt-1 px-2 py-1 text-xs font-medium rounded border border-gray-300 bg-white hover:bg-gray-50 cursor-pointer">+ Add option</button></div>';
+        }
+        var ratingSection = typeHasRating(typeVal) ? '<div class="field-rating mt-2 flex gap-4"><div><label class="block text-xs font-medium text-gray-500 mb-1">Min</label><input type="number" class="field-rating-min w-20 px-2 py-1.5 text-sm border border-gray-200 rounded bg-white" value="' + (field.ratingMin != null ? field.ratingMin : 0) + '"></div><div><label class="block text-xs font-medium text-gray-500 mb-1">Max</label><input type="number" class="field-rating-max w-20 px-2 py-1.5 text-sm border border-gray-200 rounded bg-white" value="' + (field.ratingMax != null ? field.ratingMax : 5) + '"></div></div>' : '';
+        var validatorCustom = '<input type="text" class="field-validator-regexp mt-1 w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-white" placeholder="e.g. ^[A-Z]+$" value="' + esc(field.validatorRegexp || '') + '" style="display:' + (field.validator === 'custom' ? 'block' : 'none') + '">';
+        var validatorAndDefaultRow = '<div class="flex flex-wrap items-end gap-4 mt-2">' +
+            '<div class="field-validator-wrap flex-none w-40"><label class="block text-xs font-medium text-gray-500 mb-1">Validator</label><select class="field-validator w-full px-3 py-1.5 text-sm border border-gray-200 rounded bg-white">' + valOptsStr + '</select>' + validatorCustom + '</div>' +
+            defaultValHtml +
+          '</div>';
+        return '<div class="form-field-row border border-gray-200 rounded-md bg-white p-3" data-group-index="' + groupIndex + '" data-field-index="' + fieldIndex + '" data-field-id="' + esc(fId) + '">' +
+          '<div class="flex flex-wrap items-center gap-2 mb-2">' +
+            '<input type="text" class="field-label flex-1 min-w-[120px] px-3 py-2 text-sm border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Label" value="' + esc(field.label || '') + '">' +
+            '<select class="field-width w-36 px-3 py-2 text-sm border border-gray-200 rounded bg-white" title="Grid: Tailwind col-span">' + widthOptsStr + '</select>' +
+            '<select class="field-type w-32 px-3 py-2 text-sm border border-gray-200 rounded bg-white">' + typeOptsStr + '</select>' +
+            '<label class="flex items-center gap-1 text-sm whitespace-nowrap"><input type="checkbox" class="field-required rounded border-gray-300 text-blue-600"' + (field.required ? ' checked' : '') + '> Required</label>' +
+            '<button type="button" class="btn-field-up px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move up">↑</button>' +
+            '<button type="button" class="btn-field-down px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move down">↓</button>' +
+            '<button type="button" class="btn-remove-field px-2 py-1 text-sm rounded border border-red-200 bg-white text-red-700 hover:bg-red-50 cursor-pointer">Remove</button>' +
+          '</div>' +
+          validatorAndDefaultRow + optionsSection + ratingSection +
+        '</div>';
+      }
+
+      function renderGroupCard(group, groupIndex) {
+        var gId = group.id || uid();
+        var fieldsHtml = (group.fields || []).map(function(field, fieldIndex) { return renderFieldRow(field, groupIndex, fieldIndex); }).join('');
+        return '<div class="border border-gray-200 rounded-lg bg-gray-50/50 overflow-hidden form-group-card" data-group-index="' + groupIndex + '" data-group-id="' + esc(gId) + '">' +
+          '<div class="px-4 py-3 bg-white border-b border-gray-200 flex flex-wrap items-center gap-2">' +
+            '<input type="text" class="group-label flex-1 min-w-[160px] px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Group label" value="' + esc(group.label || '') + '">' +
+            '<button type="button" class="btn-group-up px-2 py-1.5 text-xs font-medium rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move group up">↑</button>' +
+            '<button type="button" class="btn-group-down px-2 py-1.5 text-xs font-medium rounded border border-gray-300 bg-white hover:bg-gray-100 cursor-pointer" title="Move group down">↓</button>' +
+            '<button type="button" class="btn-group-remove px-2 py-1.5 text-xs font-medium rounded border border-red-200 bg-white text-red-700 hover:bg-red-50 cursor-pointer">Remove group</button>' +
+          '</div>' +
+          '<div class="px-4 py-2 border-b border-gray-100">' +
+            '<label class="block text-xs font-medium text-gray-500 mb-1">Description (optional)</label>' +
+            '<textarea class="group-description w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[60px] resize-y" placeholder="Brief description...">' + esc(group.description || '') + '</textarea>' +
+          '</div>' +
+          '<div class="p-4">' +
+            '<div class="flex items-center justify-between mb-2"><span class="text-sm font-medium text-gray-700">Fields</span><button type="button" class="btn-add-field px-2 py-1 text-sm font-medium rounded border border-gray-300 bg-white hover:bg-gray-50 cursor-pointer" data-group-index="' + groupIndex + '">+ Add field</button></div>' +
+            '<div class="form-fields-list space-y-3" data-group-index="' + groupIndex + '">' + fieldsHtml + '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      function renderGroups(groups) {
+        var container = document.getElementById('formGroupsContainer');
+        if (!groups || groups.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 text-sm">No groups yet. Click "+ Add Group" to start.</p>';
+          return;
+        }
+        container.innerHTML = groups.map(function(g, i) { return renderGroupCard(g, i); }).join('');
+      }
+
+      function collectFormFromDom() {
+        var groupCards = document.querySelectorAll('#formGroupsContainer .form-group-card');
+        var groups = [];
+        groupCards.forEach(function(card, gi) {
+          var labelEl = card.querySelector('.group-label');
+          var descEl = card.querySelector('.group-description');
+          var fieldsList = card.querySelector('.form-fields-list');
+          var fieldRows = fieldsList ? fieldsList.querySelectorAll('.form-field-row') : [];
+          var fields = [];
+          fieldRows.forEach(function(row, fi) {
+            var typeVal = (row.querySelector('.field-type') || {}).value || 'text';
+            var opts = [];
+            if (typesWithOptions(typeVal)) {
+              row.querySelectorAll('.field-options .option-row').forEach(function(optRow) {
+                var textIn = optRow.querySelector('.option-text');
+                var defChk = optRow.querySelector('.option-default');
+                opts.push({ text: textIn ? textIn.value.trim() : '', default: defChk ? defChk.checked : false });
+              });
+            }
+            var ratingMinIn = row.querySelector('.field-rating-min');
+            var ratingMaxIn = row.querySelector('.field-rating-max');
+            fields.push({
+              id: row.getAttribute('data-field-id') || uid(),
+              label: (row.querySelector('.field-label') || {}).value || '',
+              type: typeVal,
+              required: (row.querySelector('.field-required') || {}).checked || false,
+              width: (row.querySelector('.field-width') || {}).value || 'col-span-12',
+              validator: (row.querySelector('.field-validator') || {}).value || '',
+              validatorRegexp: (row.querySelector('.field-validator-regexp') || {}).value || '',
+              defaultValue: typesWithDefaultValue(typeVal) ? ((row.querySelector('.field-default-value-input') || {}).value || '') : '',
+              options: opts,
+              ratingMin: typeHasRating(typeVal) && ratingMinIn ? parseInt(ratingMinIn.value, 10) : 0,
+              ratingMax: typeHasRating(typeVal) && ratingMaxIn ? parseInt(ratingMaxIn.value, 10) : 5
+            });
+          });
+          groups.push({
+            id: card.getAttribute('data-group-id') || uid(),
+            label: labelEl ? labelEl.value.trim() : '',
+            description: descEl ? descEl.value.trim() : '',
+            fields: fields
+          });
+        });
+        return groups;
+      }
+
+      function onTypeChange(row) {
+        var typeVal = row.querySelector('.field-type').value;
+        var defWrap = row.querySelector('.field-default-value');
+        var optWrap = row.querySelector('.field-options');
+        var ratingWrap = row.querySelector('.field-rating');
+        if (defWrap) defWrap.style.display = typesWithDefaultValue(typeVal) ? '' : 'none';
+        if (optWrap) optWrap.style.display = typesWithOptions(typeVal) ? '' : 'none';
+        if (ratingWrap) ratingWrap.style.display = typeHasRating(typeVal) ? '' : 'none';
+        var customRegex = row.querySelector('.field-validator-regexp');
+        if (customRegex) customRegex.style.display = (row.querySelector('.field-validator').value === 'custom') ? '' : 'none';
+      }
+      function onValidatorChange(row) {
+        var customRegex = row.querySelector('.field-validator-regexp');
+        if (customRegex) customRegex.style.display = (row.querySelector('.field-validator').value === 'custom') ? '' : 'none';
+      }
+
       function openModal(id) {
         editId = id;
         var forms = getFormsList();
         var f = id ? forms.find(function(x) { return x.id === id; }) : null;
         document.getElementById('modalFormTitle').textContent = f ? 'Edit Form' : 'Add Form';
-        document.getElementById('formId').value = f ? f.id : '';
-        document.getElementById('formId').readOnly = !!f;
         document.getElementById('formName').value = f ? f.name : '';
+        updateVariablePreview();
+        var initialGroups = f && f.groups && f.groups.length ? f.groups : [{ id: uid(), label: 'Fields', description: '', fields: [] }];
+        renderGroups(initialGroups);
         document.getElementById('modalForm').classList.remove('hidden');
         document.getElementById('modalForm').classList.add('flex');
       }
+
       function saveForm() {
-        var fid = (document.getElementById('formId').value || '').trim().replace(/\s/g, '_');
         var name = (document.getElementById('formName').value || '').trim();
-        if (!fid || !name) { alert('ID and Name required.'); return; }
-        if (!/^[A-Za-z0-9_-]+$/.test(fid)) { alert('ID: letters, numbers, underscore, hyphen only.'); return; }
+        if (!name) { alert('Form name is required.'); return; }
+        var variable = normalizeFormName(name);
         var forms = getFormsList();
-        if (!editId && forms.some(function(x) { return x.id === fid; })) { alert('Form with this ID exists.'); return; }
-        if (editId) {
-          var idx = forms.findIndex(function(x) { return x.id === editId; });
-          if (idx >= 0) { forms[idx] = { id: fid, name: name }; setJson(KEY, forms); loadTable(); document.getElementById('modalForm').classList.add('hidden'); document.getElementById('modalForm').classList.remove('flex'); return; }
-        }
-        forms.push({ id: fid, name: name });
-        setJson(KEY, forms);
+        var rawForms = getJson(KEY, []);
+        var arr = Array.isArray(rawForms) ? rawForms : Object.entries(rawForms).map(function(e) { return { name: (e[1] && e[1].name) != null ? e[1].name : e[0], groups: (e[1] && e[1].groups), fields: (e[1] && e[1].fields) }; });
+        var existingIndex = editId ? arr.findIndex(function(x) { return normalizeFormName(x.name) === editId; }) : -1;
+        if (!editId && forms.some(function(x) { return x.id === variable; })) { alert('A form with the same variable already exists.'); return; }
+        var groups = collectFormFromDom();
+        var record = { name: name, groups: groups };
+        if (existingIndex >= 0) arr[existingIndex] = record; else arr.push(record);
+        setJson(KEY, arr);
         loadTable();
         document.getElementById('modalForm').classList.add('hidden');
         document.getElementById('modalForm').classList.remove('flex');
       }
+
+      document.getElementById('formName').addEventListener('input', updateVariablePreview);
       document.getElementById('btnAdd').onclick = function() { openModal(null); };
+
+      document.getElementById('btnAddGroup').onclick = function() {
+        var container = document.getElementById('formGroupsContainer');
+        var placeholder = container.querySelector('p');
+        if (placeholder) placeholder.remove();
+        var groups = collectFormFromDom();
+        groups.push({ id: uid(), label: 'New group', description: '', fields: [] });
+        renderGroups(groups);
+      };
+
+      document.getElementById('formGroupsContainer').addEventListener('click', function(e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        var groupCard = e.target.closest('.form-group-card');
+        var fieldRow = e.target.closest('.form-field-row');
+
+        if (btn.classList.contains('btn-add-field')) {
+          var gIdx = parseInt(btn.getAttribute('data-group-index'), 10);
+          var list = document.querySelector('.form-group-card[data-group-index="' + gIdx + '"] .form-fields-list');
+          if (!list) return;
+          var newField = { id: uid(), label: '', type: 'text', required: false, width: 'col-span-12', validator: '', validatorRegexp: '', defaultValue: '', options: [], ratingMin: 0, ratingMax: 5 };
+          var html = renderFieldRow(newField, gIdx, list.querySelectorAll('.form-field-row').length);
+          list.insertAdjacentHTML('beforeend', html);
+          return;
+        }
+        if (btn.classList.contains('btn-add-option')) {
+          var optContainer = btn.closest('.field-options');
+          if (!optContainer) return;
+          var optRow = document.createElement('div');
+          optRow.className = 'flex items-center gap-2 mt-1 option-row';
+          optRow.innerHTML = '<input type="text" class="option-text flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-200 rounded bg-white" placeholder="Option text"><label class="flex items-center gap-1 text-xs whitespace-nowrap"><input type="checkbox" class="option-default rounded border-gray-300 text-blue-600"> Default</label><button type="button" class="btn-remove-option px-2 py-1 text-xs rounded border border-gray-300 bg-white hover:bg-red-50 cursor-pointer">Remove</button>';
+          btn.parentNode.insertBefore(optRow, btn);
+          return;
+        }
+        if (btn.classList.contains('btn-remove-option')) {
+          btn.closest('.option-row').remove();
+          return;
+        }
+        if (btn.classList.contains('btn-remove-field') && fieldRow) {
+          fieldRow.remove();
+          return;
+        }
+        if (btn.classList.contains('btn-field-up') && fieldRow) {
+          var prev = fieldRow.previousElementSibling;
+          if (prev) fieldRow.parentNode.insertBefore(fieldRow, prev);
+          return;
+        }
+        if (btn.classList.contains('btn-field-down') && fieldRow) {
+          var next = fieldRow.nextElementSibling;
+          if (next) fieldRow.parentNode.insertBefore(next, fieldRow);
+          return;
+        }
+        if (btn.classList.contains('btn-group-up') && groupCard) {
+          var prevG = groupCard.previousElementSibling;
+          if (prevG && prevG.classList.contains('form-group-card')) {
+            document.getElementById('formGroupsContainer').insertBefore(groupCard, prevG);
+            reindexGroups();
+          }
+          return;
+        }
+        if (btn.classList.contains('btn-group-down') && groupCard) {
+          var nextG = groupCard.nextElementSibling;
+          if (nextG && nextG.classList.contains('form-group-card')) {
+            document.getElementById('formGroupsContainer').insertBefore(nextG, groupCard);
+            reindexGroups();
+          }
+          return;
+        }
+        if (btn.classList.contains('btn-group-remove') && groupCard) {
+          groupCard.remove();
+          reindexGroups();
+        }
+      });
+
+      document.getElementById('formGroupsContainer').addEventListener('change', function(e) {
+        var row = e.target.closest('.form-field-row');
+        if (!row) return;
+        if (e.target.classList.contains('field-type')) onTypeChange(row);
+        if (e.target.classList.contains('field-validator')) onValidatorChange(row);
+      });
+
+      function reindexGroups() {
+        document.querySelectorAll('#formGroupsContainer .form-group-card').forEach(function(card, i) {
+          card.setAttribute('data-group-index', String(i));
+          var addBtn = card.querySelector('.btn-add-field');
+          if (addBtn) addBtn.setAttribute('data-group-index', String(i));
+          var list = card.querySelector('.form-fields-list');
+          if (list) list.setAttribute('data-group-index', String(i));
+          card.querySelectorAll('.form-field-row').forEach(function(r, j) {
+            r.setAttribute('data-group-index', String(i));
+            r.setAttribute('data-field-index', String(j));
+          });
+        });
+      }
+
       document.getElementById('modalFormClose').onclick = function() { document.getElementById('modalForm').classList.add('hidden'); document.getElementById('modalForm').classList.remove('flex'); };
       document.getElementById('modalFormCancel').onclick = function() { document.getElementById('modalForm').classList.add('hidden'); document.getElementById('modalForm').classList.remove('flex'); };
       document.getElementById('modalFormSave').onclick = saveForm;
@@ -125,8 +456,10 @@
         if (btn.classList.contains('btn-edit')) openModal(id);
         else if (btn.classList.contains('btn-del')) {
           if (!confirm('Delete this form?')) return;
-          var forms = getFormsList().filter(function(x) { return x.id !== id; });
-          setJson(KEY, forms);
+          var rawForms = getJson(KEY, []);
+          var arr = Array.isArray(rawForms) ? rawForms : Object.entries(rawForms).map(function(e) { return { name: (e[1] && e[1].name) != null ? e[1].name : e[0], groups: (e[1] && e[1].groups), fields: (e[1] && e[1].fields) }; });
+          arr = arr.filter(function(x) { return normalizeFormName(x.name) !== id; });
+          setJson(KEY, arr);
           loadTable();
         }
       });

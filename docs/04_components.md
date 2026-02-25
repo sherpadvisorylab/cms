@@ -155,9 +155,13 @@ Variables `headline`, `subheadline`, `cta_url`, and `cta_text` will appear in At
 
 ### Toolbar (HTML section)
 
-- **Expand** — Toggles fullscreen HTML editor (class `html-section-expanded` on `body`); sidebar and header are dimmed; Escape exits.
-- **Preview** — Opens the [HTML Preview modal](#preview) with Tailwind; variables are replaced by their labels in the preview.
-- **Import** — Opens the [Import HTML](#import-html) modal to paste HTML and convert text to Liquid variables.
+The HTML template card has a **toolbar** in the header (right-aligned) with three buttons:
+
+- **Import** — Opens the [Import HTML](#import-html) modal. User pastes HTML into a textarea and clicks “Convert & insert”; text content is converted to Liquid variables and inserted into the editor; variable labels/placeholders are updated from the converted content.
+- **Expand** — Toggles fullscreen HTML editor: the card gets class `html-section-expanded` on `body` (or equivalent), the editor fills the viewport, sidebar and header are dimmed. **Escape** exits fullscreen.
+- **Preview** — Opens the [HTML Preview modal](#html-preview-modal) with the current template wrapped in a full document with Tailwind CSS; variables are replaced by their labels (or variable name if no label). View buttons (Desktop / Tablet / Mobile) set the iframe width.
+
+Behaviour in the prototype: the three buttons are in the same row as the “HTML template (Liquid)” title; clicking each triggers the behaviour above. Typing **`{`** in the editor opens the system variables popup (style variables and form embeds).
 
 ### System variables popup
 
@@ -277,18 +281,33 @@ In-memory object: `variableName → { type, label, placeholder, required, valida
 
 ## Positioning and Backend Layout
 
+### Backend card: tabs and view toolbar
+
+The **Backend** card has:
+
+- **Three tabs**: **Attributes** | **Positioning** | **Preview**. Only one tab is visible at a time.
+- **View mode toolbar** (Desktop / Tablet / Mobile): Shown **only when the active tab is Positioning or Preview**. It controls the preview width and (in a full implementation) the column widths used per device. In the prototype, Desktop/Tablet/Mobile set the preview container width and the current view used for the Positioning grid and Preview form layout.
+
+### Attributes tab
+
+- **Add attribute** button (top right): Adds a new variable manually (e.g. `new_var_1`); it is appended to the variable list and optionally inserted as `{{ new_var_1 }}` in the HTML. Used when you want to define a variable before or without typing it in the template.
+- **Variable cards** (one per variable): Each card is **collapsible** (summary row with label and variable name). Inside the card:
+  - **Label** (text input), **Type** (select: Text, Textarea, URL, Number, Checkbox, Color, etc.), **Placeholder** (text input), **Required** (checkbox), **Validator** (text input).
+  - **Actions**: Move up (↑), Move down (↓), **Remove** (removes the variable from the backend list; the variable remains in the template until you remove `{{ name }}` from the HTML).
+- Variables are synced from the HTML template on change; variables no longer present in the template are hidden (class `hidden`) but kept in storage until save/load.
+
 ### Positioning Tab
 
-- **Purpose**: Define how backend form fields are grouped and laid out per **view** (desktop, tablet, mobile).
-- **View mode toolbar**: Desktop / Tablet / Mobile icons appear next to “Backend” when the **Positioning** or **Preview** tab is active; they control both the positioning grid and the preview width.
-- **Grid**: 12-column grid per view. Each **block** is a variable; you can:
-  - **Drag** to reorder (within a group or between groups).
-  - **Resize** by dragging the **left or right edge** of a block; width is stored per view (`widthDesktop`, `widthTablet`, `widthMobile`).
+- **Purpose**: Define how backend form fields are grouped and laid out per **view** (desktop, tablet, mobile). The layout matches the way the form will be rendered: variables are blocks in a **12-column grid**; when their widths allow, several variables appear on the same row.
+- **View mode toolbar**: Desktop / Tablet / Mobile appear next to “Backend” when the **Positioning** or **Preview** tab is active. The **current view** determines which widths you are editing: resizing in Desktop only updates `widthDesktop`, in Mobile only `widthMobile`, and so on. Switch view to set width per device.
+- **Grid layout**: Each group shows a **12-column grid**. Each variable is a **block** that spans a number of columns (1–12). By default every variable spans the **full row** (12 columns). Blocks are laid out in order, left to right; when a row is full, the next block starts on the following row. So the editor faithfully represents the width each variable will occupy in the rendered form.
+- **Resize**: Drag the **left edge** or **right edge** of a variable block to change its width (column span). The left edge: drag to the right to shrink the block (fewer columns), drag to the left to extend it. The right edge: drag to the right to extend, to the left to shrink. Width is stored per view (`widthDesktop`, `widthTablet`, `widthMobile`) and is used in the Backend Preview tab and in the saved component.
+- **Drag and drop**: Drag a variable block (by its label/chip) to reorder within the group or move it to another group’s grid. Order is persisted in `positioningStructure`.
 
 ### Groups
 
-- **Default group**: Placeholder “Default group (no wrapper in rendered form)”. No visual wrapper in the rendered backend form.
-- **Additional groups**: “Add group” adds a new group with optional **label** and **description**. In Preview, if a group has label or description, they are shown above its fields (with a top border for non-default groups).
+- **Default group**: The first group has **id** `'default'` and cannot be removed. It can optionally have a **label** (title) and **description**; if set, they are shown in the Backend Preview tab above its fields (like for additional groups). If left empty, the placeholder text “Default group (no wrapper in rendered form)” is used in the UI; in the rendered backend form, when the default group has no label/description, it does not add a visual wrapper. It is created automatically when there is no saved positioning structure (all variables from the template go into this single group).
+- **Additional groups**: “Add group” adds a new group with optional **label** and **description**. Each group has a “Remove group” button (only non-default groups can be removed). In Preview, if a group has label or description, they are shown above its fields (with a top border for non-default groups).
 - **Remove group**: Only non-default groups can be removed.
 
 ### positioningStructure
@@ -299,12 +318,14 @@ Array of items:
 - **id**: `'default'` for the first group; others e.g. `'group_<timestamp>'`.
 - **items**: Order of variables in that group; each item `{ type: 'var', name }`.
 
-On load, a flat list of `{ type: 'var', name }` is normalized into a single default group. Sync from DOM (e.g. after drag/resize) rebuilds `positioningStructure` and updates per-variable widths.
+Each variable’s **width** (column span) for the grid is stored on the variable itself: `widthDesktop`, `widthTablet`, `widthMobile` (1–12). If not set, the default is **12** (full row). On load, a flat list of `{ type: 'var', name }` is normalized into a single default group. Sync from DOM (e.g. after drag/resize) rebuilds `positioningStructure` and updates per-variable widths.
 
-### Drag and Drop
+### Drag and Drop (Positioning tab)
 
-- Variables can be reordered within a group and moved between groups (drop on the group’s items area).
-- Order is persisted in `positioningStructure` and reflected in Preview.
+- Variables are shown as **blocks** in a 12-column grid; each block has a label (chip) and **resize handles** on the left and right edges.
+- **Drag** the block (by the label/chip) to **reorder** within the same group or to **move** it to another group’s grid: drop on another block to insert before it, or drop on the group’s grid area to append.
+- **Resize** by dragging the **left or right edge** of a block (the thin strip on the border). The new width (column span) applies **only to the current view** (Desktop, Tablet, or Mobile). By default each variable spans 12 columns (full row); when you reduce a block’s width, the next block can sit on the same row if space allows.
+- Order and widths are persisted in `positioningStructure` and in each variable’s `widthDesktop` / `widthTablet` / `widthMobile`; they are reflected in the Preview tab and in the saved component.
 
 ---
 
@@ -313,9 +334,8 @@ On load, a flat list of `{ type: 'var', name }` is normalized into a single defa
 ### Backend Preview Tab
 
 - Renders the **backend form** that a copywriter would see: one section per positioning group (with optional group title/description), then a 12-column grid of fields.
-- Each field’s **column span** comes from the variable’s width for the **current view** (desktop/tablet/mobile).
+- Each field’s **column span** comes from the variable’s width for the **current view** (desktop/tablet/mobile). The **View mode** toolbar (Desktop / Tablet / Mobile) is visible when this tab is active; it changes the preview frame width and the column widths used for layout.
 - Field type is mapped to input (text, number, email, textarea, checkbox, etc.); not all variable types have a full widget implementation in the prototype.
-- **View mode** (desktop/tablet/mobile) changes the preview frame width and the column widths used for layout.
 
 ### HTML Preview Modal
 

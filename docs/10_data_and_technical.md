@@ -26,7 +26,7 @@ The following table lists the **logical data kinds** (and typical identifiers) t
 | components | Component list or config (component definitions may be stored per component, e.g. by id). |
 | navigations | Object of navigation blocks (e.g. `main-header`, `footer-links`) for area design variables. Each block has `name`, `items`, `template`, `additionalCss`, `additionalJs`. See [11 – Navigation](./11_navigation.md). |
 | forms | Form definitions used for form-embed variables (`{{form:id}}`). |
-| users | Array of platform user objects (name, email, role, status, company for startup). See [12 – Users](./12_users.md). |
+| users | Array of platform user objects (name, email, role, status, company for member). See [12 – Users](./12_users.md). |
 | pages_structure | Object keyed by page id; each value is an array of `{ name, category }` for the page’s component structure (e.g. used by the Pages structure modal). |
 
 Component data is often stored per component (e.g. one record or document per component id), as noted in [04 – Components](./04_components.md). Area edit stores design variable contents in the area object (e.g. `design.bodyElements`). The business layer loads these structures from the database and passes them to the CMS; when a component saves, the CMS exposes the updated structure and the driver persists it to the store.
@@ -171,8 +171,9 @@ Custom variables (e.g. `{{header}}`, `{{myBlock}}`) are defined in the area desi
 
 ## 4. Technologies and prototype note
 
-- **HTML5 / CSS3**: Markup and styling  
-- **JavaScript (vanilla)**: CMS logic and UI behaviour  
+- **Styling**: For development (prototype and application), use **Tailwind CSS**. No custom CSS is required: layout, components, and utilities are implemented with Tailwind classes. In the prototype, Tailwind is included via CDN (`https://cdn.tailwindcss.com`); in production use the Tailwind build (npm) with purge/content configured for your templates.
+- **HTML5 / CSS3**: Markup and styling (with Tailwind as above).
+- **JavaScript (vanilla)**: CMS logic and UI behaviour
 - **Quill.js**: WYSIWYG for legal pages and cookie descriptions  
 - **Font Awesome**: Icons and icon picker  
 - **CodeMirror** (where used): HTML/CSS/JS editors with syntax highlighting  

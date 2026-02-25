@@ -9,6 +9,7 @@ Documentation for the Content Management System (CMS) is organized in a single n
 - What the CMS is and its main capabilities
 - Core concepts (Areas, Pages, Components, Templates, Forms, Navigation, Emails, Authentication, Settings) and how they relate
 - Where to find each feature in the admin (and prototype file names)
+- **Development stack**: Tailwind CSS for styling (see §6 in the overview and [10_data_and_technical.md](./10_data_and_technical.md))
 - A **reference table** linking to each detail document
 
 ## Numbered documents (expand by topic)

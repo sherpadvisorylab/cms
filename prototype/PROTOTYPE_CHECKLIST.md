@@ -13,7 +13,7 @@ Questo file traccia l’avanzamento del prototipo HTML/CMS: frontend (sito di es
 | Navigation | navigation.html | ✅ Lista blocchi, Add block, Items (Add page/custom link), Edit item, Display template, Additional CSS/JS, localStorage |
 | Components | components.html, component_edit.html | ✅ Tab tipo, sidebar categorie, grid, Edit (name, type, category, HTML Liquid, Attributes da regex), seed hero/content/cta, localStorage |
 | Templates | templates.html | ✅ Lista, Create/Edit (name, desc, component list), Preview (desktop/tablet/mobile), Delete, uso in Pages dropdown, localStorage |
-| Forms | forms.html | ✅ Lista form (id, name), Add/Edit/Delete, embed come {{form:id}}, localStorage |
+| Forms | forms.html | ✅ Lista form (nome, variabile normalizzata), Add/Edit/Delete, **form builder**: gruppi (label, desc, riordino), campi per gruppo (Label, Type, Required, Width, Validator, Default value, Options per select/radio/checkbox, Rating min/max), riordino campi e gruppi, embed {{form:variable}}, localStorage |
 | Emails | emails.html | ✅ Lista template (id, name, category, subject), Edit (subject, message, variables), Reset to default, localStorage |
 | Settings | settings.html | ✅ Tab Branding, Authentication/SSO, System Variables (theme defaults, Save, Reset), localStorage |
 | Users | users.html | ✅ Lista (Name, Email, Role, Status, Last Login), Add User, Edit, Reset password, Delete, ruoli da lista, localStorage |
@@ -96,9 +96,9 @@ Mancano (opzionali o da estendere): Form generator completo (groups/fields), Loa
 
 #### 3.5 Forms (doc: 05_forms)
 - [x] Lista form (id, name), Add/Edit/Delete
-- [x] Embed in component/area: `{{form:id}}` (lista disponibile da pmp_cms_forms)
+- [x] Embed in component/area: `{{form:variable}}` (variable = nome form normalizzato; lista da pmp_cms_forms)
 - [x] localStorage: `pmp_cms_forms`
-- [ ] Form generator UI completo (groups, fields, types, options)
+- [x] Form generator UI completo (groups, fields, types, options) — Implementato in prototipo: gruppi, campi con tipo/required/width/validator/default/options/rating, riordino.
 
 #### 3.6 Navigation (doc: 11_navigation)
 - [x] Lista blocchi (nome, item count), Add block
@@ -129,10 +129,10 @@ Mancano (opzionali o da estendere): Form generator completo (groups/fields), Loa
 
 #### 3.10 Users (doc: 12_users)
 - [x] Lista: Name, Email, Role, Status, Last Login, Actions
-- [x] Add User (invite): email, role; Startup (company) se role=Startup
-- [x] Edit User: name, email, role, status, startup
+- [x] Add User (invite): email, role; Organization (optional) se role=Member
+- [x] Edit User: name, email, role, status, organization
 - [x] Reset password (conferma), Delete (conferma)
-- [x] Ruoli: Super Admin, Program Manager, Advisor, Startup (lista fissa in prototype)
+- [x] Ruoli: Administrator, Editor, Contributor, Member (lista fissa in prototype)
 - [x] localStorage: `pmp_admin_users`
 
 #### 3.11 Default pages (doc: 03_pages_default)
@@ -166,7 +166,7 @@ Mancano (opzionali o da estendere): Form generator completo (groups/fields), Loa
 
 ## Note
 
-- **Styling**: il prototipo usa **solo Tailwind CSS** tramite CDN (`https://cdn.tailwindcss.com`) incluso in ogni pagina; nessun file CSS custom (main.css è vuoto/deprecato).
+- **Styling**: il prototipo usa **solo Tailwind CSS** tramite CDN (`https://cdn.tailwindcss.com`) incluso in ogni pagina; nessun file CSS custom (main.css è vuoto/deprecato). **Per lo sviluppo del CMS (prototipo e applicazione) si deve usare Tailwind**; vedi `docs/01_overview.md` (§6) e `docs/10_data_and_technical.md` (§4).
 - Implementazione fedele alla documentazione; non inventare funzionalità non descritte.
 - Grafica: professionale, neutra, funzionale.
 - Persistenza prototipo: localStorage (chiavi documentate in 10_data_and_technical e nei doc di dettaglio).
@@ -179,7 +179,7 @@ Mancano (opzionali o da estendere): Form generator completo (groups/fields), Loa
 | `pmp_cms_templates` | Array template (nome, desc, components) |
 | `pmp_cms_pages` | Array pagine (structure, content, seo, style) |
 | `pmp_cms_navigations` | Oggetto blocchi (id → name, items, template, additionalCss/Js) |
-| `pmp_cms_forms` | Array form { id, name } per {{form:id}} |
+| `pmp_cms_forms` | Array form { name, fields } per {{form:variable}} (variable = nome normalizzato) |
 | `pmp_admin_users` | Array utenti (name, email, role, status, company) |
 | `pmp_cms_system_variable_defaults` | Oggetto variableId → valore (Settings) |
 | `pmp_cms_system_variable_custom_keys` | Array chiavi custom (opzionale) |

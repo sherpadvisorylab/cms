@@ -68,15 +68,15 @@
         <div class="mb-4">
           <label class="block mb-1 font-medium">Role *</label>
           <select class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userRole">
-            <option value="super_admin">Super Admin</option>
-            <option value="program_manager">Program Manager</option>
-            <option value="advisor">Advisor</option>
-            <option value="startup">Startup</option>
+            <option value="admin">Administrator</option>
+            <option value="editor">Editor</option>
+            <option value="contributor">Contributor</option>
+            <option value="member">Member</option>
           </select>
         </div>
         <div class="mb-4 hidden" id="userStartupGroup">
-          <label class="block mb-1 font-medium">Startup (company)</label>
-          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userStartup" placeholder="Company name">
+          <label class="block mb-1 font-medium">Organization (optional)</label>
+          <input type="text" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="userStartup" placeholder="Organization name">
         </div>
         <div class="mb-4 hidden" id="userStatusGroup">
           <label class="block mb-1 font-medium">Status</label>
@@ -87,7 +87,7 @@
           </select>
         </div>
       </div>
-      <div class="p-5 border-t border-gray-200">
+      <div class="p-5 border-t border-gray-200 flex justify-end gap-2">
         <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" id="modalUserCancel">Cancel</button>
         <button type="button" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-blue-800 bg-blue-800 text-white hover:bg-blue-900 cursor-pointer" id="modalUserSave">Save User</button>
       </div>
@@ -98,7 +98,7 @@
     (function() {
       seedIfEmpty();
       var KEY = 'pmp_admin_users';
-      var ROLES = { super_admin: 'Super Admin', program_manager: 'Program Manager', advisor: 'Advisor', startup: 'Startup' };
+      var ROLES = { admin: 'Administrator', editor: 'Editor', contributor: 'Contributor', member: 'Member' };
       var editId = null;
 
       function loadTable() {
@@ -113,8 +113,8 @@
 
       function toggleStartup() {
         var el = document.getElementById('userStartupGroup');
-        el.classList.toggle('hidden', document.getElementById('userRole').value !== 'startup');
-        el.classList.toggle('block', document.getElementById('userRole').value === 'startup');
+        el.classList.toggle('hidden', document.getElementById('userRole').value !== 'member');
+        el.classList.toggle('block', document.getElementById('userRole').value === 'member');
       }
       document.getElementById('userRole').addEventListener('change', toggleStartup);
 
@@ -131,7 +131,7 @@
         document.getElementById('userStatusGroup').classList.toggle('block', !!u);
         document.getElementById('userName').value = u ? (u.name || '') : '';
         document.getElementById('userEmail').value = u ? (u.email || '') : '';
-        document.getElementById('userRole').value = u ? (u.role || 'program_manager') : 'program_manager';
+        document.getElementById('userRole').value = u ? (u.role || 'editor') : 'editor';
         document.getElementById('userStartup').value = u ? (u.company || '') : '';
         document.getElementById('userStatus').value = u ? (u.status || 'active') : 'active';
         toggleStartup();
@@ -153,7 +153,7 @@
             users[idx].name = name;
             users[idx].email = email;
             users[idx].role = role;
-            users[idx].company = role === 'startup' ? startup : undefined;
+            users[idx].company = role === 'member' ? startup : undefined;
             users[idx].status = status;
             setJson(KEY, users);
             loadTable();
@@ -162,7 +162,7 @@
             return;
           }
         }
-        users.push({ id: String(Date.now()), name: name || '', email: email, role: role, company: role === 'startup' ? startup : undefined, status: 'active', lastLogin: null });
+        users.push({ id: String(Date.now()), name: name || '', email: email, role: role, company: role === 'member' ? startup : undefined, status: 'active', lastLogin: null });
         setJson(KEY, users);
         loadTable();
         document.getElementById('modalUser').classList.add('hidden');
