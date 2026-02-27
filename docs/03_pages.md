@@ -16,6 +16,7 @@ This document describes page management in detail: list, creation, structure, co
 10. [Default Pages](#default-pages)
 11. [System Pages](#system-pages)
 12. [Hierarchical Structure](#hierarchical-structure)
+13. [Sitemap (sitemap.xml)](#sitemap-sitemapxml)
 
 ---
 
@@ -409,6 +410,38 @@ The hierarchical structure affects URL paths:
 
 ---
 
+## Sitemap (sitemap.xml)
+
+On **create** and **update** of a page, if the **slug** or **final path** of the page changes, the **sitemap.xml** file at the website root must be updated. The same applies when a page is deleted or when its status changes (e.g. from Published to Draft/Archived): the sitemap must reflect only pages that are actually public and reachable.
+
+### Scope: public areas only
+
+Sitemap updates apply **only to pages that belong to public areas**, i.e. areas **without access restrictions** (Access Policy → *This is a restricted area* unchecked). Pages in areas that require authentication must not be included in sitemap.xml, as they are not indexable as public content.
+
+### Sitemap component
+
+A **dedicated component** (module or service) must:
+
+1. **Generate** the **sitemap.xml** file in standard format (e.g. XML Sitemap for search engines).
+2. **Update** the sitemap **in context** with page operations:
+   - creation of a new page in a public area;
+   - update of a page in a public area when slug or path (or parent affecting the path) changes;
+   - change of page status (Published ↔ Draft/Archived);
+   - deletion of a page.
+3. **Include** in the sitemap only pages that meet all of the following:
+   - area is **not** restricted (public);
+   - status is **Published**;
+   - valid final path (derived from area root path + hierarchy + slug).
+
+The **sitemap.xml** file must be **static**: generated and written to the filesystem (or deployed artifact) at the website root, so that it is served as a static resource (e.g. `https://example.com/sitemap.xml`). Dynamic on-the-fly generation on each HTTP request is not required; the component updates the file when pages are saved or published (or via an asynchronous job tied to the same events).
+
+### Integration with the Pages flow
+
+- On page **create** or **update**, after data is saved, if the area is public and slug/path has changed (or the page has been published/archived/deleted), the backend must call the Sitemap component to regenerate and write **sitemap.xml**.
+- The component can read the list of areas (e.g. from [02 – Areas](./02_areas.md)) and filter by `accessPolicy.isRestricted !== true`, then build the list of paths from Published pages in those areas only.
+
+---
+
 ## Page List View
 
 ### Filtering
@@ -495,6 +528,10 @@ Action buttons are displayed in each page row:
 - Pages can be added to navigation menus
 - Hierarchical structure helps organize menu items
 - Page paths are used for menu links
+
+### Sitemap Integration
+
+- Creation, update (slug/path), status change, or deletion of a page in a **public area** (no access restrictions) triggers regeneration of the static **sitemap.xml** at the website root; see [Sitemap (sitemap.xml)](#sitemap-sitemapxml).
 
 ---
 

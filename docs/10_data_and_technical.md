@@ -193,6 +193,7 @@ In production, persistence is via the **driver** and a real database (see §1). 
 - `updatePathPreview()`: Updates full path from parent and slug  
 - `addComponentToPage(name, category)`: Adds component to page structure  
 - `generateFullContentEditor()`: Builds content fields from page structure  
+- **Sitemap**: On page create/update/delete (when slug or path changes, or status changes), a dedicated **Sitemap component** must regenerate the static `sitemap.xml` at the website root; only pages in **public areas** (no access restrictions) with status **Published** are included. See [03 – Pages](./03_pages.md#sitemap-sitemapxml).
 
 ### Area management
 
