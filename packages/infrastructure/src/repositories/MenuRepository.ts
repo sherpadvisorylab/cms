@@ -1,58 +1,43 @@
 import type { CmsMenu, CmsMenuItem, MenuKey } from "@cms/domain";
 import type { IMenuRepository } from "@cms/domain";
-import { getFromStorage, setToStorage, generateId } from "../utils/storage";
-
-const MENUS_KEY = "cms:menus";
+import type { StorageAdapter } from "../adapters/StorageAdapter";
+import { generateId } from "../utils/storage";
 
 export class MenuRepository implements IMenuRepository {
+  constructor(private adapter: StorageAdapter) {}
+
   async findByKey(key: MenuKey): Promise<CmsMenu | null> {
-    const menus = getFromStorage<CmsMenu[]>(MENUS_KEY) ?? [];
-    return menus.find((m) => m.key === key) ?? null;
+    const menus = await this.adapter.getAll<CmsMenu>("menus", { key });
+    return menus[0] ?? null;
   }
 
   async findAll(): Promise<CmsMenu[]> {
-    return getFromStorage<CmsMenu[]>(MENUS_KEY) ?? [];
+    return this.adapter.getAll<CmsMenu>("menus");
   }
 
   async upsertMenu(key: MenuKey, label: string): Promise<CmsMenu> {
-    const menus = getFromStorage<CmsMenu[]>(MENUS_KEY) ?? [];
-    const existing = menus.find((m) => m.key === key);
-
+    const existing = await this.findByKey(key);
     if (existing) {
-      existing.label = label;
-      setToStorage(MENUS_KEY, menus);
-      return existing;
+      return this.adapter.update<CmsMenu>("menus", existing.id, { label });
     }
-
-    const menu: CmsMenu = {
-      id: generateId(),
-      key,
-      label,
-      items: [],
-    };
-    menus.push(menu);
-    setToStorage(MENUS_KEY, menus);
-    return menu;
+    const menu: CmsMenu = { id: generateId(), key, label, items: [] };
+    return this.adapter.create("menus", menu);
   }
 
   async setItems(
     menuId: string,
-    items: Omit<CmsMenuItem, "id" | "menuId">[]
+    items: Omit<CmsMenuItem, "id" | "menuId">[],
   ): Promise<CmsMenuItem[]> {
-    const menus = getFromStorage<CmsMenu[]>(MENUS_KEY) ?? [];
-    const menu = menus.find((m) => m.id === menuId);
-    if (!menu) {
-      throw new Error(`Menu ${menuId} not found`);
-    }
+    const menu = await this.adapter.getById<CmsMenu>("menus", menuId);
+    if (!menu) throw new Error(`Menu ${menuId} not found`);
 
-    // Replace all items
-    menu.items = items.map((item) => ({
+    const newItems: CmsMenuItem[] = items.map((item) => ({
       ...item,
       id: generateId(),
       menuId,
     }));
 
-    setToStorage(MENUS_KEY, menus);
-    return menu.items;
+    await this.adapter.update<CmsMenu>("menus", menuId, { items: newItems });
+    return newItems;
   }
 }

@@ -67,7 +67,7 @@ export interface GroupDefinition {
   label: string;
   description?: string;
   orderIndex: number;
-  collapsed: boolean;
+  collapsed?: boolean;
   fields: FieldDefinition[];
 }
 

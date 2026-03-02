@@ -1,64 +1,42 @@
 import type { CmsPage, PageVersion } from "@cms/domain";
 import type { IPageRepository, IPageVersionRepository } from "@cms/domain";
-import { getFromStorage, setToStorage, generateId } from "../utils/storage";
-
-const PAGES_KEY = "cms:pages";
-const PAGE_VERSIONS_KEY = "cms:pageVersions";
+import type { StorageAdapter } from "../adapters/StorageAdapter";
+import { generateId } from "../utils/storage";
 
 export class PageRepository implements IPageRepository {
+  constructor(private adapter: StorageAdapter) {}
+
   async findBySlug(area: string, slug: string): Promise<CmsPage | null> {
-    const pages = getFromStorage<CmsPage[]>(PAGES_KEY) ?? [];
-    return (
-      pages.find(
-        (p) => p.area === area && p.slug === slug && p.status === "published"
-      ) ?? null
-    );
+    const pages = await this.adapter.getAll<CmsPage>("pages", { area, slug, status: "published" });
+    return pages[0] ?? null;
   }
 
   async findAll(area?: string): Promise<CmsPage[]> {
-    const pages = getFromStorage<CmsPage[]>(PAGES_KEY) ?? [];
-    return area ? pages.filter((p) => p.area === area) : pages;
+    return this.adapter.getAll<CmsPage>("pages", area ? { area } : undefined);
   }
 
-  async create(
-    page: Omit<CmsPage, "id" | "createdAt" | "updatedAt">
-  ): Promise<CmsPage> {
-    const pages = getFromStorage<CmsPage[]>(PAGES_KEY) ?? [];
+  async create(page: Omit<CmsPage, "id" | "createdAt" | "updatedAt">): Promise<CmsPage> {
     const newPage: CmsPage = {
       ...page,
       id: generateId(),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    pages.push(newPage);
-    setToStorage(PAGES_KEY, pages);
-    return newPage;
+    return this.adapter.create("pages", newPage);
   }
 
   async update(id: string, updates: Partial<CmsPage>): Promise<CmsPage> {
-    const pages = getFromStorage<CmsPage[]>(PAGES_KEY) ?? [];
-    const index = pages.findIndex((p) => p.id === id);
-    if (index === -1) {
-      throw new Error(`Page ${id} not found`);
-    }
-
-    pages[index] = {
-      ...pages[index],
-      ...updates,
-      updatedAt: new Date(),
-    };
-    setToStorage(PAGES_KEY, pages);
-    return pages[index];
+    return this.adapter.update<CmsPage>("pages", id, { ...updates, updatedAt: new Date() });
   }
 
   async delete(id: string): Promise<void> {
-    const pages = getFromStorage<CmsPage[]>(PAGES_KEY) ?? [];
-    const filtered = pages.filter((p) => p.id !== id);
-    setToStorage(PAGES_KEY, filtered);
+    return this.adapter.delete("pages", id);
   }
 }
 
 export class PageVersionRepository implements IPageVersionRepository {
+  constructor(private adapter: StorageAdapter) {}
+
   async createVersion(
     pageId: string,
     data: {
@@ -66,33 +44,29 @@ export class PageVersionRepository implements IPageVersionRepository {
       content?: unknown;
       createdBy?: string;
       publish?: boolean;
-    }
+    },
   ): Promise<PageVersion> {
-    const versions = getFromStorage<PageVersion[]>(PAGE_VERSIONS_KEY) ?? [];
-    const pageVersions = versions.filter((v) => v.pageId === pageId);
-    const nextVersion =
-      (Math.max(0, ...pageVersions.map((v) => v.version)) || 0) + 1;
+    const versions = await this.adapter.getAll<PageVersion>("pageVersions", { pageId });
+    const nextVersion = (Math.max(0, ...versions.map((v) => v.version)) || 0) + 1;
 
     const version: PageVersion = {
       id: generateId(),
       pageId,
       version: nextVersion,
-      structure: data.structure as any,
+      structure: data.structure as PageVersion["structure"],
       content: data.content as Record<string, unknown> | undefined,
       publishedAt: data.publish ? new Date() : null,
       createdBy: data.createdBy ?? null,
       createdAt: new Date(),
     };
 
-    versions.push(version);
-    setToStorage(PAGE_VERSIONS_KEY, versions);
-    return version;
+    return this.adapter.create("pageVersions", version);
   }
 
   async getLatestPublished(pageId: string): Promise<PageVersion | null> {
-    const versions = getFromStorage<PageVersion[]>(PAGE_VERSIONS_KEY) ?? [];
+    const versions = await this.adapter.getAll<PageVersion>("pageVersions", { pageId });
     const published = versions
-      .filter((v) => v.pageId === pageId && v.publishedAt !== null)
+      .filter((v) => v.publishedAt !== null)
       .sort((a, b) => b.version - a.version);
     return published[0] ?? null;
   }

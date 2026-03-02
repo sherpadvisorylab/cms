@@ -1,4 +1,5 @@
 export { CMS } from "./CMS";
+export type { RenderContentResult, SitemapEntry } from "./CMS";
 
 // Re-export all types from domain
 export * from "@cms/domain";

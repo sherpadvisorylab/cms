@@ -1,65 +1,41 @@
 import type { CmsComponent, ComponentVersion } from "@cms/domain";
-import type {
-  IComponentRepository,
-  IComponentVersionRepository,
-} from "@cms/domain";
-import { getFromStorage, setToStorage, generateId } from "../utils/storage";
-
-const COMPONENTS_KEY = "cms:components";
-const COMPONENT_VERSIONS_KEY = "cms:componentVersions";
+import type { IComponentRepository, IComponentVersionRepository } from "@cms/domain";
+import type { StorageAdapter } from "../adapters/StorageAdapter";
+import { generateId } from "../utils/storage";
 
 export class ComponentRepository implements IComponentRepository {
+  constructor(private adapter: StorageAdapter) {}
+
   async findAll(): Promise<CmsComponent[]> {
-    return getFromStorage<CmsComponent[]>(COMPONENTS_KEY) ?? [];
+    return this.adapter.getAll<CmsComponent>("components");
   }
 
   async findById(id: string): Promise<CmsComponent | null> {
-    const components = getFromStorage<CmsComponent[]>(COMPONENTS_KEY) ?? [];
-    return components.find((c) => c.id === id) ?? null;
+    return this.adapter.getById<CmsComponent>("components", id);
   }
 
-  async create(
-    component: Omit<CmsComponent, "id" | "createdAt" | "updatedAt">
-  ): Promise<CmsComponent> {
-    const components = getFromStorage<CmsComponent[]>(COMPONENTS_KEY) ?? [];
+  async create(component: Omit<CmsComponent, "id" | "createdAt" | "updatedAt">): Promise<CmsComponent> {
     const newComponent: CmsComponent = {
       ...component,
       id: generateId(),
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    components.push(newComponent);
-    setToStorage(COMPONENTS_KEY, components);
-    return newComponent;
+    return this.adapter.create("components", newComponent);
   }
 
-  async update(
-    id: string,
-    updates: Partial<CmsComponent>
-  ): Promise<CmsComponent> {
-    const components = getFromStorage<CmsComponent[]>(COMPONENTS_KEY) ?? [];
-    const index = components.findIndex((c) => c.id === id);
-    if (index === -1) {
-      throw new Error(`Component ${id} not found`);
-    }
-
-    components[index] = {
-      ...components[index],
-      ...updates,
-      updatedAt: new Date(),
-    };
-    setToStorage(COMPONENTS_KEY, components);
-    return components[index];
+  async update(id: string, updates: Partial<CmsComponent>): Promise<CmsComponent> {
+    return this.adapter.update<CmsComponent>("components", id, { ...updates, updatedAt: new Date() });
   }
 
   async delete(id: string): Promise<void> {
-    const components = getFromStorage<CmsComponent[]>(COMPONENTS_KEY) ?? [];
-    const filtered = components.filter((c) => c.id !== id);
-    setToStorage(COMPONENTS_KEY, filtered);
+    return this.adapter.delete("components", id);
   }
 }
 
 export class ComponentVersionRepository implements IComponentVersionRepository {
+  constructor(private adapter: StorageAdapter) {}
+
   async createVersion(
     componentId: string,
     data: {
@@ -68,39 +44,28 @@ export class ComponentVersionRepository implements IComponentVersionRepository {
       css?: string;
       js?: string;
       createdBy?: string;
-    }
+    },
   ): Promise<ComponentVersion> {
-    const versions =
-      getFromStorage<ComponentVersion[]>(COMPONENT_VERSIONS_KEY) ?? [];
-    const componentVersions = versions.filter(
-      (v) => v.componentId === componentId
-    );
-    const nextVersion =
-      (Math.max(0, ...componentVersions.map((v) => v.version)) || 0) + 1;
+    const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
+    const nextVersion = (Math.max(0, ...versions.map((v) => v.version)) || 0) + 1;
 
     const version: ComponentVersion = {
       id: generateId(),
       componentId,
       version: nextVersion,
       templateLiquid: data.templateLiquid,
-      schema: (data.schema as any) ?? null,
+      schema: (data.schema as ComponentVersion["schema"]) ?? null,
       css: data.css ?? null,
       js: data.js ?? null,
       createdBy: data.createdBy ?? null,
       createdAt: new Date(),
     };
 
-    versions.push(version);
-    setToStorage(COMPONENT_VERSIONS_KEY, versions);
-    return version;
+    return this.adapter.create("componentVersions", version);
   }
 
   async getLatest(componentId: string): Promise<ComponentVersion | null> {
-    const versions =
-      getFromStorage<ComponentVersion[]>(COMPONENT_VERSIONS_KEY) ?? [];
-    const componentVersions = versions
-      .filter((v) => v.componentId === componentId)
-      .sort((a, b) => b.version - a.version);
-    return componentVersions[0] ?? null;
+    const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
+    return versions.sort((a, b) => b.version - a.version)[0] ?? null;
   }
 }
