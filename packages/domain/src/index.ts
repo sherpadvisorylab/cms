@@ -9,6 +9,7 @@ export * from "./entities/Navigation";
 export * from "./entities/Settings";
 export * from "./entities/User";
 export * from "./entities/Form";
+export * from "./entities/SystemVars";
 
 // Ports
 export * from "./ports/IPageRepository";

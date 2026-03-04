@@ -4,6 +4,7 @@ export interface CmsMenu {
   id: string;
   key: MenuKey;
   label: string;
+  templateLiquid?: string | null;
   items: CmsMenuItem[];
 }
 
