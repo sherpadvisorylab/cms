@@ -1,4 +1,5 @@
 export type PageStatus = "draft" | "published" | "archived";
+export const PAGE_STATUSES = ["draft", "published", "archived"] as const;
 
 export interface CmsPageSeo {
   metaTitle?: string;

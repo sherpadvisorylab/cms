@@ -246,6 +246,7 @@ export class CMS {
     let contentHtml = "";
     let componentCss = "";
     let componentJs = "";
+    const seenComponentIds = new Set<string>();
 
     for (const instance of version.structure) {
       const component = await this.components.findById(instance.componentId);
@@ -270,8 +271,11 @@ export class CMS {
 
       contentHtml += rendered;
 
-      if (componentVersion.css) componentCss += componentVersion.css + "\n";
-      if (componentVersion.js) componentJs += componentVersion.js + "\n";
+      if (!seenComponentIds.has(instance.componentId)) {
+        seenComponentIds.add(instance.componentId);
+        if (componentVersion.css) componentCss += componentVersion.css + "\n";
+        if (componentVersion.js) componentJs += componentVersion.js + "\n";
+      }
     }
 
     // 5. Resolve navigation and form embeds in content
@@ -511,6 +515,7 @@ export class CMS {
     let contentHtml = "";
     let componentCss = "";
     let componentJs = "";
+    const seenComponentIds = new Set<string>();
 
     for (const instance of version.structure) {
       const component = await this.components.findById(instance.componentId);
@@ -533,8 +538,12 @@ export class CMS {
       }).then(restoreCmsPlaceholders);
 
       contentHtml += rendered;
-      if (componentVersion.css) componentCss += componentVersion.css + "\n";
-      if (componentVersion.js) componentJs += componentVersion.js + "\n";
+
+      if (!seenComponentIds.has(instance.componentId)) {
+        seenComponentIds.add(instance.componentId);
+        if (componentVersion.css) componentCss += componentVersion.css + "\n";
+        if (componentVersion.js) componentJs += componentVersion.js + "\n";
+      }
     }
 
     // 5. Resolve navigation and form embeds
