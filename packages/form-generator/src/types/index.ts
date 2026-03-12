@@ -45,6 +45,23 @@ export interface FieldOption {
   orderIndex: number;
 }
 
+// --- Visibility & Conditional Logic ---
+
+export type VisibilityOperator = "equals" | "not_equals" | "in" | "not_in";
+
+export interface VisibilityRule {
+  dependsOn: string;
+  operator: VisibilityOperator;
+  value: string | string[];
+}
+
+export interface ConditionalOptions {
+  dependsOn: string;
+  optionSets: Record<string, FieldOption[]>;
+}
+
+// --- Field & Group Definitions ---
+
 export interface FieldDefinition {
   id: string;
   groupId: string;
@@ -60,6 +77,15 @@ export interface FieldDefinition {
   options?: FieldOption[]; // For select/radio/checkbox
   minValue?: number; // For rating
   maxValue?: number; // For rating
+
+  // Extended: visibility & conditional logic
+  visibilityRules?: VisibilityRule[];
+  conditionalOptions?: ConditionalOptions;
+  alertText?: string;
+  alertCondition?: VisibilityRule;
+  maxLength?: number;
+  placeholder?: string;
+  helpText?: string;
 }
 
 export interface GroupDefinition {
@@ -69,6 +95,7 @@ export interface GroupDefinition {
   orderIndex: number;
   collapsed?: boolean;
   fields: FieldDefinition[];
+  visibilityRules?: VisibilityRule[];
 }
 
 export interface ConsentField {

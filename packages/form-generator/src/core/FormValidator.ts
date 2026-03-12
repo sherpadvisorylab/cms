@@ -1,4 +1,10 @@
-import type { FieldDefinition, FormSchema, Validator } from "../types";
+import type {
+  FieldDefinition,
+  FormSchema,
+  GroupDefinition,
+  Validator,
+  VisibilityRule,
+} from "../types";
 
 export class FormValidator {
   private static VALIDATORS: Record<string, RegExp> = {
@@ -6,6 +12,51 @@ export class FormValidator {
     url: /^https?:\/\/.+/,
     phone: /^\+?[\d\s\-()]+$/,
   };
+
+  /**
+   * Evaluate a single visibility rule against current form values.
+   */
+  static evaluateRule(
+    rule: VisibilityRule,
+    values: Record<string, unknown>
+  ): boolean {
+    const fieldValue = String(values[rule.dependsOn] ?? "");
+    switch (rule.operator) {
+      case "equals":
+        return fieldValue === rule.value;
+      case "not_equals":
+        return fieldValue !== rule.value;
+      case "in":
+        return Array.isArray(rule.value) && rule.value.includes(fieldValue);
+      case "not_in":
+        return Array.isArray(rule.value) && !rule.value.includes(fieldValue);
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Check if a field should be visible given current form values.
+   * A field is visible if it has no visibility rules, or ALL rules pass.
+   */
+  static isFieldVisible(
+    field: FieldDefinition,
+    values: Record<string, unknown>
+  ): boolean {
+    if (!field.visibilityRules?.length) return true;
+    return field.visibilityRules.every((r) => this.evaluateRule(r, values));
+  }
+
+  /**
+   * Check if a group should be visible given current form values.
+   */
+  static isGroupVisible(
+    group: GroupDefinition,
+    values: Record<string, unknown>
+  ): boolean {
+    if (!group.visibilityRules?.length) return true;
+    return group.visibilityRules.every((r) => this.evaluateRule(r, values));
+  }
 
   /**
    * Validate a single field value.
@@ -22,6 +73,15 @@ export class FormValidator {
 
     // Skip validation if no value
     if (!value) return null;
+
+    // Max length check
+    if (
+      field.maxLength &&
+      typeof value === "string" &&
+      value.length > field.maxLength
+    ) {
+      return `${field.label} exceeds maximum length of ${field.maxLength} characters`;
+    }
 
     // Type-specific validation
     if (field.validator !== "none") {
@@ -43,7 +103,7 @@ export class FormValidator {
   }
 
   /**
-   * Validate all fields in a form.
+   * Validate all fields in a form, skipping hidden groups/fields.
    * Returns a map of field IDs to error messages.
    */
   static validateForm(
@@ -53,7 +113,9 @@ export class FormValidator {
     const errors: Record<string, string> = {};
 
     for (const group of schema.groups) {
+      if (!this.isGroupVisible(group, values)) continue;
       for (const field of group.fields) {
+        if (!this.isFieldVisible(field, values)) continue;
         const error = this.validateField(field, values[field.id]);
         if (error) {
           errors[field.id] = error;
