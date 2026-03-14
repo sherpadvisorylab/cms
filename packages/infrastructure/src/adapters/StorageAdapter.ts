@@ -4,7 +4,8 @@
  * The CMS library is storage-agnostic. Provide your own adapter:
  *   - LocalStorageAdapter  — browser, for demos/prototyping
  *   - InMemoryAdapter      — for tests
- *   - PrismaAdapter        — production (implemented by the consumer, e.g. espressolab)
+ *   - PrismaAdapter        — production with Prisma ORM (implemented by the consumer)
+ *   - DrizzleAdapter        — production with Drizzle ORM (implemented by the consumer, e.g. espressolab)
  */
 export interface StorageAdapter {
   /** Return all records in a collection, optionally filtered by field equality. */
