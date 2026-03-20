@@ -86,6 +86,8 @@ export interface FieldDefinition {
   maxLength?: number;
   placeholder?: string;
   helpText?: string;
+  helpUrl?: string;
+  helpLinkText?: string;
 }
 
 export interface GroupDefinition {

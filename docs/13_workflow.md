@@ -108,14 +108,14 @@ The CMS is configured in the **admin** (Areas, Pages, Components, Templates, Nav
   │  Templates  │────────►│   Pages     │◄────────│     Areas       │
   │  (component │         │  path       │         │  • head template│
   │   list only)│         │  structure  │         │  • body template│
-  └─────────────┘         │  content    │         │    {{content}}   │
-                         │  SEO       │         │  • Area CSS/JS   │
-                         └──────┬─────┘         └────────┬──────────┘
-                                │                        │
-                                │ structure              │ Page body = components
-                                ▼                        │ only; {{content}} filled
-                         ┌─────────────┐                 │ by rendered components
-                         │ Components  │◄────────────────┘
+  └─────────────┘         │  content    │         │    {{content}}  │
+                          │  SEO        │         │  • Area CSS/JS  │
+                          └──────┬──────┘         └────────┬────────┘
+                                 │                         │
+                                 │ structure               │ Page body = components
+                                 ▼                         │ only; {{content}} filled
+                         ┌─────────────┐                   │ by rendered components
+                         │ Components  │◄──────────────────┘
                          │ HTML/Liquid │
                          │ schema      │
                          │ Additional  │
@@ -124,11 +124,11 @@ The CMS is configured in the **admin** (Areas, Pages, Components, Templates, Nav
                                 │
               ┌─────────────────┼─────────────────┐
               ▼                 ▼                 ▼
-       ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-       │ Navigation  │   │   Forms     │   │ Style vars  │
-       │ {{nav:id}}  │   │ {{form:id}} │   │ Settings or │
+       ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
+       │ Navigation  │   │   Forms     │   │ Style vars   │
+       │ {{nav:id}}  │   │ {{form:id}} │   │ Settings or  │
        │ in area     │   │ in area     │   │ area override│
-       │ body or     │   │ body or     │   └─────────────┘
+       │ body or     │   │ body or     │   └──────────────┘
        │ in component│   │ in component│
        └─────────────┘   └─────────────┘
 ```
@@ -149,22 +149,22 @@ How a single page becomes HTML, in line with the logic in §1:
   ┌─────────────────┐         ┌─────────────────────────────────┐
   │      Page       │  load   │            Area                 │
   │  path, area,    │────────►│  • Head template → <head>       │
-  │  components,    │  area   │  • Body template → <body>        │
-  │  content        │         │    ... {{content}} ...           │
-  └────────┬────────┘         │  • Area CSS/JS (+ base)          │
+  │  components,    │  area   │  • Body template → <body>       │
+  │  content        │         │    ... {{content}} ...          │
+  └────────┬────────┘         │  • Area CSS/JS (+ base)         │
            │                  └──────────────┬──────────────────┘
-           │ retrieve data                    │
-           │ per component                     │
-           ▼                                  │
-  ┌─────────────────┐                         │
-  │  Render each    │  base + area + component CSS/JS + page     │
-  │  component      │  Liquid + content                         │
-  │  in order       │                                           │
-  └────────┬────────┘                         │
-           │                                  │
-           │ concatenate                      │
-           │ = body content                   │
-           └──────────────────────────────────┘
+           │ retrieve data                   │
+           │ per component                   │
+           ▼                                 │
+  ┌─────────────────┐                        │
+  │  Render each    │  base + area +         │
+  │  component      │  component CSS/JS      │
+  │  in order       │  + pageLiquid          │
+  └────────┬────────┘  + content             │
+           │                                 │
+           │ concatenate                     │
+           │ = body content                  │
+           └─────────────────────────────────┘
                             │
                             ▼  fill {{content}} in body template
                    ┌─────────────────┐
@@ -379,10 +379,10 @@ So: **Page > Template > Area > Settings**. See [08 – Settings](./08_settings.m
                 │
                 ▼
   ┌─────────────────────────────────────────┐
-  │  Next.js build                           │
-  │  • getStaticPaths → list page paths      │
+  │  Next.js build                          │
+  │  • getStaticPaths → list page paths     │
   │  • getStaticProps → area, page,         │
-  │    components; resolve vars; render      │
+  │    components; resolve vars; render     │
   │  • output: 'export' → static HTML       │
   └─────────────────────────────────────────┘
                 │
