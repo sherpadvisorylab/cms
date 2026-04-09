@@ -108,6 +108,8 @@ export interface ConsentField {
 }
 
 export interface FormSchema {
+  title?: string;
+  description?: string;
   groups: GroupDefinition[];
   consentFields?: ConsentField[];
 }
