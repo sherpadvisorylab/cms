@@ -19,6 +19,7 @@ import type {
   CmsArea,
   CmsPage,
   CmsSettings,
+  ComponentSchemaField,
   IPageRepository,
   IComponentRepository,
   IMenuRepository,
@@ -258,9 +259,10 @@ export class CMS {
       // Protect {{form:...}} and {{navigation:...}} from Liquid parsing
       const safeTemplate = protectCmsPlaceholders(componentVersion.templateLiquid);
 
+      const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
-        data: { ...instance.props, ...systemVars },
+        data: { ...expandedProps, ...systemVars },
         globals: {
           page: { title: page.title, slug: page.slug },
           site: { name: area?.siteName ?? areaKey },
@@ -269,7 +271,7 @@ export class CMS {
         },
       }).then(restoreCmsPlaceholders);
 
-      contentHtml += rendered;
+      contentHtml += wrapAnimation(rendered, instance.animation);
 
       if (!seenComponentIds.has(instance.componentId)) {
         seenComponentIds.add(instance.componentId);
@@ -348,6 +350,42 @@ export class CMS {
   /**
    * Resolve system variables with priority: Page > Area > Settings.
    */
+  /**
+   * Image-typed fields support both string and {url, alt} values. Before
+   * handing props to Liquid we replace each image_url/video_url field with
+   * its URL string and inject a companion `${key}_alt` key, so templates
+   * stay simple: `{{ logoUrl }}` / `{{ logoUrl_alt }}`. Legacy string values
+   * pass through with an empty alt.
+   *
+   * Recurses into list-typed fields using `childSchema`.
+   */
+  private expandImageProps(
+    props: Record<string, unknown>,
+    schema: ComponentSchemaField[] | null | undefined,
+  ): Record<string, unknown> {
+    if (!schema || schema.length === 0) return props;
+    const expanded: Record<string, unknown> = { ...props };
+    for (const field of schema) {
+      const value = expanded[field.key];
+      if (field.type === "image_url" || field.type === "video_url") {
+        if (value && typeof value === "object" && !Array.isArray(value) && "url" in (value as object)) {
+          const obj = value as { url?: unknown; alt?: unknown };
+          expanded[field.key] = typeof obj.url === "string" ? obj.url : "";
+          expanded[`${field.key}_alt`] = typeof obj.alt === "string" ? obj.alt : "";
+        } else if (typeof value === "string") {
+          expanded[`${field.key}_alt`] = "";
+        }
+      } else if (field.type === "list" && Array.isArray(value) && field.childSchema) {
+        expanded[field.key] = value.map((item) =>
+          item && typeof item === "object"
+            ? this.expandImageProps(item as Record<string, unknown>, field.childSchema)
+            : item,
+        );
+      }
+    }
+    return expanded;
+  }
+
   private resolveSystemVariables(
     area: CmsArea | null,
     settings: CmsSettings | null,
@@ -496,12 +534,21 @@ export class CMS {
    * Returns component HTML, CSS, JS, and SEO metadata for the host
    * framework (e.g., Next.js) to assemble into its own layout.
    */
-  async renderContent(areaKey: string, slug: string): Promise<RenderContentResult | null> {
+  async renderContent(
+    areaKey: string,
+    slug: string,
+    opts?: { draft?: boolean },
+  ): Promise<RenderContentResult | null> {
+    const draft = opts?.draft === true;
+
     // 1. Resolve page
     const page = await this.pages.findBySlug(areaKey, slug);
-    if (!page || page.status !== "published") return null;
+    if (!page) return null;
+    if (!draft && page.status !== "published") return null;
 
-    const version = await this.pageVersions.getLatestPublished(page.id);
+    const version = draft
+      ? await this.pageVersions.getLatest(page.id)
+      : await this.pageVersions.getLatestPublished(page.id);
     if (!version) return null;
 
     // 2. Load area and settings
@@ -526,9 +573,10 @@ export class CMS {
 
       const safeTemplate = protectCmsPlaceholders(componentVersion.templateLiquid);
 
+      const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
-        data: { ...instance.props, ...systemVars },
+        data: { ...expandedProps, ...systemVars },
         globals: {
           page: { title: page.title, slug: page.slug },
           site: { name: area?.siteName ?? areaKey },
@@ -537,7 +585,7 @@ export class CMS {
         },
       }).then(restoreCmsPlaceholders);
 
-      contentHtml += rendered;
+      contentHtml += wrapAnimation(rendered, instance.animation);
 
       if (!seenComponentIds.has(instance.componentId)) {
         seenComponentIds.add(instance.componentId);
@@ -668,4 +716,18 @@ function restoreCmsPlaceholders(html: string): string {
   return html
     .replace(/__CMS_FORM_([^_]+)__/g, "{{form:$1}}")
     .replace(/__CMS_NAV_([^_]+)__/g, "{{navigation:$1}}");
+}
+
+/**
+ * Wrap a component's rendered HTML in a reveal-on-scroll envelope when an
+ * animation is configured on the instance. The wrapper has `data-cms-animate`,
+ * `data-cms-delay` and `data-cms-duration` attributes which the public-site
+ * client script picks up via IntersectionObserver to toggle an `is-visible`
+ * class.
+ */
+function wrapAnimation(html: string, animation?: { type: string; delay?: number; duration?: number }): string {
+  if (!animation || !animation.type || animation.type === "none") return html;
+  const delay = animation.delay && animation.delay > 0 ? animation.delay : 0;
+  const duration = animation.duration && animation.duration > 0 ? animation.duration : 600;
+  return `<div class="cms-animate" data-cms-animate="${animation.type}" data-cms-delay="${delay}" data-cms-duration="${duration}">${html}</div>`;
 }

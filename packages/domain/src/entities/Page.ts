@@ -32,10 +32,23 @@ export interface CmsPage {
   updatedAt: Date;
 }
 
+export type AnimationType = "none" | "fade-in" | "slide-up" | "slide-down" | "zoom-in";
+export const ANIMATION_TYPES: AnimationType[] = ["none", "fade-in", "slide-up", "slide-down", "zoom-in"];
+
+export interface ComponentAnimation {
+  type: AnimationType;
+  /** Milliseconds before the animation starts after the element enters the viewport. */
+  delay?: number;
+  /** Milliseconds the animation runs for. Default 600ms. */
+  duration?: number;
+}
+
 export interface ComponentInstance {
   componentId: string;
   props: Record<string, unknown>;
   globals?: Record<string, unknown>;
+  /** Optional reveal-on-scroll animation applied to the component's rendered wrapper. */
+  animation?: ComponentAnimation;
 }
 
 export interface PageVersion {

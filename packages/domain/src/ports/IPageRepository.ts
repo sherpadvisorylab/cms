@@ -19,4 +19,6 @@ export interface IPageVersionRepository {
     }
   ): Promise<PageVersion>;
   getLatestPublished(pageId: string): Promise<PageVersion | null>;
+  /** Latest version regardless of published status — used for draft preview. */
+  getLatest(pageId: string): Promise<PageVersion | null>;
 }

@@ -70,4 +70,10 @@ export class PageVersionRepository implements IPageVersionRepository {
       .sort((a, b) => b.version - a.version);
     return published[0] ?? null;
   }
+
+  async getLatest(pageId: string): Promise<PageVersion | null> {
+    const versions = await this.adapter.getAll<PageVersion>("pageVersions", { pageId });
+    if (versions.length === 0) return null;
+    return versions.sort((a, b) => b.version - a.version)[0];
+  }
 }

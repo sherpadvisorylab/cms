@@ -34,6 +34,8 @@ export interface CmsComponent {
   category?: string;
   description?: string;
   status: ComponentStatus;
+  /** Bitmap thumbnail shown in the picker. Falls back to a type-icon when null. */
+  previewImageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,8 +52,8 @@ export interface ComponentVersion {
   createdAt: Date;
 }
 
-export type SchemaFieldType = "text" | "textarea" | "image_url" | "video_url" | "color" | "toggle" | "number" | "select";
-export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "image_url", "video_url", "color", "toggle", "number", "select"];
+export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "color" | "toggle" | "number" | "select" | "list";
+export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "color", "toggle", "number", "select", "list"];
 
 export interface ComponentSchemaField {
   key: string;
@@ -59,4 +61,12 @@ export interface ComponentSchemaField {
   type: SchemaFieldType;
   defaultValue?: unknown;
   options?: { label: string; value: string }[];
+  /** Inline help text shown next to the label as a tooltip. Optional. */
+  helpText?: string;
+  /**
+   * For `list` fields: the schema of each item. Nested lists are not supported
+   * (one level only) for storage tractability and editor UX.
+   * The stored prop value is `Array<Record<string, unknown>>`.
+   */
+  childSchema?: ComponentSchemaField[];
 }
