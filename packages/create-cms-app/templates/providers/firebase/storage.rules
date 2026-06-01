@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // cms-assets: public read, no direct client writes (uploads via Admin SDK)
+    match /cms-assets/{allPaths=**} {
+      allow read:  if true;
+      allow write: if false;
+    }
+  }
+}

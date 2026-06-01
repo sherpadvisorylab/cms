@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All CMS collections are write-only via Admin SDK (server-side).
+    // No direct client writes allowed.
+    match /{document=**} {
+      allow read:  if false;
+      allow write: if false;
+    }
+  }
+}

@@ -10,11 +10,15 @@ import {
 
 const TEMPLATES_DIR = join(__dirname, "..", "templates");
 
+export type Provider = "supabase" | "firebase";
+
 export interface ScaffoldOptions {
   /** Override project name (defaults to directory basename) */
   name?: string;
   /** Use workspace:* / npm "*" for @cms/* deps (monorepo mode) */
   workspace: boolean;
+  /** Backend provider — determines which auth/storage/db files are copied */
+  provider: Provider;
 }
 
 export async function scaffold(
@@ -25,7 +29,7 @@ export async function scaffold(
   const projectName = options.name ?? basename(targetDir);
   const cmsDep = options.workspace ? "*" : "^0.1.0";
 
-  console.log(`\nCreating CMS project "${projectName}"...`);
+  console.log(`\nCreating CMS project "${projectName}" [provider: ${options.provider}]...`);
   console.log(`Target: ${targetDir}\n`);
 
   if (!existsSync(targetDir)) {
@@ -37,17 +41,21 @@ export async function scaffold(
     __CMS_DEP__: cmsDep,
   };
 
-  copyDir(TEMPLATES_DIR, targetDir, replacements);
+  // 1. Copy shared base files
+  copyDir(join(TEMPLATES_DIR, "base"), targetDir, replacements);
+
+  // 2. Copy provider-specific files (overwrites any base conflicts)
+  copyDir(join(TEMPLATES_DIR, "providers", options.provider), targetDir, replacements);
 
   if (options.workspace) {
     addToRootWorkspaces(targetDir);
   }
 
-  printNextSteps(projectName, projectDir, options.workspace);
+  printNextSteps(projectName, projectDir, options);
 }
 
 /**
- * Recursively copy templates directory to target, replacing placeholders.
+ * Recursively copy a directory to target, replacing placeholders.
  * Files/dirs starting with "_" have the underscore replaced with "." in the output
  * (e.g. _gitignore → .gitignore, _env.local.example → .env.local.example).
  */
@@ -79,7 +87,6 @@ function copyDir(
 
 /**
  * Add the generated project directory to the root workspace's "workspaces" array.
- * Walks up from targetDir to find the nearest package.json with a "workspaces" field.
  */
 function addToRootWorkspaces(targetDir: string): void {
   let dir = dirname(targetDir);
@@ -94,7 +101,6 @@ function addToRootWorkspaces(targetDir: string): void {
       const pkg = JSON.parse(raw);
 
       if (Array.isArray(pkg.workspaces)) {
-        // Compute relative path from root to the generated project parent dir
         const rel = targetDir
           .replace(dir, "")
           .replace(/\\/g, "/")
@@ -123,20 +129,32 @@ function addToRootWorkspaces(targetDir: string): void {
 function printNextSteps(
   name: string,
   dir: string,
-  workspace: boolean
+  options: ScaffoldOptions
 ): void {
-  console.log(`\n✅  Project "${name}" created!\n`);
+  const { provider, workspace } = options;
+
+  console.log(`\n✅  Project "${name}" created! [${provider}]\n`);
   console.log("Next steps:\n");
   console.log(`  cd ${dir}`);
+
   if (!workspace) {
     console.log("  npm install");
   } else {
     console.log("  # From the monorepo root:");
     console.log("  npm install");
   }
+
   console.log("  cp .env.local.example .env.local");
-  console.log("  # Fill in SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL");
-  console.log("  npx supabase db push          # push SQL migrations to Supabase");
-  console.log("  npm run db:seed               # create admin user (prints credentials once)");
+
+  if (provider === "supabase") {
+    console.log("  # Fill in SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL");
+    console.log("  npx supabase db push          # push SQL migrations to Supabase");
+    console.log("  npm run db:seed               # create admin user");
+  } else {
+    console.log("  # Fill in FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, etc.");
+    console.log("  npm run seed                  # bootstrap Firestore + create admin user");
+    console.log("  firebase deploy --only firestore:rules,storage");
+  }
+
   console.log("  npm run dev\n");
 }

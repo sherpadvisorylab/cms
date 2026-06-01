@@ -2,14 +2,28 @@
 
 This guide walks you through creating a new vertical project that consumes the CMS packages.
 Follow every step in order. At the end you will have a running Next.js app with a protected
-admin area, backed by Supabase Postgres and ready for GitHub-connected auto-migrations.
+admin area and a fully wired CMS backend.
 
 ---
 
-## Two Scenarios
+## Choose a Provider
 
-Every step in this guide that involves paths or commands splits into two scenarios.
-**Pick one and follow it consistently throughout.**
+The scaffolder supports two backend providers. Pick one before you start and follow the
+column for that provider throughout.
+
+| | Supabase | Firebase |
+|---|---|---|
+| **Database** | Postgres (via Drizzle) | Firestore |
+| **Auth** | Supabase Auth | Firebase Auth |
+| **File storage** | Supabase Storage | Firebase Storage |
+| **Hosting** | Any (Vercel recommended) | Firebase App Hosting |
+| **Scaffold flag** | `--provider=supabase` *(default)* | `--provider=firebase` |
+
+---
+
+## Two Deployment Scenarios
+
+Every step splits into two scenarios. **Pick one and follow it consistently.**
 
 | | Scenario A — Standalone repo | Scenario B — Inside the CMS monorepo |
 |---|---|---|
@@ -17,9 +31,8 @@ Every step in this guide that involves paths or commands splits into two scenari
 | **Example path** | `~/projects/<project-name>/` | `cms/examples/<project-name>/` |
 | **`@cms/*` deps** | Published npm packages | Resolved from local workspace |
 | **`npm install`** | From the project root | From the CMS monorepo root |
-| **GitHub repo** | Dedicated repo for the vertical project | The CMS monorepo (`sherpadvisorylab/cms`) |
 
-Throughout this guide, replace `<project-name>` with your actual project name (e.g. `sandbox`, `acme-site`).
+Throughout this guide, replace `<project-name>` with your actual project name.
 
 ---
 
@@ -29,12 +42,9 @@ Throughout this guide, replace `<project-name>` with your actual project name (e
 |------|---------|-------|
 | Node.js | ≥ 18.18 | `node -v` |
 | npm | ≥ 9 | `npm -v` |
-| Supabase CLI | latest | `npx supabase --version` |
 | Git | any | `git --version` |
-
-You also need:
-- A [Supabase](https://supabase.com) account (free tier is fine)
-- A GitHub account with access to the target repository
+| Supabase CLI *(Supabase only)* | latest | `npx supabase --version` |
+| Firebase CLI *(Firebase only)* | latest | `npx firebase --version` |
 
 ---
 
@@ -47,51 +57,59 @@ packages/
   @cms/domain          ──────────▶  dependencies in package.json
   @cms/infrastructure  ──────────▶  imported via @cms/cms
   @cms/form-generator  ──────────▶
-  @cms/cms             ──────────▶  new CMS(new DrizzleAdapter())
+  @cms/cms             ──────────▶  new CMS(new DrizzleAdapter())     [Supabase]
+                                    new CMS(new FirebaseAdapter())    [Firebase]
 
-packages/create-cms-app           npx @cms/create-cms-app <project-name>
-  └─ templates/        ──────────▶  scaffolded project files
+packages/create-cms-app           npx @cms/create-cms-app <project-name> [--provider=...]
+  templates/
+    base/              ──────────▶  shared admin UI + public pages
+    providers/
+      supabase/        ──────────▶  DrizzleAdapter, Supabase Auth/Storage
+      firebase/        ──────────▶  FirebaseAdapter, Firebase Auth/Storage
 ```
-
-Every vertical project:
-- Has its **own Supabase project** (its own Postgres database)
-- Has its **own GitHub repository** connected to Supabase for auto-migrations
-- Implements `DrizzleAdapter` (scaffolded for you) to connect the CMS to Postgres
-- Uses `Supabase Auth` to protect the `/admin` area
 
 ---
 
-## Step 1 — Create the Supabase Project
+## Step 1 — Create the Backend Project
+
+### Supabase
 
 1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**
-2. Choose your organisation
-3. **Connect GitHub** — click **Connect GitHub**, authorise Supabase, and select the target repository:
-   - **Scenario A:** your dedicated vertical project repo
-   - **Scenario B:** the CMS monorepo (`sherpadvisorylab/cms`)
-4. Fill in:
-   - **Project name** — matches `<project-name>` for clarity
-   - **Database password** — generate a strong one and **save it** (needed for `DATABASE_URL`)
-   - **Region** — closest to your users
-5. Click **Create new project** and wait ~2 minutes
+2. Fill in project name, database password, region
+3. Click **Create new project** and wait ~2 minutes
+4. Open **Project Settings → API** and collect:
 
-### Collect the credentials
+| Variable | Where |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon / public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (**keep secret**) |
 
-Once the project is ready, open **Project Settings → API**:
+5. Open **Project Settings → Database → Connection string → URI** (Session mode, port 5432):
 
-| Variable | Where to find it |
-|----------|-----------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Settings → API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Settings → API → anon / public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Settings → API → service_role key (**keep secret**) |
+| Variable | Where |
+|---|---|
+| `DATABASE_URL` | URI — replace `[YOUR-PASSWORD]` with the password saved above |
 
-Open **Project Settings → Database → Connection string → URI** (Session mode, port 5432):
+### Firebase
 
-| Variable | Where to find it |
-|----------|-----------------|
-| `DATABASE_URL` | Connection string (URI) — replace `[YOUR-PASSWORD]` with the password saved above |
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Add project**
+2. Enable **Firestore Database** (production mode), **Authentication** (Email/Password), **Storage**
+3. Open **Project Settings → Service accounts → Generate new private key** — download the JSON
+4. Collect from the JSON and the project settings:
 
-> **Security note:** `SUPABASE_SERVICE_ROLE_KEY` has full admin rights.
-> It is only used in the seed script and must **never** be exposed to the browser or committed to git.
+| Variable | Where |
+|---|---|
+| `FIREBASE_PROJECT_ID` | `project_id` in the JSON |
+| `FIREBASE_CLIENT_EMAIL` | `client_email` in the JSON |
+| `FIREBASE_PRIVATE_KEY` | `private_key` in the JSON |
+| `FIREBASE_STORAGE_BUCKET` | Project Settings → General → Default Storage bucket |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Project Settings → General → Web app config |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Web app config |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Web app config |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Web app config |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Web app config |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Web app config |
 
 ---
 
@@ -100,8 +118,11 @@ Open **Project Settings → Database → Connection string → URI** (Session mo
 ### Scenario A — Standalone repo
 
 ```bash
-# From anywhere on your machine
+# Supabase (default)
 npx @cms/create-cms-app <project-name>
+
+# Firebase
+npx @cms/create-cms-app <project-name> --provider=firebase
 
 cd <project-name>
 npm install
@@ -109,136 +130,98 @@ npm install
 
 ### Scenario B — Inside the CMS monorepo
 
-> Run these commands from the **CMS monorepo root** — the directory that contains the root
-> `package.json`. Never run them from inside a subfolder.
+> Run from the **CMS monorepo root**.
 
 ```bash
-# From the CMS monorepo root
+# Supabase (default)
 npx tsx packages/create-cms-app/src/index.ts examples/<project-name> --workspace
 
-# Install all workspace dependencies (from the monorepo root, not from the project subfolder)
+# Firebase
+npx tsx packages/create-cms-app/src/index.ts examples/<project-name> --workspace --provider=firebase
+
+# Install all workspace dependencies from the monorepo root
 npm install
 ```
 
-The `--workspace` flag makes the scaffolder:
-- Set `"@cms/cms": "*"` so npm resolves it from the local workspace
-- Add `examples/*` to the root `package.json` workspaces automatically
+The `--workspace` flag sets `"@cms/cms": "*"` and adds `examples/*` to the root workspaces automatically.
 
 ---
 
 ## Step 3 — Configure Environment Variables
 
-### Scenario A
-
 ```bash
+# Scenario A
 cd <project-name>
-cp .env.local.example .env.local
-```
 
-### Scenario B
-
-```bash
+# Scenario B
 cd examples/<project-name>
+
 cp .env.local.example .env.local
 ```
 
----
-
-Open `.env.local` and fill in the four values from Step 1:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
-```
+Open `.env.local` and fill in the values collected in Step 1.
 
 > `.env.local` is listed in `.gitignore` — it will never be committed.
 
 ---
 
-## Step 4 — Apply the Database Migrations
+## Step 4 — Initialise the Database
+
+### Supabase — Apply SQL migrations
 
 The scaffolded project includes `supabase/migrations/0001_cms_schema.sql` which creates
-all 12 CMS tables in your Supabase Postgres database.
+all CMS tables.
 
-### Option 4a — Supabase CLI (immediate)
-
-Run from **inside the project directory**:
+**Option A — Supabase CLI (immediate):**
 
 ```bash
-# One-time: authenticate the CLI with your Supabase account (opens the browser)
 npx supabase login
-
-# One-time: link to the remote Supabase project
 npx supabase link --project-ref <project-ref>
-
-# Push all migrations
 npx supabase db push
 ```
 
-`<project-ref>` is the subdomain of your Supabase URL: `https://<project-ref>.supabase.co`
+**Option B — GitHub connect (automatic on push):**
 
-### Option 4b — GitHub connect (automatic on push)
-
-Supabase applies migrations automatically when you push to the configured branch.
-
-#### Configure the GitHub Integration in Supabase
-
-Go to **Supabase dashboard → Project Settings → Integrations → GitHub**.
-
-Check and set the following:
+Go to **Supabase dashboard → Project Settings → Integrations → GitHub** and set:
 
 | Setting | Scenario A | Scenario B |
-|---------|-----------|-----------|
-| **GitHub Repository** | your vertical project repo | CMS monorepo (`sherpadvisorylab/cms`) |
-| **Working directory** | `.` | `examples/<project-name>` |
-| **Deploy to production** | ✅ **must be ON** | ✅ **must be ON** |
-| **Production branch name** | `main` | `main` |
+|---|---|---|
+| GitHub Repository | your vertical project repo | CMS monorepo |
+| Working directory | `.` | `examples/<project-name>` |
+| Deploy to production | ✅ ON | ✅ ON |
+| Production branch name | `main` | `main` |
 
-> **Working directory** tells Supabase where to find the `supabase/` folder relative to the
-> repo root. If it points to the wrong folder, no migrations will be detected.
->
-> **Deploy to production** must be enabled or pushes to `main` will have no effect.
+Then commit and push `supabase/migrations/0001_cms_schema.sql`.
 
-#### Commit and push
+### Firebase — Deploy security rules
 
-Run from the **git repository root** (i.e. the repo root, not the project subfolder):
+Firestore is schema-less — no SQL migrations needed. The `FirebaseAdapter` creates
+documents on first write. Deploy the security rules once:
 
 ```bash
-# Scenario A — standalone repo
-git add supabase/migrations/0001_cms_schema.sql
-
-# Scenario B — monorepo
-git add examples/<project-name>/supabase/migrations/0001_cms_schema.sql
-
-git commit -m "feat: initial CMS schema"
-git push origin main
+npx firebase login
+npx firebase use <project-id>
+npx firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
-Supabase will apply the migration within seconds. Monitor it in
-**Supabase dashboard → Database → Migrations**.
-
-### Verify
-
-In the Supabase dashboard go to **Table Editor** — you should see all `cms_*` tables.
+The scaffolded `firestore.rules` blocks all direct client reads/writes (all access goes
+through the server-side Admin SDK). The `storage.rules` allows public reads on `cms-assets/`
+and blocks direct client uploads.
 
 ---
 
 ## Step 5 — Create the Storage Bucket
 
-The CMS admin uses Supabase Storage to upload images (logos, favicon, component previews).
-You need to create a public bucket named `cms-assets` once per project.
+### Supabase
 
 1. Open your Supabase dashboard → **Storage**
-2. Click **New bucket**
-3. Name: `cms-assets`
-4. Toggle **Public bucket** → ON
-5. Click **Save**
+2. Click **New bucket**, name it `cms-assets`, toggle **Public bucket** ON
+3. Click **Save**
 
-> The CMS engine stores only the resulting public URL — it never reads or writes to Storage
-> directly. The browser uploads the file and receives the public URL, which is then saved
-> to the CMS settings or component record.
+### Firebase
+
+No manual setup needed. Firebase Storage is configured by the rules deployed in Step 4.
+The `cms-assets/` prefix is created automatically on first upload.
 
 ---
 
@@ -247,65 +230,70 @@ You need to create a public bucket named `cms-assets` once per project.
 Run from **inside the project directory**:
 
 ```bash
-# Scenario A
-cd <project-name>
-
-# Scenario B
-cd examples/<project-name>
-
+# Supabase
 npm run db:seed
+
+# Firebase
+npm run seed
 ```
 
 Expected output:
 
 ```
-Seeding <project-name>...
+✅ Seed complete!
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Admin user created — save these credentials:
-  Email:    admin@<project-name>.local
-  Password: <generated-password>
-  These will NOT be shown again.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Email:    admin@example.com
+  Password: changeme123!
 
-Bootstrapping CMS defaults...
-Done. CMS bootstrapped with default area, menus, and settings.
+Change the password after first login.
 ```
 
-> **Save the password now.** Generated with `crypto.randomBytes`, printed once.
-> If you lose it, reset it from **Supabase dashboard → Authentication → Users**.
+> The Supabase seed generates a random password printed once.
+> The Firebase seed uses `SEED_ADMIN_PASSWORD` from `.env.local` (defaults to `changeme123!`).
+> Change it after first login in both cases.
 
-Running `db:seed` again is safe — it detects the existing user and skips creation.
+Running the seed again is safe — it detects the existing user and skips creation.
 
 ---
 
 ## Step 7 — Start the Development Server
 
-Run from **inside the project directory**:
-
 ```bash
-# Scenario A
-cd <project-name>
-
-# Scenario B
-cd examples/<project-name>
-
 npm run dev
 ```
 
 | URL | What you see |
-|-----|-------------|
+|---|---|
 | `http://localhost:3000` | Public site (empty until you create pages) |
-| `http://localhost:3000/admin` | Redirects to `/admin/login` |
+| `http://localhost:3000/admin` | Redirects to `/login` |
 
-Log in with the credentials from Step 5. You should see the admin dashboard.
+Log in with the credentials from Step 6.
 
 ---
 
-## Step 8 — GitHub Actions for Migrations (optional)
+## Step 8 — Deploy to Production
 
-Alternative to the Supabase GitHub connect UI: a GitHub Actions workflow gives you
-more control (e.g. run only on certain paths, add approval steps).
+### Supabase + Vercel (recommended)
+
+```bash
+npm i -g vercel
+vercel
+# Follow prompts — add all .env.local vars as Vercel environment variables
+```
+
+### Firebase App Hosting
+
+```bash
+npx firebase apphosting:backends:create
+npx firebase deploy
+```
+
+> Set secret env vars (`FIREBASE_PRIVATE_KEY`, etc.) in the Firebase App Hosting console
+> under **Secrets** — do not put them in `apphosting.yaml`.
+
+---
+
+## Step 9 — GitHub Actions for Migrations (Supabase only)
 
 ### Scenario A — Standalone repo
 
@@ -358,66 +346,70 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 ```
 
-Add to your GitHub repository secrets:
-- `SUPABASE_ACCESS_TOKEN` — from [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
-- `SUPABASE_DB_PASSWORD` — the database password saved in Step 1
-
 ---
 
 ## Project Structure Reference
 
+### Supabase project
+
 ```
 <project-name>/
 ├── supabase/
-│   ├── config.toml                   ← Supabase local dev config
+│   ├── config.toml
 │   └── migrations/
-│       └── 0001_cms_schema.sql       ← all 12 CMS tables
+│       └── 0001_cms_schema.sql
 ├── src/
 │   ├── middleware.ts                 ← protects /admin/* with Supabase Auth
 │   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                  ← public home (renders CMS "home" page)
-│   │   ├── [slug]/page.tsx           ← dynamic public pages
-│   │   └── admin/
-│   │       ├── layout.tsx            ← sidebar shell (auth-guarded)
-│   │       ├── page.tsx              ← dashboard
-│   │       └── login/page.tsx
+│   │   ├── [slug]/route.ts          ← public pages (draft preview via Supabase Auth)
+│   │   ├── login/page.tsx
+│   │   └── admin/                   ← full admin UI
 │   └── lib/
-│       ├── cms.ts                    ← CMS singleton (new CMS(new DrizzleAdapter()))
-│       ├── supabase/
-│       │   ├── client.ts             ← browser Supabase client
-│       │   └── server.ts             ← server Supabase client (RSC / middleware)
-│       └── db/
-│           ├── index.ts              ← Drizzle db instance
-│           ├── schema.ts             ← Drizzle schema (mirrors SQL migration)
-│           └── adapter.ts            ← DrizzleAdapter implements StorageAdapter
-├── scripts/
-│   └── seed.ts                       ← creates admin user + CMS bootstrap
-├── .env.local.example
+│       ├── cms.ts                   ← new CMS(new DrizzleAdapter())
+│       ├── supabase/                ← client.ts, server.ts, admin.ts
+│       └── db/                      ← index.ts, schema.ts, adapter.ts
+├── scripts/seed.ts
 ├── drizzle.config.ts
-├── next.config.ts                    ← transpiles @cms/* workspace packages
-└── package.json
+└── .env.local.example
+```
+
+### Firebase project
+
+```
+<project-name>/
+├── firebase.json
+├── apphosting.yaml
+├── firestore.rules
+├── firestore.indexes.json
+├── storage.rules
+├── src/
+│   ├── middleware.ts                 ← protects /admin/* with Firebase session cookie
+│   ├── app/
+│   │   ├── [slug]/route.ts          ← public pages (draft preview via firebase-admin)
+│   │   ├── login/page.tsx
+│   │   ├── api/auth/session/        ← creates/destroys Firebase session cookie
+│   │   └── admin/                   ← full admin UI (identical to Supabase)
+│   └── lib/
+│       ├── cms.ts                   ← new CMS(new FirebaseAdapter())
+│       ├── firebase/                ← admin.ts (firebase-admin init), client.ts
+│       └── db/adapter.ts            ← FirebaseAdapter implements StorageAdapter
+├── scripts/seed.ts
+└── .env.local.example
 ```
 
 ---
 
-## Adding a New Migration
-
-Always run from **inside the project directory**.
+## Adding a New Migration (Supabase only)
 
 ```bash
-# Option 1: write SQL manually
-# Scenario A:  supabase/migrations/0002_<name>.sql
-# Scenario B:  examples/<project-name>/supabase/migrations/0002_<name>.sql
-
-# Option 2: generate from Drizzle schema changes
-# After editing src/lib/db/schema.ts:
-npm run db:generate   # writes a new file to supabase/migrations/
+# Write SQL manually: supabase/migrations/0002_<name>.sql
+# OR generate from Drizzle schema changes:
+npm run db:generate
 
 # Apply immediately
 npx supabase db push
 
-# Or commit and push to main if GitHub connect / Actions are active
+# Or commit + push to main if GitHub connect / Actions are active
 ```
 
 Never rename or edit already-applied migration files — Supabase tracks them by filename.
@@ -429,9 +421,9 @@ Never rename or edit already-applied migration files — Supabase tracks them by
 ### `EDUPLICATEWORKSPACE` on `npm install`
 
 Two workspace packages share the same `name` field. Check `examples/` for duplicate or
-leftover folders and remove them.
+leftover folders.
 
-### `DATABASE_URL` connection refused
+### `DATABASE_URL` connection refused (Supabase)
 
 Use the **Session mode** connection string (port **5432**), not Transaction mode (port 6543).
 Format: `postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`
@@ -440,32 +432,29 @@ Format: `postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.su
 
 Scenario B only: run `npm install` from the **CMS monorepo root**, not from inside the project subfolder.
 
-### Seed fails with "DATABASE_URL environment variable is not set"
+### Seed fails with env var errors
 
-The seed script loads `.env.local` with `dotenv`. Make sure:
-- The file `.env.local` exists in the project directory and contains `DATABASE_URL`
-- You are running `npm run db:seed` from **inside the project directory**, not from the monorepo root
+Make sure `.env.local` exists in the project directory and you are running the seed command
+from **inside the project directory**.
 
-### Seed fails with "Invalid API key"
+### `ERR_TOO_MANY_REDIRECTS` on `/admin/login` (Supabase)
 
-`SUPABASE_SERVICE_ROLE_KEY` must be the **service_role** key, not the anon key.
+Clear browser cookies for `localhost`: Chrome → 🔒 icon → **Cookies** → delete all for localhost.
 
-### `ERR_TOO_MANY_REDIRECTS` on `/admin/login`
+### Admin redirects to login after signing in (Firebase)
 
-This should not happen with the current middleware, which calls `supabase.auth.signOut()`
-automatically when `getUser()` returns an error, clearing any stale cookie before redirecting.
+The session cookie (`__session`) is created by `POST /api/auth/session`. Check:
+1. `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` are set in `.env.local`
+2. The private key value has literal `\n` sequences (not real newlines) — the adapter handles the replacement
+3. **Email/Password** provider is enabled in Firebase console → Authentication → Sign-in method
 
-If it still occurs (e.g. after upgrading Supabase packages), clear browser cookies for
-`localhost` manually: Chrome address bar → 🔒 icon → **Cookies** → delete all for localhost.
+### Firestore permission denied (Firebase)
 
-### Admin redirects to login even after signing in
+All CMS operations go through the Admin SDK server-side. If you see permission errors,
+verify that `initAdmin()` is called before any Firestore access and that the service account
+credentials are correct.
 
-Usually a missing or incorrect `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-Check `.env.local` and restart the dev server.
+### Firebase Storage upload fails
 
-### Migrations not applied after push (GitHub connect)
-
-Verify in **Project Settings → Integrations → GitHub**:
-- **Working directory** points to the correct folder (see Step 4)
-- **Deploy to production** is **ON**
-- **Production branch name** matches the branch you pushed to
+Ensure `FIREBASE_STORAGE_BUCKET` matches the bucket shown in **Firebase console → Storage**
+(usually `<project-id>.firebasestorage.app`). The bucket must exist before the first upload.
