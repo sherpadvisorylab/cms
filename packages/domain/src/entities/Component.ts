@@ -48,6 +48,7 @@ export interface ComponentVersion {
   schema?: ComponentSchemaField[] | null;
   css?: string | null;
   js?: string | null;
+  schemaOrgTemplate?: string | null;
   createdBy?: string | null;
   createdAt: Date;
 }

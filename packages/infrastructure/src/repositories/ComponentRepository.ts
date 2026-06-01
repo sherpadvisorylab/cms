@@ -39,11 +39,12 @@ export class ComponentVersionRepository implements IComponentVersionRepository {
   async createVersion(
     componentId: string,
     data: {
-      templateLiquid: string;
-      schema?: unknown;
-      css?: string;
-      js?: string;
-      createdBy?: string;
+      templateLiquid:    string;
+      schema?:           unknown;
+      css?:              string;
+      js?:               string;
+      schemaOrgTemplate?: string;
+      createdBy?:        string;
     },
   ): Promise<ComponentVersion> {
     const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
@@ -53,12 +54,13 @@ export class ComponentVersionRepository implements IComponentVersionRepository {
       id: generateId(),
       componentId,
       version: nextVersion,
-      templateLiquid: data.templateLiquid,
-      schema: (data.schema as ComponentVersion["schema"]) ?? null,
-      css: data.css ?? null,
-      js: data.js ?? null,
-      createdBy: data.createdBy ?? null,
-      createdAt: new Date(),
+      templateLiquid:    data.templateLiquid,
+      schema:            (data.schema as ComponentVersion["schema"]) ?? null,
+      css:               data.css ?? null,
+      js:                data.js ?? null,
+      schemaOrgTemplate: data.schemaOrgTemplate ?? null,
+      createdBy:         data.createdBy ?? null,
+      createdAt:         new Date(),
     };
 
     return this.adapter.create("componentVersions", version);

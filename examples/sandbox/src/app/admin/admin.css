@@ -1,0 +1,118 @@
+/* ── CMS Admin Design System ─────────────────────────────────────────────────
+   Self-contained CSS for the admin area.
+   Imported once in admin/layout.tsx.
+   Uses CSS variables so the vertical project can override the theme.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* Variables */
+:root {
+  --header-h: 58px;   /* height of all top bars — sticky page header, sidebar brand, modal header */
+  --primary:      #2E5A97;
+  --primary-dark: #1e3f6f;
+  --danger:       #ef4444;
+  --success:      #22c55e;
+  --warning:      #f59e0b;
+  --border:       #e5e7eb;
+  --text:         #1e293b;
+  --text-muted:   #64748b;
+  --bg:           #f1f5f9;
+  --bg-light:     #f8fafc;
+  --sidebar-bg:   #111827;
+  --sidebar-text: #d1d5db;
+  --radius:       8px;
+}
+
+/* Reset for admin area */
+.admin-root *, .admin-root *::before, .admin-root *::after { box-sizing: border-box; }
+.admin-root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.admin-layout { display: flex; height: 100vh; overflow: hidden; }
+.admin-sidebar { width: 220px; background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; flex-shrink: 0; }
+.admin-main   { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+.page-header  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.page-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); margin: 0; }
+.actions-row  { display: flex; align-items: center; gap: 8px; }
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 6px; font-size: 0.875rem; font-weight: 500;
+  border: none; cursor: pointer; text-decoration: none; transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary  { background: var(--primary); color: white; }
+.btn-primary:hover:not(:disabled)  { background: var(--primary-dark); }
+.btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { background: var(--bg-light); }
+.btn-danger   { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+.btn-danger:hover:not(:disabled)   { background: #fee2e2; }
+.btn-sm       { padding: 5px 10px; font-size: 0.8rem; }
+.btn-icon     { background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 4px; color: var(--text-muted); transition: all 0.12s; }
+.btn-icon:hover { background: var(--bg-light); color: var(--text); }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+.form-group   { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.form-row     { display: flex; gap: 16px; align-items: flex-start; }
+.form-label   { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.form-hint    { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.form-control {
+  width: 100%; padding: 8px 10px; font-size: 0.875rem; color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; background: white;
+  outline: none; transition: border-color 0.15s;
+}
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(46,90,151,0.15); }
+.form-control::placeholder { color: #94a3b8; }
+select.form-control { cursor: pointer; }
+textarea.form-control { resize: vertical; font-family: inherit; }
+textarea.code-editor  { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.tab  {
+  padding: 10px 20px; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+  border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  color: var(--text-muted); transition: all 0.15s;
+}
+.tab:hover   { color: var(--text); }
+.tab.active  { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; background: white; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.data-table th { padding: 10px 16px; text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); background: var(--bg-light); border-bottom: 1px solid var(--border); }
+.data-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--bg-light); }
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.badge-published, .badge-active  { background: #dcfce7; color: #15803d; }
+.badge-draft                     { background: #fef9c3; color: #854d0e; }
+.badge-archived, .badge-inactive { background: #f1f5f9; color: #64748b; }
+.badge-invited                   { background: #dbeafe; color: #1d4ed8; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 50; display: flex; align-items: center; justify-content: center; }
+.modal         { background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.18); width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; }
+.modal-header  { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 0; }
+.modal-title   { font-size: 1.1rem; font-weight: 700; margin: 0; }
+
+/* ── Slide drawer ────────────────────────────────────────────────────────── */
+.slide-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 40; }
+.slide-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: white; box-shadow: -4px 0 24px rgba(0,0,0,0.12); z-index: 41; display: flex; flex-direction: column; transition: transform 0.25s ease; }
+.slide-drawer-header { display: flex; align-items: center; justify-content: space-between; height: var(--header-h); padding: 0 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.slide-drawer-title  { font-size: 1rem; font-weight: 700; margin: 0; }
+.slide-drawer-body   { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-muted); text-align: center; }
+.empty-state p { margin: 0; font-size: 0.9rem; }
+
+/* ── Component card hover — settings button ──────────────────────────────── */
+.component-card:hover .card-settings-btn { opacity: 1 !important; }

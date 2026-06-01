@@ -19,6 +19,8 @@ export interface CmsNavigationItem {
 export interface CmsNavigation {
   id: string;
   name: string;
+  /** Unique slug used as Liquid variable key: {{ menus.{slug} }} */
+  slug?: string;
   items: CmsNavigationItem[];
   template?: string;
   additionalCss?: string;

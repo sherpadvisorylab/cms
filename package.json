@@ -4,7 +4,8 @@
   "private": true,
   "description": "CMS, Form Builder and Chat – Clean Architecture. Consumed by vertical projects.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

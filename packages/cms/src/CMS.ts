@@ -11,6 +11,7 @@ import {
   SettingsRepository,
   UserRepository,
   FormRepository,
+  LayoutTemplateRepository,
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
@@ -30,6 +31,7 @@ import type {
   ISettingsRepository,
   IUserRepository,
   IFormRepository,
+  ILayoutTemplateRepository,
   IRenderEngine,
 } from "@cms/domain";
 import { FormRenderer } from "@cms/form-generator";
@@ -94,6 +96,7 @@ export class CMS {
   readonly settings: ISettingsRepository;
   readonly users: IUserRepository;
   readonly forms: IFormRepository;
+  readonly layoutTemplates: ILayoutTemplateRepository;
 
   // Render engine
   readonly render: IRenderEngine;
@@ -112,6 +115,7 @@ export class CMS {
     this.settings = new SettingsRepository(storage);
     this.users = new UserRepository(storage);
     this.forms = new FormRepository(storage);
+    this.layoutTemplates = new LayoutTemplateRepository(storage);
     this.render = new LiquidRenderEngine();
   }
 
@@ -224,14 +228,21 @@ export class CMS {
    * 10. Build head from area head template
    * 11. Assemble full HTML document
    */
-  async renderPage(areaKey: string, slug: string): Promise<string | null> {
-    // 1. Resolve page
-    const page = await this.pages.findBySlug(areaKey, slug);
-    if (!page || page.status !== "published") {
-      return null;
-    }
+  async renderPage(areaKey: string, slug: string, opts?: { draft?: boolean }): Promise<string | null> {
+    const draft = opts?.draft === true;
 
-    const version = await this.pageVersions.getLatestPublished(page.id);
+    // 1. Resolve page
+    let page = await this.pages.findBySlug(areaKey, slug);
+    if (!page && draft) {
+      const all = await this.pages.findAll(areaKey);
+      page = all.find((p) => p.slug === slug) ?? null;
+    }
+    if (!page) return null;
+    if (!draft && page.status !== "published") return null;
+
+    const version = draft
+      ? await this.pageVersions.getLatest(page.id)
+      : await this.pageVersions.getLatestPublished(page.id);
     if (!version) {
       return null;
     }
@@ -257,7 +268,10 @@ export class CMS {
       if (!componentVersion) continue;
 
       // Protect {{form:...}} and {{navigation:...}} from Liquid parsing
-      const safeTemplate = protectCmsPlaceholders(componentVersion.templateLiquid);
+      const safeTemplate = resolveSystemVarPlaceholders(
+        protectCmsPlaceholders(componentVersion.templateLiquid),
+        systemVars,
+      );
 
       const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
@@ -281,7 +295,8 @@ export class CMS {
     }
 
     // 5. Resolve navigation and form embeds in content
-    contentHtml = await this.resolveNavigations(contentHtml);
+    const navCtx = { systemVars, site: { name: area?.siteName ?? areaKey }, page: { title: page.title, slug: page.slug } };
+    contentHtml = await this.resolveNavigations(contentHtml, navCtx);
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Fill body template
@@ -297,7 +312,7 @@ export class CMS {
     }
 
     // 9. Resolve navigation and form in body template
-    bodyHtml = await this.resolveNavigations(bodyHtml);
+    bodyHtml = await this.resolveNavigations(bodyHtml, navCtx);
     bodyHtml = await this.resolveForms(bodyHtml);
 
     // Replace remaining system variables in body
@@ -419,9 +434,14 @@ export class CMS {
   }
 
   /**
-   * Resolve {{navigation:id}} placeholders in HTML.
+   * Resolve {{navigation:id}} or {{navigation:name}} placeholders in HTML.
+   * ctx is forwarded to the nav's Liquid template so {{ siteName }}, {{ site.name }},
+   * {{ page.title }}, etc. are available inside nav display templates.
    */
-  private async resolveNavigations(html: string): Promise<string> {
+  private async resolveNavigations(
+    html: string,
+    ctx?: { systemVars?: Record<string, string>; site?: { name: string }; page?: { title: string; slug: string } }
+  ): Promise<string> {
     const navPattern = /\{\{navigation:([^}]+)\}\}/g;
     let match;
     let result = html;
@@ -432,12 +452,19 @@ export class CMS {
       matches.push({ full: match[0], id: match[1] });
     }
 
+    // Load all navs once for name-based lookup
+    const allNavs = await this.navigations.findAll().catch(() => []);
+
     for (const m of matches) {
-      const nav = await this.navigations.findById(m.id);
+      // Try by ID first (backward compat), then by normalized name
+      const nav = await this.navigations.findById(m.id)
+        ?? allNavs.find((n) => n.name.toLowerCase().replace(/\s+/g, "-") === m.id.toLowerCase())
+        ?? null;
       if (nav && nav.template) {
         const rendered = await this.render.render({
           template: nav.template,
-          data: { items: nav.items },
+          data:    { menu: nav.items, items: nav.items, ...(ctx?.systemVars ?? {}) },
+          globals: { site: ctx?.site ?? {}, page: ctx?.page ?? {} },
         });
         let navHtml = rendered;
         if (nav.additionalCss) {
@@ -541,8 +568,13 @@ export class CMS {
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
 
-    // 1. Resolve page
-    const page = await this.pages.findBySlug(areaKey, slug);
+    // 1. Resolve page — findBySlug only returns published rows, so for draft
+    //    preview we fall back to a full scan filtered by area + slug.
+    let page = await this.pages.findBySlug(areaKey, slug);
+    if (!page && draft) {
+      const all = await this.pages.findAll(areaKey);
+      page = all.find((p) => p.slug === slug) ?? null;
+    }
     if (!page) return null;
     if (!draft && page.status !== "published") return null;
 
@@ -571,7 +603,10 @@ export class CMS {
       const componentVersion = await this.componentVersions.getLatest(instance.componentId);
       if (!componentVersion) continue;
 
-      const safeTemplate = protectCmsPlaceholders(componentVersion.templateLiquid);
+      const safeTemplate = resolveSystemVarPlaceholders(
+        protectCmsPlaceholders(componentVersion.templateLiquid),
+        systemVars,
+      );
 
       const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
@@ -595,7 +630,8 @@ export class CMS {
     }
 
     // 5. Resolve navigation and form embeds
-    contentHtml = await this.resolveNavigations(contentHtml);
+    const navCtx2 = { systemVars, site: { name: area?.siteName ?? areaKey }, page: { title: page.title, slug: page.slug } };
+    contentHtml = await this.resolveNavigations(contentHtml, navCtx2);
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Append area-level CSS/JS
@@ -708,7 +744,23 @@ function escapeXml(str: string): string {
 function protectCmsPlaceholders(template: string): string {
   return template
     .replace(/\{\{form:([^}]+)\}\}/g, "__CMS_FORM_$1__")
-    .replace(/\{\{navigation:([^}]+)\}\}/g, "__CMS_NAV_$1__");
+    .replace(/\{\{navigation:([^}]+)\}\}/g, "__CMS_NAV_$1__")
+    .replace(/\{\{system:([^}]+)\}\}/g, "__CMS_SYS_$1__");
+}
+
+/**
+ * Pre-resolve {{system:key}} placeholders by substituting the actual
+ * value from systemVars BEFORE passing the template to LiquidJS.
+ * Called on the protected template (after protectCmsPlaceholders).
+ * LiquidJS never sees {{system:*}} — the colon is not valid in Liquid identifiers.
+ */
+function resolveSystemVarPlaceholders(
+  template: string,
+  systemVars: Record<string, string>,
+): string {
+  return template.replace(/__CMS_SYS_([^_][^_]*)__/g, (_, key) => {
+    return systemVars[key.trim()] ?? "";
+  });
 }
 
 /** Restore CMS placeholders after Liquid rendering */

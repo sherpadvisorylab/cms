@@ -1,0 +1,22 @@
+{
+  "name": "@cms/create-cms-app",
+  "version": "0.1.0",
+  "description": "Scaffold a new CMS vertical project",
+  "bin": {
+    "create-cms-app": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.19.0"
+  }
+}
