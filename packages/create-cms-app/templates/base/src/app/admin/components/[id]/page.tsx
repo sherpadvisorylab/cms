@@ -386,10 +386,11 @@ export default function ComponentEditorPage() {
         if (d.type === "list" && existing.type !== "list") {
           return { ...d, label: existing.label };
         }
-        if (d.type === "list" && existing.type === "list" && d.childSchema?.length) {
+        if (d.type === "list" && existing.type === "list") {
           const existingChildKeys = new Set((existing.childSchema ?? []).map((c) => c.key));
           return {
             ...existing,
+            loopAlias: d.loopAlias ?? existing.loopAlias,
             childSchema: [
               ...(existing.childSchema ?? []),
               ...(d.childSchema ?? []).filter((c) => !existingChildKeys.has(c.key)),
