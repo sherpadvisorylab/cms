@@ -245,6 +245,14 @@ export default function ComponentEditorPage() {
   function removeChildField(idx: number, cIdx: number) {
     updateField(idx, { childSchema: (fields[idx].childSchema ?? []).filter((_, i) => i !== cIdx) });
   }
+  function syncFieldsFromTemplate() {
+    const keys = extractTemplateVars(templateLiquid);
+    setFields((prev) => {
+      const byKey = Object.fromEntries(prev.map((f) => [f.key, f]));
+      const synced = keys.map((k) => byKey[k] ?? { key: k, label: k.replace(/_/g, " "), type: "text" as const });
+      return synced;
+    });
+  }
 
   if (loading) return <div className="empty-state"><p>Loading component…</p></div>;
 
@@ -383,7 +391,7 @@ export default function ComponentEditorPage() {
           {/* Right: Variables / Placement panel */}
           <div ref={rightPanelRef} style={{ position: "sticky", top: 80 }}>
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div className="tabs" style={{ margin: 0, padding: "0 4px", borderBottom: "1px solid var(--border)", marginBottom: 0 }}>
+              <div className="tabs" style={{ margin: 0, padding: "0 4px", borderBottom: "1px solid var(--border)", marginBottom: 0, display: "flex", alignItems: "center" }}>
                 {(["variables", "placement"] as BackendTab[]).map((bt) => (
                   <button
                     key={bt}
@@ -394,6 +402,14 @@ export default function ComponentEditorPage() {
                     {bt === "variables" ? "⊟ Variables" : "⊞ Placement"}
                   </button>
                 ))}
+                <button
+                  className="btn-icon"
+                  title="Sync variables from template (keeps existing settings, removes unused vars)"
+                  style={{ marginLeft: "auto", marginRight: 6, fontSize: "1rem", color: "var(--text-muted)" }}
+                  onClick={syncFieldsFromTemplate}
+                >
+                  ↺
+                </button>
               </div>
 
               <div style={{ padding: 14, maxHeight: "calc(100vh - 230px)", overflowY: "auto" }}>
