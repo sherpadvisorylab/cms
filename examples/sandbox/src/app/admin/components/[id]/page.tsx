@@ -118,19 +118,58 @@ function htmlToLiquidVariables(htmlString: string): {
  */
 function extractTemplateVars(template: string): string[] {
   const found = new Set<string>();
-  // {{ varName }} — simple variables
-  const reVar = /\{\{([^}]+)\}\}/g;
+  const loopCollections = new Set<string>();
+  const reFor = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
   let m: RegExpExecArray | null;
+  while ((m = reFor.exec(template)) !== null) {
+    loopCollections.add(m[1].trim());
+    found.add(m[1].trim());
+  }
+  const reVar = /\{\{([^}]+)\}\}/g;
   while ((m = reVar.exec(template)) !== null) {
     const key = m[1].trim();
     if (/^[a-z_][a-z0-9_]*$/i.test(key)) found.add(key);
   }
-  // {% for item in varName %} — loop collection variables
-  const reFor = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
-  while ((m = reFor.exec(template)) !== null) {
-    found.add(m[1].trim());
-  }
   return Array.from(found);
+}
+
+/** Richer extraction used by the sync button: detects list fields + child schemas */
+function extractTemplateSchema(template: string): SchemaField[] {
+  const result: SchemaField[] = [];
+  const seenKeys = new Set<string>();
+
+  const reFor = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
+  let m: RegExpExecArray | null;
+  while ((m = reFor.exec(template)) !== null) {
+    const alias = m[1];
+    const collectionKey = m[2];
+    const body = m[3];
+    if (seenKeys.has(collectionKey)) continue;
+    seenKeys.add(collectionKey);
+
+    const reField = new RegExp(`\\{\\{\\s*${alias}\\.([a-z_][a-z0-9_]*)\\s*\\}\\}`, "gi");
+    const childKeys = new Set<string>();
+    let fm: RegExpExecArray | null;
+    while ((fm = reField.exec(body)) !== null) childKeys.add(fm[1]);
+
+    result.push({
+      key: collectionKey,
+      label: collectionKey.replace(/_/g, " "),
+      type: "list",
+      childSchema: Array.from(childKeys).map((k) => ({ key: k, label: k.replace(/_/g, " "), type: "text" as SchemaFieldType })),
+    });
+  }
+
+  const reVar = /\{\{([^}]+)\}\}/g;
+  while ((m = reVar.exec(template)) !== null) {
+    const key = m[1].trim();
+    if (/^[a-z_][a-z0-9_]*$/i.test(key) && !seenKeys.has(key)) {
+      seenKeys.add(key);
+      result.push({ key, label: key.replace(/_/g, " "), type: "text" });
+    }
+  }
+
+  return result;
 }
 
 export default function ComponentEditorPage() {
@@ -246,11 +285,22 @@ export default function ComponentEditorPage() {
     updateField(idx, { childSchema: (fields[idx].childSchema ?? []).filter((_, i) => i !== cIdx) });
   }
   function syncFieldsFromTemplate() {
-    const keys = extractTemplateVars(templateLiquid);
+    const detected = extractTemplateSchema(templateLiquid);
     setFields((prev) => {
       const byKey = Object.fromEntries(prev.map((f) => [f.key, f]));
-      const synced = keys.map((k) => byKey[k] ?? { key: k, label: k.replace(/_/g, " "), type: "text" as const });
-      return synced;
+      return detected.map((d) => {
+        const existing = byKey[d.key];
+        if (!existing) return d;
+        if (d.type === "list" && existing.type === "list" && d.childSchema?.length) {
+          const existingChildKeys = new Set((existing.childSchema ?? []).map((c) => c.key));
+          const mergedChildren = [
+            ...(existing.childSchema ?? []),
+            ...(d.childSchema ?? []).filter((c) => !existingChildKeys.has(c.key)),
+          ];
+          return { ...existing, childSchema: mergedChildren };
+        }
+        return existing;
+      });
     });
   }
 
