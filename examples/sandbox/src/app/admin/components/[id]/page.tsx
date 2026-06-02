@@ -141,23 +141,23 @@ function extractChildSchema(alias: string, body: string): ComponentSchemaField[]
   const seenKeys = new Set<string>();
   let m: RegExpExecArray | null;
 
-  // Nested for loops: {% for innerAlias in alias.nestedField %}...{% endfor %}
-  const nestedForRe = new RegExp(
-    `\\{%-?\\s*for\\s+(\\w+)\\s+in\\s+${alias}\\.([a-z_][a-z0-9_]*)\\s*-?%\\}([\\s\\S]*?)\\{%-?\\s*endfor\\s*-?%\\}`,
-    "gi"
-  );
-  while ((m = nestedForRe.exec(body)) !== null) {
+  // All for loops inside the body (both {% for x in alias.field %} and {% for x in field %})
+  const innerForRe = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_.]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
+  while ((m = innerForRe.exec(body)) !== null) {
     const innerAlias = m[1];
-    const nestedKey = m[2];
+    const rawCollection = m[2];
     const nestedBody = m[3];
-    if (!seenKeys.has(nestedKey)) {
-      seenKeys.add(nestedKey);
-      children.push({
-        key: nestedKey, label: nestedKey.replace(/_/g, " "), type: "list",
-        loopAlias: innerAlias,
-        childSchema: extractChildSchema(innerAlias, nestedBody),
-      });
-    }
+    // Normalise: strip "alias." prefix if present, otherwise use the raw key
+    const nestedKey = rawCollection.startsWith(`${alias}.`)
+      ? rawCollection.slice(alias.length + 1)
+      : rawCollection;
+    if (seenKeys.has(nestedKey)) continue;
+    seenKeys.add(nestedKey);
+    children.push({
+      key: nestedKey, label: nestedKey.replace(/_/g, " "), type: "list",
+      loopAlias: innerAlias,
+      childSchema: extractChildSchema(innerAlias, nestedBody),
+    });
   }
 
   // Simple fields: {{ alias.field }}
@@ -175,19 +175,28 @@ function extractChildSchema(alias: string, body: string): ComponentSchemaField[]
 /** Richer extraction used by the sync button: detects list fields + child schemas (infinite nesting) */
 function extractTemplateSchema(template: string): SchemaField[] {
   const result: SchemaField[] = [];
-  const seenKeys = new Set<string>();
   let m: RegExpExecArray | null;
 
-  // Top-level for loops only (collection is a simple identifier, not dotted)
-  const reFor = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
-  while ((m = reFor.exec(template)) !== null) {
-    const alias = m[1];
-    const collectionKey = m[2];
-    const body = m[3];
-    if (seenKeys.has(collectionKey)) continue;
-    seenKeys.add(collectionKey);
+  // Collect all for-loop entries with their positions
+  const forRe = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
+  const loops: { alias: string; collection: string; body: string }[] = [];
+  while ((m = forRe.exec(template)) !== null) {
+    loops.push({ alias: m[1], collection: m[2], body: m[3] });
+  }
+
+  // Find which collections are used inside other loops (nested) → skip at top level
+  const nestedCollections = new Set<string>();
+  for (const loop of loops) {
+    const innerRe = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
+    while ((m = innerRe.exec(loop.body)) !== null) nestedCollections.add(m[1]);
+  }
+
+  const seenKeys = new Set<string>();
+  for (const { alias, collection, body } of loops) {
+    if (seenKeys.has(collection) || nestedCollections.has(collection)) continue;
+    seenKeys.add(collection);
     result.push({
-      key: collectionKey, label: collectionKey.replace(/_/g, " "), type: "list",
+      key: collection, label: collection.replace(/_/g, " "), type: "list",
       loopAlias: alias,
       childSchema: extractChildSchema(alias, body),
     });
@@ -281,7 +290,7 @@ function SchemaFieldRow({
         </div>
       )}
       {field.type === "list" && (
-        <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+        <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6 }}>
             {field.loopAlias ? `${field.loopAlias} fields` : "item fields"}
           </div>
