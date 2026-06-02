@@ -120,7 +120,7 @@ export class CMS {
   }
 
   /**
-   * Initialize CMS with default data (areas, menus, settings).
+   * Initialize CMS with default data (areas, settings).
    */
   async bootstrap(): Promise<void> {
     // Create default areas if none exist
@@ -176,26 +176,6 @@ export class CMS {
         },
         status: "active",
       });
-    }
-
-    // Create default menus if they don't exist
-    const navbar = await this.menus.findByKey("navbar");
-    if (!navbar) {
-      const menu = await this.menus.upsertMenu("navbar", "Main Navigation");
-      await this.menus.setItems(menu.id, [
-        { label: "Home", href: "/", orderIndex: 0, isExternal: false },
-        { label: "About", href: "/about", orderIndex: 1, isExternal: false },
-        { label: "Contact", href: "/contact", orderIndex: 2, isExternal: false },
-      ]);
-    }
-
-    const footer = await this.menus.findByKey("footer");
-    if (!footer) {
-      const menu = await this.menus.upsertMenu("footer", "Footer Navigation");
-      await this.menus.setItems(menu.id, [
-        { label: "Privacy Policy", href: "/privacy", orderIndex: 0, isExternal: false },
-        { label: "Terms & Conditions", href: "/terms", orderIndex: 1, isExternal: false },
-      ]);
     }
 
     // Create default settings if none exist

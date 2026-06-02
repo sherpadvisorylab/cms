@@ -165,21 +165,19 @@ export function CodeEditor({
     }
 
     // Navigation embeds — use normalized name as key (e.g. {{navigation:navbar}})
-    if (ne.length > 0) {
-      sections.push({
-        id:    "navigations",
-        icon:  "🧭",
-        label: "Navigation (embed)",
-        items: ne.map((n) => {
-          const key = n.name.toLowerCase().replace(/\s+/g, "-");
-          return {
-            label:  `{{navigation:${key}}}`,
-            apply:  `{{navigation:${key}}}`,
-            detail: n.name,
-          };
-        }),
-      });
-    }
+    sections.push({
+      id:    "navigations",
+      icon:  "🧭",
+      label: "Navigation (embed)",
+      items: ne.map((n) => {
+        const key = n.name.toLowerCase().replace(/\s+/g, "-");
+        return {
+          label:  `{{navigation:${key}}}`,
+          apply:  `{{navigation:${key}}}`,
+          detail: n.name,
+        };
+      }),
+    });
 
     // Form embeds
     if (!hideFormEmbedsR.current) {

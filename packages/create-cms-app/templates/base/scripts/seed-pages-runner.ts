@@ -6,7 +6,7 @@ async function main() {
   const { cms } = await import("../src/lib/cms");
   const { seedSettings } = await import("./seed-settings");
   const { seedAreas } = await import("./seed-areas");
-  const { seedMenus } = await import("./seed-menus");
+  const { seedNavigations } = await import("./seed-navigations");
   const { seedComponents } = await import("./seed-components");
   const { seedLayoutTemplates } = await import("./seed-layouts");
   const { seedPages } = await import("./seed-pages");
@@ -14,7 +14,7 @@ async function main() {
   console.log("Seeding starter content...\n");
   await seedSettings(cms);
   await seedAreas(cms);
-  await seedMenus(cms);
+  await seedNavigations(cms);
   await seedComponents(cms);
   await seedLayoutTemplates(cms);
   await seedPages(cms);
