@@ -204,16 +204,22 @@ function extractTemplateSchema(template: string): SchemaField[] {
   // Collections that appear inside another loop body are nested → skip at top level
   const nestedCollections = new Set<string>();
   for (const loop of allLoops) {
-    const innerRe = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
+    // Capture full dotted path (e.g. "article.icons") AND its base key ("icons")
+    const innerRe = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_.]*)\s*-?%\}/gi;
     let m: RegExpExecArray | null;
-    while ((m = innerRe.exec(loop.body)) !== null) nestedCollections.add(m[1]);
+    while ((m = innerRe.exec(loop.body)) !== null) {
+      const coll = m[1];
+      nestedCollections.add(coll);
+      if (coll.includes(".")) nestedCollections.add(coll.split(".").pop()!);
+    }
   }
 
   const result: SchemaField[] = [];
   const seenKeys = new Set<string>();
 
   for (const { alias, collection, body } of allLoops) {
-    if (seenKeys.has(collection) || nestedCollections.has(collection)) continue;
+    // Always skip dotted collections (e.g. article.icons) — they are child fields of a parent loop
+    if (seenKeys.has(collection) || nestedCollections.has(collection) || collection.includes(".")) continue;
     seenKeys.add(collection);
     result.push({
       key: collection, label: collection.replace(/_/g, " "), type: "list",
@@ -460,16 +466,14 @@ export default function ComponentEditorPage() {
         if (d.type === "list" && existing.type !== "list") {
           return { ...d, label: existing.label };
         }
-        // Merge new child fields into existing list without removing existing ones
+        // Replace child schema with detected structure; preserve existing settings for matching keys
         if (d.type === "list" && existing.type === "list") {
-          const existingChildKeys = new Set((existing.childSchema ?? []).map((c) => c.key));
+          const existingByKey = Object.fromEntries((existing.childSchema ?? []).map((c) => [c.key, c]));
           return {
             ...existing,
             loopAlias: d.loopAlias ?? existing.loopAlias,
-            childSchema: [
-              ...(existing.childSchema ?? []),
-              ...(d.childSchema ?? []).filter((c) => !existingChildKeys.has(c.key)),
-            ],
+            // Map over DETECTED children (not existing) → stale children are dropped automatically
+            childSchema: (d.childSchema ?? []).map((c) => existingByKey[c.key] ?? c),
           };
         }
         return existing;
