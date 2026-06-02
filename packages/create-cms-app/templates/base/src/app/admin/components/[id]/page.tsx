@@ -373,9 +373,9 @@ function SchemaFieldRow({
           className="btn-icon"
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? "Expand field" : "Collapse field"}
-          style={{ fontSize: "0.7rem", color: "var(--text-muted)", lineHeight: 1 }}
+          style={{ fontSize: "0.65rem" }}
         >
-          {collapsed ? "▶" : "▾"}
+          {collapsed ? "+" : "−"}
         </button>
       </div>
 
