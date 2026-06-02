@@ -90,10 +90,15 @@ export default async function PageSettingsPage({
               <label className="form-label">Title <span style={{ color: "var(--danger)" }}>*</span></label>
               <input name="title" className="form-control" defaultValue={page.title} required />
             </div>
-            <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label">Slug <span style={{ color: "var(--danger)" }}>*</span></label>
-              <input name="slug" className="form-control" defaultValue={page.slug} required style={{ fontFamily: "monospace" }} />
-            </div>
+            {isSystemPage ? (
+              /* System pages don't use a slug — routing is determined by the system page type */
+              <input type="hidden" name="slug" value={page.slug} />
+            ) : (
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Slug <span style={{ color: "var(--danger)" }}>*</span></label>
+                <input name="slug" className="form-control" defaultValue={page.slug} required style={{ fontFamily: "monospace" }} />
+              </div>
+            )}
             <div className="form-group" style={{ marginBottom: 12 }}>
               <label className="form-label">Area</label>
               <select name="area" className="form-control" defaultValue={page.area}>
