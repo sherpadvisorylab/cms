@@ -117,12 +117,18 @@ function htmlToLiquidVariables(htmlString: string): {
  * appear in the Variables panel.
  */
 function extractTemplateVars(template: string): string[] {
-  const re = /\{\{([^}]+)\}\}/g;
   const found = new Set<string>();
+  // {{ varName }} — simple variables
+  const reVar = /\{\{([^}]+)\}\}/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(template)) !== null) {
+  while ((m = reVar.exec(template)) !== null) {
     const key = m[1].trim();
     if (/^[a-z_][a-z0-9_]*$/i.test(key)) found.add(key);
+  }
+  // {% for item in varName %} — loop collection variables
+  const reFor = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
+  while ((m = reFor.exec(template)) !== null) {
+    found.add(m[1].trim());
   }
   return Array.from(found);
 }
