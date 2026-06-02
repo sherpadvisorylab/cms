@@ -1,12 +1,22 @@
 import { cms } from "@/lib/cms";
 import { createClient } from "@/lib/supabase/server";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
+import { unstable_cache } from "next/cache";
+
+function renderPageCached(areaName: string, slug: string) {
+  return unstable_cache(
+    () => cms.renderPage(areaName, slug, {}),
+    [`render:${areaName}:${slug}`],
+    { revalidate: false, tags: [`page:${slug}`, "pages"] },
+  )();
+}
 
 /**
  * Public CMS page renderer — returns full HTML from the area's head/body templates.
- * This Route Handler bypasses Next.js layout so the CMS controls the entire HTML document.
+ * Published pages are served from Next.js cache (ISR); invalidated on publish via revalidateTag.
+ * Draft preview bypasses cache and requires an authenticated admin session.
  *
- * GET /[slug]          → published page (renderPage)
+ * GET /[slug]          → published page (cached)
  * GET /[slug]?draft=1  → draft preview — requires admin session
  */
 export async function GET(
@@ -17,28 +27,30 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const isDraft = searchParams.get("draft") === "1";
 
-  // Draft preview requires an authenticated admin session
   if (isDraft) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    if (!user) return new Response("Unauthorized", { status: 401 });
   }
 
   const areaName = await getPrimaryPublicAreaName();
-  const html = await cms.renderPage(areaName, slug, { draft: isDraft }).catch(() => null);
+
+  // Draft: always fresh from DB, no cache.
+  // Published: served from Next.js cache, invalidated on publish via revalidateTag.
+  const html = isDraft
+    ? await cms.renderPage(areaName, slug, { draft: true }).catch(() => null)
+    : await renderPageCached(areaName, slug).catch(() => null);
 
   if (!html) {
+    const notFound = isDraft
+      ? await cms.renderPage(areaName, "404", {}).catch(() => null)
+      : await renderPageCached(areaName, "404").catch(() => null);
     return new Response(
-      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">
-        <h2>404 — Page not found</h2><p>/${slug}</p>
-      </body></html>`,
+      notFound ?? `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px"><h2>404 — Page not found</h2><p>/${slug}</p></body></html>`,
       { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
     );
   }
 
-  // Draft: add a visible banner at the top via JS injection
   const draftBanner = isDraft
     ? `<script>
         var b=document.createElement('div');
@@ -55,10 +67,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // Cache published pages for 1 hour; revalidate in background
-      ...(isDraft
-        ? { "Cache-Control": "no-store" }
-        : { "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400" }),
+      ...(isDraft && { "Cache-Control": "no-store" }),
     },
   });
 }

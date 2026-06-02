@@ -110,10 +110,11 @@ export async function clonePage(data: {
 // ── Update settings ───────────────────────────────────────────────────────────
 export async function updatePage(id: string, formData: FormData) {
   const parentId = formData.get("parentId") as string;
+  const slug     = formData.get("slug") as string;
   const status   = (formData.get("status") as "draft" | "published" | "archived") || "draft";
   await cms.pages.update(id, {
     title:    formData.get("title") as string,
-    slug:     formData.get("slug") as string,
+    slug,
     area:     formData.get("area") as string,
     status,
     parentId: parentId || null,
@@ -133,6 +134,7 @@ export async function updatePage(id: string, formData: FormData) {
   }
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${id}`);
+  await cms.revalidatePage(slug);
 }
 
 // ── Quick update from list drawer ─────────────────────────────────────────────
@@ -175,27 +177,36 @@ export async function updateStructure(pageId: string, structureJson: string) {
 
 // ── Publish (creates a published version snapshot + sets status) ──────────────
 export async function publishPage(pageId: string) {
-  const latest = await cms.pageVersions.getLatest(pageId);
+  const [latest, allPages] = await Promise.all([
+    cms.pageVersions.getLatest(pageId),
+    cms.pages.findAll(),
+  ]);
   if (!latest) throw new Error("No version to publish");
   const version = await markVersionAsPublished(pageId, latest.id);
   await cms.pages.update(pageId, { status: "published" });
+  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
+  await cms.revalidatePage(slug);
   return { versionId: version.id, versionNumber: version.version };
 }
 
 export async function publishVersion(pageId: string, versionId: string) {
   const adapter = getPageVersionAdapter();
-  const versions = await adapter.getAll<PageVersionRecord>("pageVersions", { pageId });
+  const [versions, allPages] = await Promise.all([
+    adapter.getAll<PageVersionRecord>("pageVersions", { pageId }),
+    cms.pages.findAll(),
+  ]);
   const sourceVersion = versions.find((version) => version.id === versionId) ?? null;
 
   if (!sourceVersion) throw new Error("Version not found");
 
   const version = await markVersionAsPublished(pageId, sourceVersion.id);
   await cms.pages.update(pageId, { status: "published" });
+  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
-  revalidatePath(`/${(await cms.pages.findAll()).find((page) => page.id === pageId)?.slug ?? ""}`);
+  await cms.revalidatePage(slug);
   return { versionId: version.id, versionNumber: version.version };
 }
 
@@ -216,7 +227,10 @@ export async function savePageSchemaConfig(pageId: string, config: {
 
 // ── Unpublish (sets status back to draft, keeps version history intact) ───────
 export async function unpublishPage(pageId: string) {
+  const allPages = await cms.pages.findAll();
+  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
   await cms.pages.update(pageId, { status: "draft" });
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
+  await cms.revalidatePage(slug);
 }

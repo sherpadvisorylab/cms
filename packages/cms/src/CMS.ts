@@ -80,6 +80,16 @@ const BUILT_IN_SYSTEM_VARS: Record<string, string> = {
   "border-muted": "border-muted",
 };
 
+/** Options passed to the CMS constructor. */
+export interface CMSOptions {
+  /**
+   * Called after a page is published/updated so the hosting framework can
+   * invalidate its page cache (e.g. Next.js revalidateTag / revalidatePath).
+   * Receives the list of public slugs that changed.
+   */
+  onRevalidate?: (slugs: string[]) => void | Promise<void>;
+}
+
 export class CMS {
   // Existing repositories
   readonly pages: IPageRepository;
@@ -101,7 +111,10 @@ export class CMS {
   // Render engine
   readonly render: IRenderEngine;
 
-  constructor(adapter?: StorageAdapter) {
+  private readonly onRevalidate?: (slugs: string[]) => void | Promise<void>;
+
+  constructor(adapter?: StorageAdapter, options?: CMSOptions) {
+    this.onRevalidate = options?.onRevalidate;
     const storage = adapter ?? new LocalStorageAdapter();
     this.pages = new PageRepository(storage);
     this.pageVersions = new PageVersionRepository(storage);
@@ -117,6 +130,22 @@ export class CMS {
     this.forms = new FormRepository(storage);
     this.layoutTemplates = new LayoutTemplateRepository(storage);
     this.render = new LiquidRenderEngine();
+  }
+
+  /**
+   * Notify the hosting framework that one or more public pages have changed
+   * and their cached output should be invalidated.
+   *
+   * Call this after publishing or updating page content.
+   * The actual cache invalidation is performed by the `onRevalidate` callback
+   * provided in the constructor options — typically `revalidateTag()` in Next.js.
+   *
+   * @param slug - A single slug string or an array of slugs to invalidate.
+   */
+  async revalidatePage(slug: string | string[]): Promise<void> {
+    if (!this.onRevalidate) return;
+    const slugs = Array.isArray(slug) ? slug : [slug];
+    await this.onRevalidate(slugs);
   }
 
   /**

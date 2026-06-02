@@ -1,9 +1,19 @@
 import { cms } from "@/lib/cms";
 import { resolveHomePageSlug } from "@/lib/publicPageResolver";
+import { unstable_cache } from "next/cache";
+
+const getHomeContent = unstable_cache(
+  async () => {
+    const { areaName, slug } = await resolveHomePageSlug();
+    const result = await cms.renderContent(areaName, slug).catch(() => null);
+    return { result, slug };
+  },
+  ["home-page"],
+  { revalidate: false, tags: ["home-page", "pages"] },
+);
 
 export default async function HomePage() {
-  const { areaName, slug } = await resolveHomePageSlug();
-  const result = await cms.renderContent(areaName, slug).catch(() => null);
+  const { result } = await getHomeContent();
 
   if (!result) {
     return (
