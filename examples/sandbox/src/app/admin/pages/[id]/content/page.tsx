@@ -794,8 +794,21 @@ export default function ContentPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                         <span style={{ fontWeight: 700, fontSize: "0.88rem" }}>v{version.version}</span>
-                        {version.isCurrent && <span style={{ background: "#dbeafe", color: "#1d4ed8", fontSize: "0.68rem", padding: "1px 6px", borderRadius: 999, fontWeight: 600 }}>current</span>}
-                        {version.isPublished && <span style={{ background: "#dcfce7", color: "#15803d", fontSize: "0.68rem", padding: "1px 6px", borderRadius: 999, fontWeight: 600 }}>published</span>}
+                        {version.isCurrent && (
+                          <span style={{ background: "#dbeafe", color: "#1d4ed8", fontSize: "0.68rem", padding: "1px 6px", borderRadius: 999, fontWeight: 600 }}>
+                            current
+                          </span>
+                        )}
+                        {version.id === publishedVersionId && (
+                          <span style={{ background: "#dcfce7", color: "#15803d", fontSize: "0.68rem", padding: "1px 6px", borderRadius: 999, fontWeight: 600 }}>
+                            live
+                          </span>
+                        )}
+                        {version.isPublished && version.id !== publishedVersionId && (
+                          <span style={{ background: "#f1f5f9", color: "#64748b", fontSize: "0.68rem", padding: "1px 6px", borderRadius: 999, fontWeight: 600 }}>
+                            was published
+                          </span>
+                        )}
                       </div>
                       <p style={{ margin: "0 0 4px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
                         {new Date(version.createdAt).toLocaleString()} · {version.componentCount} component{version.componentCount !== 1 ? "s" : ""}
@@ -805,10 +818,10 @@ export default function ContentPage() {
                       <button
                         type="button"
                         className="btn-icon"
-                        title="Publish this saved version directly. This snapshot becomes the live public page without any extra edits."
+                        title={version.id === publishedVersionId ? "This version is already live" : "Publish this saved version directly"}
                         onClick={() => void handlePublishVersion(version.id)}
-                        disabled={version.isPublished || publishing}
-                        style={{ opacity: version.isPublished || publishing ? 0.55 : 1, cursor: publishing ? "wait" : undefined }}
+                        disabled={version.id === publishedVersionId || publishing}
+                        style={{ opacity: version.id === publishedVersionId || publishing ? 0.35 : 1, cursor: publishing ? "wait" : undefined }}
                       >
                         {publishing ? <ButtonSpinner size={14} color="var(--text)" /> : "↑"}
                       </button>
