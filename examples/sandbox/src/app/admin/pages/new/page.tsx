@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createPage } from "../actions";
 
 function toSlug(text: string): string {
@@ -17,12 +18,17 @@ function toSlug(text: string): string {
 }
 
 export default function NewPagePage() {
-  const [areas,       setAreas]       = useState<{ name: string; displayName: string }[]>([]);
-  const [area,        setArea]        = useState("");
-  const [title,       setTitle]       = useState("");
-  const [slug,        setSlug]        = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [submitting,  setSubmitting]  = useState(false);
+  const searchParams = useSearchParams();
+  const templateId   = searchParams.get("template");
+
+  const [areas,          setAreas]          = useState<{ name: string; displayName: string }[]>([]);
+  const [area,           setArea]           = useState("");
+  const [title,          setTitle]          = useState("");
+  const [slug,           setSlug]           = useState("");
+  const [slugTouched,    setSlugTouched]    = useState(false);
+  const [submitting,     setSubmitting]     = useState(false);
+  const [templateName,   setTemplateName]   = useState<string | null>(null);
+  const [templateStruct, setTemplateStruct] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/list-areas")
@@ -35,6 +41,17 @@ export default function NewPagePage() {
   }, []);
 
   useEffect(() => {
+    if (!templateId) return;
+    fetch(`/api/admin/page-templates/${templateId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.name) setTemplateName(data.name);
+        if (data.structure) setTemplateStruct(JSON.stringify(data.structure));
+      })
+      .catch(() => {});
+  }, [templateId]);
+
+  useEffect(() => {
     if (!slugTouched) setSlug(toSlug(title));
   }, [title, slugTouched]);
 
@@ -45,6 +62,7 @@ export default function NewPagePage() {
     form.set("area",  area);
     form.set("title", title);
     form.set("slug",  slug);
+    if (templateStruct) form.set("structure", templateStruct);
     await createPage(form);
   }
 
@@ -54,6 +72,17 @@ export default function NewPagePage() {
         &#8592; Pages
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: "12px 0 20px" }}>New Page</h1>
+
+      {templateName && (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 8,
+          background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6,
+          padding: "6px 12px", marginBottom: 20, fontSize: "0.85rem", color: "#1d4ed8",
+        }}>
+          <span>📄</span>
+          <span>From template: <strong>{templateName}</strong></span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="card" style={{ maxWidth: 560 }}>

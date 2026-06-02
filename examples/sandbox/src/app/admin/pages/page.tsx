@@ -2,6 +2,7 @@ import { cms } from "@/lib/cms";
 import Link from "next/link";
 import { PagesTable } from "./PagesTable";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { NewPageButton } from "@/components/admin/NewPageButton";
 
 interface SearchParams { area?: string; q?: string; }
 
@@ -43,7 +44,7 @@ export default async function PagesPage({
     <div>
       <AdminPageHeader
         title="Pages"
-        actions={<Link href="/admin/pages/new" className="btn btn-primary">+ New Page</Link>}
+        actions={<NewPageButton />}
       />
 
       {/* Stats */}

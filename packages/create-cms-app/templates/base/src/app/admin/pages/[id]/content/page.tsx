@@ -11,6 +11,7 @@ import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import type { ComponentInstance, ComponentSchemaField } from "@sherpacms/domain";
 import { validateFieldValue } from "@/components/admin/validators";
+import { SaveAsTemplateDialog } from "@/components/admin/SaveAsTemplateDialog";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 type VersionInfo = {
@@ -453,6 +454,7 @@ export default function ContentPage() {
   const [saved, setSaved] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [insertAfter, setInsertAfter] = useState<number | null>(null);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
 
   const [showPreview, setShowPreview] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -640,6 +642,13 @@ export default function ContentPage() {
               Preview
             </button>
             {saved && <span style={{ fontSize: "0.82rem", color: "var(--success)", fontWeight: 600 }}>Saved</span>}
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowSaveAsTemplate(true)}
+              title="Save current structure as a reusable page template"
+            >
+              💾 Save as Template
+            </button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving || !hasUnsavedChanges}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                 {saving && <ButtonSpinner color="#ffffff" />}
@@ -760,6 +769,13 @@ export default function ContentPage() {
 
       {showPicker && (
         <ComponentPickerModal components={components} onSelect={addComponent} onClose={() => { setShowPicker(false); setInsertAfter(null); }} />
+      )}
+
+      {showSaveAsTemplate && (
+        <SaveAsTemplateDialog
+          structure={structure}
+          onClose={() => setShowSaveAsTemplate(false)}
+        />
       )}
 
       <SlideDrawer open={showHistory} onClose={() => setShowHistory(false)} title="Version History">

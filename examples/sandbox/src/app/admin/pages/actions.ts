@@ -38,18 +38,21 @@ async function markVersionAsPublished(pageId: string, versionId: string) {
 
 // ── Create ────────────────────────────────────────────────────────────────────
 export async function createPage(formData: FormData) {
+  const structureRaw = formData.get("structure") as string | null;
+  const structure    = structureRaw ? JSON.parse(structureRaw) : [];
+
   const page = await cms.pages.create({
     area:   formData.get("area") as string,
     slug:   formData.get("slug") as string,
     title:  formData.get("title") as string,
     status: "draft",
-    structure: [],
+    structure,
     seo: {
       metaTitle:       (formData.get("seoTitle") as string)       || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
     },
   });
-  await cms.pageVersions.createVersion(page.id, { structure: [], publish: false });
+  await cms.pageVersions.createVersion(page.id, { structure, publish: false });
   redirect(`/admin/pages/${page.id}`);
 }
 
