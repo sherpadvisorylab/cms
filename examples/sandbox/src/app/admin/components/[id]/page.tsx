@@ -138,9 +138,9 @@ export default function ComponentEditorPage() {
   const [saving,      setSaving]      = useState(false);
 
   const [name,            setName]            = useState("");
-  const [namespace,       setNamespace]       = useState("");
+  const [category,        setCategory]        = useState("");
   const [componentType,   setComponentType]   = useState("page");
-  const [status,          setStatus]          = useState("active");
+  const [status,          setStatus]          = useState("draft");
   const [newType,         setNewType]         = useState("page");
 
   const [templateLiquid,  setTemplateLiquid]  = useState("");
@@ -177,9 +177,9 @@ export default function ComponentEditorPage() {
     if (isNew) return;
     fetch(`/admin/components/${id}/data`).then((r) => r.json()).then((data) => {
       setName(data.name ?? "");
-      setNamespace(data.namespace ?? "");
+      setCategory(data.category ?? "");
       setComponentType(data.componentType ?? "page");
-      setStatus(data.status ?? "active");
+      setStatus(data.status ?? "draft");
       setTemplateLiquid(data.templateLiquid ?? "");
       setFields(parseSchema(data.schemaJson));
       setCss(data.css ?? "");
@@ -256,7 +256,7 @@ export default function ComponentEditorPage() {
             </div>
             <div className="form-group" style={{ maxWidth: 320 }}>
               <label className="form-label">Category</label>
-              <select name="namespace" className="form-control">
+              <select name="category" className="form-control">
                 <option value="">— None —</option>
                 {(COMPONENT_CATEGORIES_BY_TYPE[newType as ComponentType] ?? []).map((cat: string) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -285,9 +285,9 @@ export default function ComponentEditorPage() {
   function handleExport() {
     const payload = {
       name,
-      namespace: namespace || undefined,
+      category: category || undefined,
       type:              componentType,
-      status: status === "active" ? "published" : "draft",
+      status,
       version: {
         templateLiquid,
         schema: fields,
@@ -550,7 +550,7 @@ export default function ComponentEditorPage() {
               <div className="form-group">
                 <label className="form-label">Component Type</label>
                 <select name="componentType" className="form-control" value={componentType}
-                  onChange={(e) => { setComponentType(e.target.value); setNamespace(""); }}>
+                  onChange={(e) => { setComponentType(e.target.value); setCategory(""); }}>
                   <option value="page">Page component — has custom variables</option>
                   <option value="ui">UI component — layout only</option>
                   <option value="navigation">Navigation component — nav items</option>
@@ -560,7 +560,7 @@ export default function ComponentEditorPage() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Category</label>
-                <select name="namespace" className="form-control" value={namespace} onChange={(e) => setNamespace(e.target.value)}>
+                <select name="category" className="form-control" value={category} onChange={(e) => setCategory(e.target.value)}>
                   <option value="">— None —</option>
                   {(COMPONENT_CATEGORIES_BY_TYPE[componentType as ComponentType] ?? []).map((cat: string) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -570,9 +570,9 @@ export default function ComponentEditorPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Status</label>
-                <select name="status" className="form-control" defaultValue={status}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                <select name="status" className="form-control" value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
                 </select>
               </div>
             </div>

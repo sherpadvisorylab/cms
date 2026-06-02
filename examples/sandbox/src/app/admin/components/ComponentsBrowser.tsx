@@ -57,6 +57,7 @@ export type ComponentRow = {
   id: string;
   name: string;
   namespace: string | null;
+  category: string | null;
   type: ComponentType;
   status: ComponentStatus;
 };
@@ -115,7 +116,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
   const [drawerComp, setDrawerComp] = useState<ComponentRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [editName, setEditName] = useState("");
-  const [editNamespace, setEditNamespace] = useState("");
+  const [editCategory, setEditCategory] = useState("");
   const [editType, setEditType] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,7 +127,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
 
   const categories = COMPONENT_CATEGORIES_BY_TYPE[activeType as ComponentType] ?? [];
   const filtered = components.filter(
-    (component) => component.type === activeType && (activeCategory === "" || component.namespace === activeCategory),
+    (component) => component.type === activeType && (activeCategory === "" || component.category === activeCategory),
   );
 
   function handleTypeChange(type: string) {
@@ -137,7 +138,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
   function openDrawer(component: ComponentRow) {
     setDrawerComp(component);
     setEditName(component.name);
-    setEditNamespace(component.namespace ?? "");
+    setEditCategory(component.category ?? "");
     setEditType(component.type);
     setEditStatus(component.status);
   }
@@ -151,7 +152,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
     try {
       await quickUpdateComponent(drawerComp.id, {
         name: editName,
-        namespace: editNamespace || null,
+        category: editCategory || null,
         status: editStatus,
         type: editType,
       });
@@ -272,7 +273,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
               key={category}
               label={category}
               icon={getCategoryIcon(category)}
-              count={components.filter((component) => component.type === activeType && component.namespace === category).length}
+              count={components.filter((component) => component.type === activeType && component.category === category).length}
               active={activeCategory === category}
               onClick={() => setActiveCategory(category)}
             />
@@ -313,7 +314,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
             </div>
             <div className="form-group">
               <label className="form-label">Category</label>
-              <select className="form-control" value={editNamespace} onChange={(event) => setEditNamespace(event.target.value)}>
+              <select className="form-control" value={editCategory} onChange={(event) => setEditCategory(event.target.value)}>
                 <option value="">- None -</option>
                 {(COMPONENT_CATEGORIES_BY_TYPE[editType as ComponentType] ?? []).map((category: string) => (
                   <option key={category} value={category}>
@@ -330,7 +331,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
                   value={editType}
                   onChange={(event) => {
                     setEditType(event.target.value);
-                    setEditNamespace("");
+                    setEditCategory("");
                   }}
                 >
                   {COMPONENT_TYPES.map((type) => (
@@ -520,7 +521,7 @@ function CategoryItem({
 
 function ComponentCard({ comp, onSettings }: { comp: ComponentRow; onSettings: () => void }) {
   const isPublished = comp.status === "published";
-  const icon = getCategoryIcon(comp.namespace);
+  const icon = getCategoryIcon(comp.category);
 
   return (
     <div
@@ -629,7 +630,7 @@ function ComponentCard({ comp, onSettings }: { comp: ComponentRow; onSettings: (
         >
           {comp.name}
         </h3>
-        <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0 }}>{comp.namespace ?? comp.type}</p>
+        <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0 }}>{comp.category ?? comp.type}</p>
       </div>
     </div>
   );

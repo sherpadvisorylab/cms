@@ -2,7 +2,7 @@
   "name": "Sidebar - Vertical with Icons",
   "type": "navigation",
   "category": "Sidebar",
-  "status": "draft",
+  "status": "published",
   "version": {
     "templateLiquid": "<nav class=\"sb-nav\">{% for item in menu %}<a class=\"sb-link\" href=\"{{ item.url }}\">{% if item.icon %}<i class=\"{{ item.icon }} sb-icon\"></i>{% endif %}<span>{{ item.label }}</span>{% if item.badge %}<span class=\"sb-badge\">{{ item.badge }}</span>{% endif %}</a>{% endfor %}</nav>",
     "schema": [],

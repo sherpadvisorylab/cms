@@ -2,7 +2,7 @@
   "name": "Navbar - Logo + Links + CTA",
   "type": "navigation",
   "category": "Navbar",
-  "status": "draft",
+  "status": "published",
   "version": {
     "templateLiquid": "<nav class=\"nl-nav\"><div class=\"nl-inner\"><a class=\"nl-brand\" href=\"/\">{{ siteName }}</a><div class=\"nl-links\">{% for item in menu %}{% if item.isButton %}<a class=\"nl-cta\" href=\"{{ item.url }}\">{{ item.label }}</a>{% else %}<a class=\"nl-link\" href=\"{{ item.url }}\">{{ item.label }}</a>{% endif %}{% endfor %}</div></div></nav>",
     "schema": [{ "key": "siteName", "label": "Site Name", "type": "text" }],

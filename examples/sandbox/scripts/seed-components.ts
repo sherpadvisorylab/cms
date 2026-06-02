@@ -48,7 +48,7 @@ export async function seedComponents(cms: any) {
       type: componentDef.type,
       category: componentDef.category,
       description: componentDef.description,
-      status: componentDef.status ?? "draft",
+      status: componentDef.status ?? "published",
     });
 
     await cms.componentVersions.createVersion(component.id, {

@@ -2,7 +2,7 @@
   "name": "Navbar - Horizontal Simple",
   "type": "navigation",
   "category": "Navbar",
-  "status": "draft",
+  "status": "published",
   "version": {
     "templateLiquid": "<nav class=\"ns-nav\"><div class=\"ns-inner\">{% for item in menu %}<a class=\"ns-link\" href=\"{{ item.url }}\">{{ item.label }}</a>{% endfor %}</div></nav>",
     "schema": [],
