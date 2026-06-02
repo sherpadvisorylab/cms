@@ -286,6 +286,7 @@ function PlacementFieldRow({
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const isCustomValidator = !!field.validator && !PREDEFINED_VALIDATORS[field.validator];
   const validatorSelectValue = isCustomValidator ? "__custom__" : (field.validator ?? "");
 
@@ -300,8 +301,11 @@ function PlacementFieldRow({
 
   return (
     <div style={{ padding: "8px 0" }}>
-      {/* Row 1: key/label (flex-1) + Width select (compact, auto width) */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isList ? 0 : 6 }}>
+      {/* Row 1: clickable header — key/label + Width select + collapse toggle */}
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}
+        onClick={() => setCollapsed((c) => !c)}
+      >
         <span style={{ ...keyStyle, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {displayKey}
         </span>
@@ -309,15 +313,19 @@ function PlacementFieldRow({
           className="form-control"
           style={{ width: "auto", minWidth: 60, fontSize: "0.73rem", padding: "2px 4px", flexShrink: 0 }}
           value={field.colWidth ?? "full"}
-          onChange={(e) => onUpdate({ colWidth: e.target.value })}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => { e.stopPropagation(); onUpdate({ colWidth: e.target.value }); }}
         >
           <option value="full">Full</option>
           <option value="half">Half</option>
           <option value="third">Third</option>
         </select>
+        <span style={{ color: "var(--text-muted)", fontSize: "0.68rem", flexShrink: 0 }}>
+          {collapsed ? "▶" : "▼"}
+        </span>
       </div>
-      {/* Row 2: required + validator on same line — non-list fields only */}
-      {!isList && (
+      {/* Row 2: required + validator — non-list, expanded only */}
+      {!collapsed && !isList && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", userSelect: "none", flexShrink: 0 }}
             title="When enabled, editors must fill this field before saving">
