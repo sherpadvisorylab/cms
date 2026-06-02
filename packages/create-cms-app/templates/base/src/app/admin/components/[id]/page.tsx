@@ -281,13 +281,17 @@ const VALIDATOR_OPTIONS = [
 ];
 
 function PlacementFieldRow({
-  field, onUpdate, onUpdateChild,
+  field, onUpdate, onUpdateChild, collapseSignal, expandSignal,
 }: {
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
   onUpdateChild?: (cIdx: number, patch: Partial<SchemaField>) => void;
+  collapseSignal?: number;
+  expandSignal?: number;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { if (collapseSignal) setCollapsed(true); }, [collapseSignal]);
+  useEffect(() => { if (expandSignal) setCollapsed(false); }, [expandSignal]);
   const isCustomValidator = !!field.validator && !PREDEFINED_VALIDATORS[field.validator];
   const validatorSelectValue = isCustomValidator ? "__custom__" : (field.validator ?? "");
 
@@ -360,6 +364,8 @@ function PlacementFieldRow({
               {cIdx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2px 0" }} />}
               <PlacementFieldRow
                 field={child as SchemaField}
+                collapseSignal={collapseSignal}
+                expandSignal={expandSignal}
                 onUpdate={(patch) => {
                   const ch = [...(field.childSchema ?? [])];
                   ch[cIdx] = { ...ch[cIdx], ...patch };
@@ -382,10 +388,12 @@ function PlacementFieldRow({
 }
 
 function PlacementRows({
-  fields, onUpdate,
+  fields, onUpdate, collapseSignal, expandSignal,
 }: {
   fields: SchemaField[];
   onUpdate: (idx: number, patch: Partial<SchemaField>) => void;
+  collapseSignal?: number;
+  expandSignal?: number;
 }) {
   if (fields.length === 0) return null;
   return (
@@ -395,6 +403,8 @@ function PlacementRows({
           {idx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2px 0" }} />}
           <PlacementFieldRow
             field={field}
+            collapseSignal={collapseSignal}
+            expandSignal={expandSignal}
             onUpdate={(patch) => onUpdate(idx, patch)}
             onUpdateChild={(cIdx, patch) => {
               const ch = [...(field.childSchema ?? [])];
@@ -411,6 +421,7 @@ function PlacementRows({
 // ── Shared field editor row (self-contained, infinitely recursive) ────────────
 function SchemaFieldRow({
   field, onUpdate, onRemove, onMoveUp, onMoveDown, disableMoveUp, disableMoveDown,
+  collapseSignal, expandSignal,
 }: {
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
@@ -419,8 +430,12 @@ function SchemaFieldRow({
   onMoveDown: () => void;
   disableMoveUp: boolean;
   disableMoveDown: boolean;
+  collapseSignal?: number;
+  expandSignal?: number;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => { if (collapseSignal) setCollapsed(true); }, [collapseSignal]);
+  useEffect(() => { if (expandSignal) setCollapsed(false); }, [expandSignal]);
 
   function addChild() {
     const len = field.childSchema?.length ?? 0;
@@ -550,6 +565,10 @@ export default function ComponentEditorPage() {
 
   const [templateLiquid,  setTemplateLiquid]  = useState("");
   const [fields,          setFields]          = useState<SchemaField[]>([]);
+  const [varCollapseAll,  setVarCollapseAll]  = useState(0);
+  const [varExpandAll,    setVarExpandAll]    = useState(0);
+  const [plcCollapseAll,  setPlcCollapseAll]  = useState(0);
+  const [plcExpandAll,    setPlcExpandAll]    = useState(0);
   const [css,             setCss]             = useState("");
   const [js,              setJs]              = useState("");
   const [currentVersion,  setCurrentVersion]  = useState(0);
@@ -850,6 +869,10 @@ export default function ComponentEditorPage() {
                   <>
                     <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12 }}>
                       Define editable variables. Use <code style={{ background: "#f1f5f9", padding: "0 3px", borderRadius: 3 }}>{"{{key}}"}</code> in the template.
+                      {fields.length > 0 && <span style={{ float: "right", display: "flex", gap: 8, fontSize: "0.72rem" }}>
+                        <button className="btn-link" style={{ color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setVarCollapseAll(c => c + 1)}>Collapse all</button>
+                        <button className="btn-link" style={{ color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setVarExpandAll(c => c + 1)}>Expand all</button>
+                      </span>}
                     </p>
                     {fields.length === 0 ? (
                       <div style={{ color: "var(--text-muted)", fontSize: "0.83rem", textAlign: "center", padding: "14px 0" }}>No variables defined</div>
@@ -866,6 +889,8 @@ export default function ComponentEditorPage() {
                               onMoveDown={() => moveFieldDown(idx)}
                               disableMoveUp={idx === 0}
                               disableMoveDown={idx >= fields.length - 1}
+                              collapseSignal={varCollapseAll}
+                              expandSignal={varExpandAll}
                             />
                           </Fragment>
                         ))}
@@ -881,6 +906,10 @@ export default function ComponentEditorPage() {
                   <>
                     <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12 }}>
                       Set the column width for each variable in the edit form.
+                      {fields.length > 0 && <span style={{ float: "right", display: "flex", gap: 8, fontSize: "0.72rem" }}>
+                        <button className="btn-link" style={{ color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setPlcCollapseAll(c => c + 1)}>Collapse all</button>
+                        <button className="btn-link" style={{ color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => setPlcExpandAll(c => c + 1)}>Expand all</button>
+                      </span>}
                     </p>
                     {fields.length === 0 ? (
                       <div style={{ color: "var(--text-muted)", fontSize: "0.83rem", textAlign: "center", padding: "14px 0" }}>Add variables first</div>
@@ -889,6 +918,8 @@ export default function ComponentEditorPage() {
                         <PlacementRows
                           fields={fields}
                           onUpdate={(idx, patch) => updateField(idx, patch)}
+                          collapseSignal={plcCollapseAll}
+                          expandSignal={plcExpandAll}
                         />
                       </div>
                     )}
