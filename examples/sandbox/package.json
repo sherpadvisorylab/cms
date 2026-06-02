@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "seed": "tsx scripts/seed.ts && tsx scripts/seed-pages-runner.ts",
+    "seed:data": "tsx scripts/seed-pages-runner.ts",
+    "seed:pages": "tsx scripts/seed-pages-runner.ts",
     "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@sherpacms/cms": "*",

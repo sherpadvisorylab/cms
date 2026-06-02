@@ -1,0 +1,9 @@
+{
+  "key": "navbar",
+  "label": "Main Navigation",
+  "items": [
+    { "label": "Home", "href": "/", "orderIndex": 0, "isExternal": false },
+    { "label": "About", "href": "/about", "orderIndex": 1, "isExternal": false },
+    { "label": "Contact", "href": "/contact", "orderIndex": 2, "isExternal": false }
+  ]
+}

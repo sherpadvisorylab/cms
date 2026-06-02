@@ -6,8 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "seed": "tsx scripts/seed.ts",
-    "seed:layouts": "tsx scripts/seed-layouts.ts"
+    "seed": "tsx scripts/seed.ts && tsx scripts/seed-pages-runner.ts",
+    "seed:data": "tsx scripts/seed-pages-runner.ts",
+    "seed:pages": "tsx scripts/seed-pages-runner.ts"
   },
   "dependencies": {
     "@sherpacms/cms": "__CMS_DEP__",

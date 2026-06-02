@@ -1,5 +1,6 @@
 import { cms } from "@/lib/cms";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 
 /**
  * Public CMS page renderer — returns full HTML from the area's head/body templates.
@@ -25,7 +26,8 @@ export async function GET(
     }
   }
 
-  const html = await cms.renderPage("Public", slug, { draft: isDraft }).catch(() => null);
+  const areaName = await getPrimaryPublicAreaName();
+  const html = await cms.renderPage(areaName, slug, { draft: isDraft }).catch(() => null);
 
   if (!html) {
     return new Response(

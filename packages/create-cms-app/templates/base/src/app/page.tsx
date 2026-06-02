@@ -1,17 +1,19 @@
 import { cms } from "@/lib/cms";
+import { resolveHomePageSlug } from "@/lib/publicPageResolver";
 
 export default async function HomePage() {
-  const result = await cms.renderContent("Public", "home").catch(() => null);
+  const { areaName, slug } = await resolveHomePageSlug();
+  const result = await cms.renderContent(areaName, slug).catch(() => null);
 
   if (!result) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">No published homepage yet</h1>
           <p className="text-gray-500">
-            No home page found.{" "}
+            Create or publish a page in the root area and it will render here automatically.{" "}
             <a href="/admin" className="text-blue-600 underline">
-              Create one in the admin.
+              Open the admin.
             </a>
           </p>
         </div>

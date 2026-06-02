@@ -1,0 +1,12 @@
+{
+  "name": "Navbar - Sticky Responsive",
+  "type": "navigation",
+  "category": "Navbar",
+  "status": "draft",
+  "version": {
+    "templateLiquid": "<nav class=\"nr-nav\" id=\"nr-nav\"><div class=\"nr-inner\"><a class=\"nr-brand\" href=\"/\">{{ siteName }}</a><button class=\"nr-toggle\" aria-label=\"Toggle menu\" onclick=\"document.getElementById('nr-menu').classList.toggle('nr-open')\"><span></span><span></span><span></span></button><ul class=\"nr-menu\" id=\"nr-menu\">{% for item in menu %}<li>{% if item.isButton %}<a class=\"nr-cta\" href=\"{{ item.url }}\">{{ item.label }}</a>{% else %}<a class=\"nr-link\" href=\"{{ item.url }}\">{{ item.label }}</a>{% endif %}</li>{% endfor %}</ul></div></nav>",
+    "schema": [{ "key": "siteName", "label": "Site Name", "type": "text" }],
+    "css": ".nr-nav{background:var(--bg-surface,#fff);border-bottom:1px solid var(--border,#e5e7eb);position:sticky;top:0;z-index:100}.nr-inner{max-width:1200px;margin:0 auto;padding:0 1.5rem;height:64px;display:flex;align-items:center;justify-content:space-between}.nr-brand{font-size:1.15rem;font-weight:700;color:var(--text-primary,#111827);text-decoration:none}.nr-toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}.nr-toggle span{display:block;width:22px;height:2px;background:var(--text-primary,#111827);border-radius:2px}.nr-menu{list-style:none;margin:0;padding:0;display:flex;align-items:center;gap:1.75rem}.nr-link{color:var(--text-secondary,#4b5563);text-decoration:none;font-size:.9rem;font-weight:500;transition:color .15s}.nr-link:hover{color:var(--primary,#2563eb)}.nr-cta{background:var(--primary,#2563eb);color:#fff;padding:.45rem 1rem;border-radius:6px;font-size:.875rem;font-weight:600;text-decoration:none}@media(max-width:768px){.nr-toggle{display:flex}.nr-menu{display:none;flex-direction:column;align-items:flex-start;gap:0;position:absolute;top:64px;left:0;right:0;background:var(--bg-surface,#fff);border-bottom:1px solid var(--border,#e5e7eb);padding:1rem 1.5rem}.nr-menu.nr-open{display:flex}.nr-menu li{width:100%;padding:.5rem 0;border-bottom:1px solid var(--border,#f3f4f6)}.nr-menu li:last-child{border-bottom:none}}",
+    "js": "document.addEventListener('click',function(e){var nav=document.getElementById('nr-nav');var menu=document.getElementById('nr-menu');if(nav&&menu&&!nav.contains(e.target)){menu.classList.remove('nr-open')}});"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Public",
+  "displayName": "Public Site",
+  "description": "Public-facing website",
+  "rootPath": "/",
+  "siteName": "My Site",
+  "status": "active",
+  "style": {
+    "colorSchemas": [
+      {
+        "id": 1,
+        "name": "Default",
+        "isDefault": true,
+        "colors": {
+          "primary": "#2E5A97",
+          "secondary": "#283963",
+          "accent": "#FFD300",
+          "success": "#22C55E",
+          "warning": "#F59E0B",
+          "error": "#EF4444",
+          "info": "#3B82F6",
+          "background": "#FFFFFF",
+          "surface": "#F8FAFC",
+          "text": "#1E293B",
+          "text-muted": "#64748B",
+          "border": "#E2E8F0"
+        }
+      }
+    ],
+    "defaultColorSchemaId": 1
+  },
+  "design": {
+    "headTemplate": "<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{{pageTitle}} | {{siteName}}</title>\n  {{metaTags}}\n  {{styles}}\n</head>",
+    "bodyTemplate": "<body>\n  {{content}}\n  {{trackingScripts}}\n  {{scripts}}\n</body>"
+  }
+}

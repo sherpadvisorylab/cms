@@ -69,8 +69,8 @@ CREATE TABLE IF NOT EXISTS cms_components (
                                 CHECK (type IN ('page', 'ui', 'navigation')),
   category          TEXT,
   description       TEXT,
-  status            TEXT        NOT NULL DEFAULT 'active'
-                                CHECK (status IN ('active', 'inactive')),
+  status            TEXT        NOT NULL DEFAULT 'draft'
+                                CHECK (status IN ('draft', 'published')),
   preview_image_url TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()

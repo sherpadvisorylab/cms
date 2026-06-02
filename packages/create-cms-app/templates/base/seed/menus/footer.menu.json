@@ -1,0 +1,8 @@
+{
+  "key": "footer",
+  "label": "Footer Navigation",
+  "items": [
+    { "label": "Privacy Policy", "href": "/privacy", "orderIndex": 0, "isExternal": false },
+    { "label": "Terms & Conditions", "href": "/terms", "orderIndex": 1, "isExternal": false }
+  ]
+}

@@ -149,10 +149,10 @@ function printNextSteps(
   if (provider === "supabase") {
     console.log("  # Fill in SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL");
     console.log("  npx supabase db push          # push SQL migrations to Supabase");
-    console.log("  npm run db:seed               # create admin user");
+    console.log("  npm run seed                  # create admin user and seed starter content");
   } else {
     console.log("  # Fill in FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, etc.");
-    console.log("  npm run seed                  # bootstrap Firestore + create admin user");
+    console.log("  npm run seed                  # create admin user and seed starter content");
     console.log("  firebase deploy --only firestore:rules,storage");
   }
 

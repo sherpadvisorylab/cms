@@ -230,10 +230,7 @@ The `cms-assets/` prefix is created automatically on first upload.
 Run from **inside the project directory**:
 
 ```bash
-# Supabase
-npm run db:seed
-
-# Firebase
+# Supabase or Firebase
 npm run seed
 ```
 

@@ -60,6 +60,7 @@ export async function importComponent(payload: {
   type:              "page" | "ui" | "navigation";
   category?:         string;
   description?:      string;
+  status?:           "draft" | "published";
   templateLiquid:    string;
   schema:            unknown[];
   css:               string;
@@ -72,7 +73,7 @@ export async function importComponent(payload: {
     type:      payload.type,
     category:  payload.category || undefined,
     description: payload.description || undefined,
-    status:    "draft",
+    status:    payload.status ?? "draft",
   });
   await cms.componentVersions.createVersion(component.id, {
     templateLiquid:    payload.templateLiquid,

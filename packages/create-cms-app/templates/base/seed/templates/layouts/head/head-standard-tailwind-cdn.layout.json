@@ -1,0 +1,6 @@
+{
+  "name": "Head - Standard + Tailwind CDN",
+  "description": "Standard head with Tailwind CSS v3 loaded from CDN.",
+  "type": "head",
+  "html": "<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{{pageTitle}} | {{siteName}}</title>\n  {{metaTags}}\n  <script src=\"https://cdn.tailwindcss.com\"></script>\n  {{styles}}\n  {{scripts}}\n</head>"
+}

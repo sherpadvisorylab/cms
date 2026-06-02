@@ -1,6 +1,7 @@
 import { cms } from "@/lib/cms";
 import { initAdmin } from "@/lib/firebase/admin";
 import { getAuth } from "firebase-admin/auth";
+import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 
 initAdmin();
 
@@ -19,10 +20,11 @@ export async function GET(
     catch { return new Response("Unauthorized", { status: 401 }); }
   }
 
-  const html = await cms.renderPage("Public", slug, { draft: isDraft });
+  const areaName = await getPrimaryPublicAreaName();
+  const html = await cms.renderPage(areaName, slug, { draft: isDraft });
 
   if (!html) {
-    const notFound = await cms.renderPage("Public", "404", {});
+    const notFound = await cms.renderPage(areaName, "404", {});
     return new Response(notFound ?? "<h1>404 Not Found</h1>", {
       status: 404,
       headers: { "Content-Type": "text/html; charset=utf-8" },

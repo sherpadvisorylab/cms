@@ -67,7 +67,7 @@ export const cmsComponents = pgTable("cms_components", {
   type:            text("type").notNull().default("page"),
   category:        text("category"),
   description:     text("description"),
-  status:          text("status").notNull().default("active"),
+  status:          text("status").notNull().default("draft"),
   previewImageUrl: text("preview_image_url"),
   createdAt:       timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt:       timestamp("updated_at", { withTimezone: true }).defaultNow(),

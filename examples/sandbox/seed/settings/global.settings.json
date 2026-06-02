@@ -1,0 +1,18 @@
+{
+  "branding": { "projectName": "My Project" },
+  "authentication": { "ssoEnabled": false },
+  "emailDefaults": { "senderName": "No Reply", "senderEmail": "no-reply@example.com" },
+  "systemVariableDefaults": {
+    "bg-primary": "bg-primary",
+    "bg-secondary": "bg-secondary",
+    "bg-accent": "bg-accent",
+    "bg-surface": "bg-surface",
+    "text-primary": "text-primary",
+    "text-secondary": "text-secondary",
+    "text-muted": "text-muted",
+    "text-accent": "text-accent",
+    "border-primary": "border-primary",
+    "border-secondary": "border-secondary",
+    "border-muted": "border-muted"
+  }
+}

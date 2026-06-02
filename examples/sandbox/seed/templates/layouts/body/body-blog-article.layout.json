@@ -1,0 +1,6 @@
+{
+  "name": "Body - Blog / Article",
+  "description": "Narrow centered column optimised for reading. Topbar + 720px content + footer.",
+  "type": "body",
+  "html": "<body style=\"margin:0;padding:0;font-family:inherit;display:flex;flex-direction:column;min-height:100vh;background:var(--bg-surface,#fff);\">\n\n  {{navigation:navbar}}\n\n  <main style=\"flex:1;width:100%;max-width:720px;margin:0 auto;padding:3rem 1.5rem;\">\n    {{content}}\n  </main>\n\n  {{navigation:footer}}\n\n  {{trackingScripts}}\n</body>"
+}

@@ -31,6 +31,14 @@ function fieldsToJson(fields: SchemaField[]): string {
   return JSON.stringify(fields, null, 2);
 }
 
+function slugifyComponentFilename(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // ── Variable name helpers (ported from prototype) ─────────────────────────────
 
 const MAX_VAR_LENGTH = 28;
@@ -277,21 +285,22 @@ export default function ComponentEditorPage() {
   function handleExport() {
     const payload = {
       name,
-      namespace:         namespace || undefined,
+      namespace: namespace || undefined,
       type:              componentType,
-      templateLiquid,
-      schema:            fields,
-      css,
-      js,
-      schemaOrgTemplate,
-      exportedAt:        new Date().toISOString(),
-      exportVersion:     1,
+      status: status === "active" ? "published" : "draft",
+      version: {
+        templateLiquid,
+        schema: fields,
+        css,
+        js,
+        schemaOrgTemplate,
+      },
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
-    a.download = `${name.toLowerCase().replace(/\s+/g, "-")}.component.json`;
+    a.download = `${slugifyComponentFilename(name)}.component.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

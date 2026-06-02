@@ -1,0 +1,6 @@
+{
+  "name": "Head - Standard + Font Awesome",
+  "description": "Standard head with Font Awesome 6 Free icons (CDN). Use fa-solid, fa-regular classes.",
+  "type": "head",
+  "html": "<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{{pageTitle}} | {{siteName}}</title>\n  {{metaTags}}\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css\">\n  {{styles}}\n  {{scripts}}\n</head>"
+}
