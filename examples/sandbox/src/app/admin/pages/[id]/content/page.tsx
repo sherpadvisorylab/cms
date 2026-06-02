@@ -254,6 +254,26 @@ function ValidatedFieldInput({
   );
 }
 
+/** Returns a short preview string from the first non-empty scalar field of an item. */
+function itemPreview(item: Record<string, unknown>, schema: ComponentSchemaField[]): string {
+  for (const f of schema) {
+    if (f.type === "list" || f.type === "image_url" || f.type === "video_url" || f.type === "richtext") continue;
+    const v = String(item[f.key] ?? "").trim();
+    if (v) return v.length > 48 ? v.slice(0, 48) + "…" : v;
+  }
+  return "";
+}
+
+/** Compact field label used throughout the page content editor. */
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <div style={{ fontSize: "0.71rem", fontWeight: 500, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 3 }}>
+      {children}
+      {required && <span style={{ color: "var(--danger)" }} title="Required">*</span>}
+    </div>
+  );
+}
+
 function ListFieldInput({
   field,
   value,
@@ -265,21 +285,22 @@ function ListFieldInput({
 }) {
   const items = Array.isArray(value) ? value : [];
   const childSchema = field.childSchema ?? [];
+  const [collapsedItems, setCollapsedItems] = useState<Record<number, boolean>>({});
 
+  function toggleItem(idx: number) {
+    setCollapsedItems((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  }
   function updateItem(itemIdx: number, key: string, val: unknown) {
     onChange(items.map((item, i) => (i === itemIdx ? { ...item, [key]: val } : item)));
   }
-
   function addItem() {
     const empty: Record<string, unknown> = {};
     childSchema.forEach((f) => { empty[f.key] = f.defaultValue ?? (f.type === "list" ? [] : ""); });
     onChange([...items, empty]);
   }
-
   function removeItem(itemIdx: number) {
     onChange(items.filter((_, i) => i !== itemIdx));
   }
-
   function moveItem(itemIdx: number, direction: -1 | 1) {
     const next = [...items];
     const target = itemIdx + direction;
@@ -289,40 +310,48 @@ function ListFieldInput({
   }
 
   if (childSchema.length === 0) {
-    return (
-      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0 }}>
-        No item fields defined. Add fields in the component editor.
-      </p>
-    );
+    return <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0 }}>No item fields defined. Add fields in the component editor.</p>;
   }
 
   return (
     <div>
-      {items.map((item, itemIdx) => (
-        <div key={itemIdx} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", marginBottom: 8, background: "var(--bg-light)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)" }}>#{itemIdx + 1}</span>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button className="btn-icon" onClick={() => moveItem(itemIdx, -1)} disabled={itemIdx === 0} style={{ fontSize: "0.68rem" }}>▲</button>
-              <button className="btn-icon" onClick={() => moveItem(itemIdx, 1)} disabled={itemIdx >= items.length - 1} style={{ fontSize: "0.68rem" }}>▼</button>
-              <button className="btn-icon" onClick={() => removeItem(itemIdx)} style={{ color: "var(--danger)", fontSize: "0.68rem" }}>✕</button>
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "10px 12px" }}>
-            {childSchema.map((childField) => (
-              <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}>
-                <label className="form-label" style={{ display: "block", marginBottom: 3, fontSize: "0.78rem" }}>
-                  {childField.label}
-                  {(childField as SchemaFieldWithMeta).required && (
-                    <span style={{ color: "var(--danger)", marginLeft: 2 }} title="Required">*</span>
-                  )}
-                </label>
-                <ValidatedFieldInput field={childField as SchemaFieldWithMeta} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
+      {items.map((item, itemIdx) => {
+        const isCollapsed = !!collapsedItems[itemIdx];
+        const preview = isCollapsed ? itemPreview(item, childSchema) : "";
+        return (
+          <div key={itemIdx} style={{ border: "1px solid var(--border)", borderRadius: 6, marginBottom: 6, overflow: "hidden" }}>
+            {/* Item header */}
+            <div
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "var(--bg-light)", cursor: "pointer", userSelect: "none" }}
+              onClick={() => toggleItem(itemIdx)}
+            >
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }}>#{itemIdx + 1}</span>
+              {preview && (
+                <span style={{ fontSize: "0.77rem", color: "var(--text)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {preview}
+                </span>
+              )}
+              <div style={{ display: "flex", gap: 3, marginLeft: "auto" }} onClick={(e) => e.stopPropagation()}>
+                <button className="btn-icon" onClick={() => moveItem(itemIdx, -1)} disabled={itemIdx === 0} title="Move up" style={{ fontSize: "0.65rem" }}>▲</button>
+                <button className="btn-icon" onClick={() => moveItem(itemIdx, 1)} disabled={itemIdx >= items.length - 1} title="Move down" style={{ fontSize: "0.65rem" }}>▼</button>
+                <button className="btn-icon" onClick={() => removeItem(itemIdx)} title="Remove" style={{ color: "var(--danger)", fontSize: "0.65rem" }}>✕</button>
               </div>
-            ))}
+              <span style={{ color: "var(--text-muted)", fontSize: "0.68rem", flexShrink: 0 }}>{isCollapsed ? "▶" : "▼"}</span>
+            </div>
+            {/* Item fields */}
+            {!isCollapsed && (
+              <div style={{ padding: "10px 12px", display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "10px 12px" }}>
+                {childSchema.map((childField) => (
+                  <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}>
+                    <FieldLabel required={(childField as SchemaFieldWithMeta).required}>{childField.label}</FieldLabel>
+                    <ValidatedFieldInput field={childField as SchemaFieldWithMeta} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
       <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 4 }} onClick={addItem}>
         + Add item
       </button>
@@ -393,12 +422,7 @@ function ComponentCard({
                 key={field.key}
                 style={{ gridColumn: COL_SPAN[(field as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}
               >
-                <label className="form-label" style={{ display: "block", marginBottom: 4 }}>
-                  {field.label}
-                  {(field as SchemaFieldWithMeta).required && (
-                    <span style={{ color: "var(--danger)", marginLeft: 2 }} title="Required">*</span>
-                  )}
-                </label>
+                <FieldLabel required={(field as SchemaFieldWithMeta).required}>{field.label}</FieldLabel>
                 <ValidatedFieldInput field={field as SchemaFieldWithMeta} value={instance.props[field.key]} onChange={(nextValue) => onPropChange(field.key, nextValue)} />
               </div>
             ))}
