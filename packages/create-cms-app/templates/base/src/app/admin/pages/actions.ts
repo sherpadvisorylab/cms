@@ -164,6 +164,13 @@ export async function quickUpdatePage(id: string, data: {
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 export async function deletePage(id: string) {
+  // Guard: system pages are not deletable
+  const page = (await cms.pages.findAll()).find((p) => p.id === id);
+  if (page) {
+    const area = await cms.areas.findByKey(page.area).catch(() => null);
+    const isSystem = area?.systemPages && Object.values(area.systemPages).includes(id);
+    if (isSystem) throw new Error("System pages cannot be deleted. Unassign the system page role first.");
+  }
   await cms.pages.delete(id);
   revalidatePath("/admin/pages");
   redirect("/admin/pages");
@@ -226,6 +233,23 @@ export async function savePageSchemaConfig(pageId: string, config: {
     seo: { ...(page.seo ?? {}), schemaConfig: config } as CmsPageSeo,
   });
   revalidatePath(`/admin/pages/${pageId}`);
+}
+
+// ── System page assignment ────────────────────────────────────────────────────
+export async function assignSystemPage(areaName: string, type: string, pageId: string) {
+  await cms.assignSystemPage(areaName, type, pageId);
+  revalidatePath("/admin/pages");
+  revalidatePath(`/admin/pages/${pageId}`);
+  // Revalidate the appropriate public route
+  if (type === "home") revalidatePath("/");
+  revalidatePath(`/${type}`);
+}
+
+export async function removeSystemPage(areaName: string, type: string) {
+  await cms.removeSystemPage(areaName, type);
+  revalidatePath("/admin/pages");
+  if (type === "home") revalidatePath("/");
+  revalidatePath(`/${type}`);
 }
 
 // ── Unpublish (sets status back to draft, keeps version history intact) ───────

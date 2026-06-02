@@ -132,6 +132,92 @@ export class CMS {
     this.render = new LiquidRenderEngine();
   }
 
+  // ── System pages ─────────────────────────────────────────────────────────────
+
+  /**
+   * Render a system page (home, 404, …) for an area as a full HTML document.
+   * Returns null if no system page of that type is configured or the page is unpublished.
+   *
+   * Use this in Route Handlers (returns a complete HTML string).
+   */
+  async renderSystemPage(
+    areaKey: string,
+    type: string,
+    opts?: { draft?: boolean },
+  ): Promise<string | null> {
+    const area = await this.areas.findByKey(areaKey);
+    const pageId = area?.systemPages?.[type];
+    if (!pageId) return null;
+    const allPages = await this.pages.findAll(areaKey);
+    const page = allPages.find((p) => p.id === pageId) ?? null;
+    if (!page) return null;
+    return this.renderPage(areaKey, page.slug, opts);
+  }
+
+  /**
+   * Render a system page as structured content { html, css, js }.
+   * Returns null if no system page of that type is configured or the page is unpublished.
+   *
+   * Use this in Next.js page.tsx components (CSS can be injected separately).
+   */
+  async renderSystemContent(
+    areaKey: string,
+    type: string,
+  ): Promise<RenderContentResult | null> {
+    const area = await this.areas.findByKey(areaKey);
+    const pageId = area?.systemPages?.[type];
+    if (!pageId) return null;
+    const allPages = await this.pages.findAll(areaKey);
+    const page = allPages.find((p) => p.id === pageId) ?? null;
+    if (!page) return null;
+    return this.renderContent(areaKey, page.slug);
+  }
+
+  /**
+   * Assign a page as the system page of a given type for an area.
+   *
+   * If a different page was previously the system page of that type, it is
+   * demoted: its slug gains a `_bkp` suffix and its status is set to `draft`.
+   */
+  async assignSystemPage(
+    areaKey: string,
+    type: string,
+    pageId: string,
+  ): Promise<void> {
+    const area = await this.areas.findByKey(areaKey);
+    if (!area) throw new Error(`Area not found: ${areaKey}`);
+
+    const prevPageId = area.systemPages?.[type];
+
+    // Demote the previous system page (if different)
+    if (prevPageId && prevPageId !== pageId) {
+      const allPages = await this.pages.findAll(areaKey);
+      const prevPage = allPages.find((p) => p.id === prevPageId);
+      if (prevPage) {
+        await this.pages.update(prevPageId, {
+          slug:   `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
+          status: "draft",
+        });
+      }
+    }
+
+    // Update area
+    const systemPages = { ...(area.systemPages ?? {}), [type]: pageId };
+    await this.areas.update(area.id, { systemPages });
+  }
+
+  /**
+   * Remove the system page assignment for a type in an area.
+   * The page itself is not modified.
+   */
+  async removeSystemPage(areaKey: string, type: string): Promise<void> {
+    const area = await this.areas.findByKey(areaKey);
+    if (!area) return;
+    const systemPages = { ...(area.systemPages ?? {}) };
+    delete systemPages[type];
+    await this.areas.update(area.id, { systemPages });
+  }
+
   /**
    * Notify the hosting framework that one or more public pages have changed
    * and their cached output should be invalidated.

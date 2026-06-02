@@ -95,6 +95,12 @@ export interface CmsAreaAccessPolicy {
   recoverPasswordPage?: string;
 }
 
+/**
+ * Built-in system page types.
+ * New types can be added without breaking existing data.
+ */
+export type SystemPageType = "home" | "404" | string;
+
 /** Full CMS Area entity */
 export interface CmsArea {
   id: string;
@@ -112,6 +118,14 @@ export interface CmsArea {
   legal?: CmsAreaLegal;
   tracking?: CmsAreaTracking;
   accessPolicy?: CmsAreaAccessPolicy;
+  /**
+   * Maps system page type → pageId for this area.
+   * e.g. { home: "abc123", "404": "xyz456" }
+   * The referenced pages have special routing behaviour:
+   *   - "home" → served at the area root path (/)
+   *   - "404"  → rendered when no page matches the requested slug
+   */
+  systemPages?: Record<SystemPageType, string>;
   createdAt?: Date;
   updatedAt?: Date;
 }

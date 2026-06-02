@@ -24,6 +24,7 @@ export const cmsAreas = pgTable("cms_areas", {
   legal:        jsonb("legal").default({}),
   tracking:     jsonb("tracking").default({}),
   accessPolicy: jsonb("access_policy").default({}),
+  systemPages:  jsonb("system_pages").default({}),
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

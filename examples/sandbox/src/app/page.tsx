@@ -1,12 +1,18 @@
 import { cms } from "@/lib/cms";
-import { resolveHomePageSlug } from "@/lib/publicPageResolver";
+import { getPrimaryPublicAreaName, resolveHomePageSlug } from "@/lib/publicPageResolver";
 import { unstable_cache } from "next/cache";
 
 const getHomeContent = unstable_cache(
   async () => {
-    const { areaName, slug } = await resolveHomePageSlug();
-    const result = await cms.renderContent(areaName, slug).catch(() => null);
-    return { result, slug };
+    const areaName = await getPrimaryPublicAreaName();
+    // Prefer system page "home" if configured, fallback to slug-based resolution
+    const result =
+      await cms.renderSystemContent(areaName, "home").catch(() => null)
+      ?? await (async () => {
+        const { slug } = await resolveHomePageSlug();
+        return cms.renderContent(areaName, slug).catch(() => null);
+      })();
+    return { result };
   },
   ["home-page"],
   { revalidate: false, tags: ["home-page", "pages"] },

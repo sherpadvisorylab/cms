@@ -7,6 +7,7 @@ import { PageSettingsSaveButton } from "./PageSettingsSaveButton";
 import { PageSchemaEditor } from "./PageSchemaEditor";
 import type { ComponentSchemaEntry, PageSchemaConfig } from "./PageSchemaEditor";
 import { PageEditorHeader } from "./PageEditorHeader";
+import { SystemPageBadges } from "@/components/admin/SystemPageBadges";
 
 export default async function PageSettingsPage({
   params,
@@ -19,6 +20,13 @@ export default async function PageSettingsPage({
     cms.areas.findAll(),
     cms.components.findAll(),
   ]);
+
+  // Determine if this page is a system page and which type
+  const pageArea = areas.find((a) => a.name === (allPages.find(p => p.id === id)?.area));
+  const currentSystemType = pageArea?.systemPages
+    ? Object.entries(pageArea.systemPages).find(([, pid]) => pid === id)?.[0] ?? null
+    : null;
+  const isSystemPage = !!currentSystemType;
   const page = allPages.find((p) => p.id === id);
   if (!page) notFound();
 
@@ -104,10 +112,23 @@ export default async function PageSettingsPage({
               </select>
             </div>
 
+            {/* System page badges */}
+            <SystemPageBadges
+              pageId={id}
+              areaName={page.area}
+              currentType={currentSystemType}
+            />
+
             {/* Delete — bottom right, destructive action separate from settings */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20,
               paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-              <DeleteButton action={deletePage.bind(null, id)} />
+              {isSystemPage ? (
+                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                  🔒 System pages cannot be deleted
+                </span>
+              ) : (
+                <DeleteButton action={deletePage.bind(null, id)} />
+              )}
             </div>
           </div>
 

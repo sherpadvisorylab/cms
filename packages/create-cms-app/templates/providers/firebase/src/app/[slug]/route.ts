@@ -2,8 +2,26 @@ import { cms } from "@/lib/cms";
 import { initAdmin } from "@/lib/firebase/admin";
 import { getAuth } from "firebase-admin/auth";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
+import { unstable_cache } from "next/cache";
 
 initAdmin();
+
+function renderPageCached(areaName: string, slug: string) {
+  return unstable_cache(
+    () => cms.renderPage(areaName, slug, {}),
+    [`render:${areaName}:${slug}`],
+    { revalidate: false, tags: [`page:${slug}`, "pages"] },
+  )();
+}
+
+function render404Cached(areaName: string) {
+  return unstable_cache(
+    () => cms.renderSystemPage(areaName, "404")
+      .then(html => html ?? cms.renderPage(areaName, "404", {})),
+    [`render:${areaName}:404`],
+    { revalidate: false, tags: ["page:404", "pages"] },
+  )();
+}
 
 export async function GET(
   request: Request,
@@ -21,10 +39,17 @@ export async function GET(
   }
 
   const areaName = await getPrimaryPublicAreaName();
-  const html = await cms.renderPage(areaName, slug, { draft: isDraft });
+
+  // Draft: always fresh from Firestore, no cache.
+  // Published: served from Next.js cache, invalidated on publish via revalidateTag.
+  const html = isDraft
+    ? await cms.renderPage(areaName, slug, { draft: true })
+    : await renderPageCached(areaName, slug);
 
   if (!html) {
-    const notFound = await cms.renderPage(areaName, "404", {});
+    const notFound = isDraft
+      ? (await cms.renderSystemPage(areaName, "404") ?? await cms.renderPage(areaName, "404", {}))
+      : await render404Cached(areaName);
     return new Response(notFound ?? "<h1>404 Not Found</h1>", {
       status: 404,
       headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -35,9 +60,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": isDraft
-        ? "no-store"
-        : "public, max-age=3600, stale-while-revalidate=86400",
+      ...(isDraft && { "Cache-Control": "no-store" }),
     },
   });
 }

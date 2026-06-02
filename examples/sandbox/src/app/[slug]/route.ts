@@ -11,6 +11,15 @@ function renderPageCached(areaName: string, slug: string) {
   )();
 }
 
+function render404Cached(areaName: string) {
+  return unstable_cache(
+    () => cms.renderSystemPage(areaName, "404")
+      .then(html => html ?? cms.renderPage(areaName, "404", {})),
+    [`render:${areaName}:404`],
+    { revalidate: false, tags: ["page:404", "pages"] },
+  )();
+}
+
 /**
  * Public CMS page renderer — returns full HTML from the area's head/body templates.
  * Published pages are served from Next.js cache (ISR); invalidated on publish via revalidateTag.
@@ -43,8 +52,8 @@ export async function GET(
 
   if (!html) {
     const notFound = isDraft
-      ? await cms.renderPage(areaName, "404", {}).catch(() => null)
-      : await renderPageCached(areaName, "404").catch(() => null);
+      ? (await cms.renderSystemPage(areaName, "404").catch(() => null) ?? await cms.renderPage(areaName, "404", {}).catch(() => null))
+      : await render404Cached(areaName).catch(() => null);
     return new Response(
       notFound ?? `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px"><h2>404 — Page not found</h2><p>/${slug}</p></body></html>`,
       { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },

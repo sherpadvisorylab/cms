@@ -1,6 +1,6 @@
 {
   "name": "@sherpacms/cms",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
@@ -14,8 +14,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@sherpacms/domain": "^0.2.0",
-    "@sherpacms/infrastructure": "^0.2.0",
-    "@sherpacms/form-generator": "^0.2.0"
+    "@sherpacms/domain": "^0.3.0",
+    "@sherpacms/infrastructure": "^0.3.0",
+    "@sherpacms/form-generator": "^0.3.0"
   }
 }
