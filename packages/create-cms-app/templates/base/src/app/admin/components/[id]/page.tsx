@@ -266,6 +266,71 @@ function extractTemplateSchema(template: string): SchemaField[] {
   return result;
 }
 
+// ── Floating label input components ──────────────────────────────────────────
+const floatLabel = (floated: boolean, focused: boolean): React.CSSProperties => ({
+  position: "absolute", left: 8, pointerEvents: "none",
+  transition: "top 0.15s ease, font-size 0.15s ease, color 0.15s ease, letter-spacing 0.15s ease",
+  top: floated ? 4 : "50%",
+  transform: floated ? "none" : "translateY(-50%)",
+  fontSize: floated ? "0.56rem" : "0.77rem",
+  color: focused ? "var(--primary)" : "var(--text-muted)",
+  letterSpacing: floated ? "0.05em" : "normal",
+  textTransform: floated ? "uppercase" : "none",
+  lineHeight: 1, whiteSpace: "nowrap",
+});
+
+function FloatInput({ label, value, onChange, title, monospace, style }: {
+  label: string; value: string; onChange: (v: string) => void;
+  title?: string; monospace?: boolean; style?: React.CSSProperties;
+}) {
+  const [focused, setFocused] = useState(false);
+  const floated = focused || value.length > 0;
+  return (
+    <div style={{ position: "relative", ...style }}>
+      <input className="form-control" value={value} title={title} placeholder=" "
+        style={{ paddingTop: 16, paddingBottom: 3, fontFamily: monospace ? "monospace" : undefined, fontSize: "0.76rem", width: "100%", boxSizing: "border-box" as const }}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+      <span style={floatLabel(floated, focused)}>{label}</span>
+    </div>
+  );
+}
+
+function FloatTextarea({ label, value, onChange, title, rows }: {
+  label: string; value: string; onChange: (v: string) => void;
+  title?: string; rows?: number;
+}) {
+  const [focused, setFocused] = useState(false);
+  const floated = focused || value.length > 0;
+  return (
+    <div style={{ position: "relative" }}>
+      <textarea className="form-control" value={value} title={title} placeholder=" " rows={rows ?? 2}
+        style={{ paddingTop: 16, paddingBottom: 3, fontSize: "0.74rem", resize: "vertical", width: "100%", boxSizing: "border-box" as const }}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+      <span style={{ ...floatLabel(floated, focused), top: floated ? 4 : 8, transform: "none" }}>{label}</span>
+    </div>
+  );
+}
+
+function FloatSelect({ label, value, onChange, title, children, style }: {
+  label: string; value: string; onChange: (v: string) => void;
+  title?: string; children: React.ReactNode; style?: React.CSSProperties;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ position: "relative", ...style }}>
+      <select className="form-control" value={value} title={title}
+        style={{ paddingTop: 16, paddingBottom: 3, fontSize: "0.75rem", width: "100%", boxSizing: "border-box" as const }}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
+        {children}
+      </select>
+      <span style={{ ...floatLabel(true, focused), pointerEvents: "none" }}>{label}</span>
+    </div>
+  );
+}
+
 // ── Placement tab: recursive field rows with indentation ─────────────────────
 function PlacementRows({
   fields, onUpdate, depth = 0,
@@ -354,23 +419,14 @@ function SchemaFieldRow({
     onUpdate({ childSchema: ch });
   }
 
-  const micro: React.CSSProperties = { fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2, display: "block" };
-
   return (
     <div style={{ padding: "9px 0" }}>
       {/* Row 1: KEY (full width) + icons + collapse */}
-      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", marginBottom: collapsed ? 0 : 5 }}>
-        <div style={{ flex: 1 }}>
-          <span style={micro}>Key</span>
-          <input
-            className="form-control"
-            style={{ fontFamily: "monospace", fontSize: "0.76rem", width: "100%" }}
-            value={field.key}
-            placeholder="property_name"
-            title="Variable key — used in Liquid template as {{ key }}"
-            onChange={(e) => onUpdate({ key: e.target.value.replace(/\s+/g, "_").toLowerCase() })}
-          />
-        </div>
+      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: collapsed ? 0 : 5 }}>
+        <FloatInput label="Key" value={field.key} monospace
+          title="Variable key — used in Liquid template as {{ key }}"
+          style={{ flex: 1 }}
+          onChange={(v) => onUpdate({ key: v.replace(/\s+/g, "_").toLowerCase() })} />
         <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} title="Move up" style={{ fontSize: "0.65rem" }}>▲</button>
         <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} title="Move down" style={{ fontSize: "0.65rem" }}>▼</button>
         <button className="btn-icon" onClick={onRemove} title="Remove field" style={{ color: "var(--danger)", fontSize: "0.65rem" }}>✕</button>
@@ -383,44 +439,24 @@ function SchemaFieldRow({
         <>
           {/* Row 2: LABEL (full width) + TYPE */}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-            <div style={{ flex: 1 }}>
-              <span style={micro}>Label</span>
-              <input
-                className="form-control"
-                style={{ fontSize: "0.77rem", width: "100%" }}
-                value={field.label}
-                placeholder="Display label"
-                title="Display label shown to editors in the content form"
-                onChange={(e) => onUpdate({ label: e.target.value })}
-              />
-            </div>
-            <div style={{ width: 96, flexShrink: 0 }}>
-              <span style={micro}>Type</span>
-              <select
-                className="form-control"
-                style={{ fontSize: "0.75rem", width: "100%" }}
-                value={field.type}
-                title="Field type — determines the input widget in the page editor"
-                onChange={(e) => onUpdate({ type: e.target.value as SchemaFieldType })}
-              >
-                {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+            <FloatInput label="Label" value={field.label}
+              title="Display label shown to editors in the content form"
+              style={{ flex: 1 }}
+              onChange={(v) => onUpdate({ label: v })} />
+            <FloatSelect label="Type" value={field.type}
+              title="Field type — determines the input widget in the page editor"
+              style={{ width: 96 }}
+              onChange={(v) => onUpdate({ type: v as SchemaFieldType })}>
+              {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </FloatSelect>
           </div>
 
-          {/* Row 3: HELP TEXT */}
-          <div>
-            <span style={micro}>Help text / placeholder</span>
-            <textarea
-              className="form-control"
-              rows={2}
-              style={{ fontSize: "0.74rem", resize: "vertical", width: "100%", boxSizing: "border-box" }}
-              value={field.helpText ?? ""}
-              placeholder="Shown as tooltip or placeholder in the editor…"
-              title="Tooltip or placeholder text displayed to editors in the content form"
-              onChange={(e) => onUpdate({ helpText: e.target.value })}
-            />
-          </div>
+          {/* Row 3: HELP TEXT / PLACEHOLDER */}
+          <FloatTextarea label="Help text / placeholder"
+            value={field.helpText ?? ""}
+            title="Tooltip or placeholder text displayed to editors in the content form"
+            rows={2}
+            onChange={(v) => onUpdate({ helpText: v })} />
 
           {/* Select options */}
           {field.type === "select" && (
