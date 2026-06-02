@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
+import { FloatInput, FloatTextarea, FloatSelect } from "@/components/admin/FloatField";
 import { createComponent, updateComponent, deleteComponent, createVersion } from "../actions";
 import { CodeEditor, type FormEmbed, type AutocompleteVar, type ComponentEmbed, type LocalVar } from "@/components/admin/CodeEditor";
 import {
@@ -264,69 +265,6 @@ function extractTemplateSchema(template: string): SchemaField[] {
   }
 
   return result;
-}
-
-// ── Floating label input components ──────────────────────────────────────────
-const floatLabel = (floated: boolean, focused: boolean): React.CSSProperties => ({
-  position: "absolute", left: 8, pointerEvents: "none",
-  transition: "top 0.15s ease, font-size 0.15s ease, color 0.15s ease",
-  top: floated ? 4 : "50%",
-  transform: floated ? "none" : "translateY(-50%)",
-  fontSize: floated ? "0.58rem" : "0.77rem",
-  color: focused ? "var(--primary)" : "var(--text-muted)",
-  lineHeight: 1, whiteSpace: "nowrap",
-});
-
-function FloatInput({ label, value, onChange, title, monospace, style }: {
-  label: string; value: string; onChange: (v: string) => void;
-  title?: string; monospace?: boolean; style?: React.CSSProperties;
-}) {
-  const [focused, setFocused] = useState(false);
-  const floated = focused || value.length > 0;
-  return (
-    <div style={{ position: "relative", ...style }}>
-      <input className="form-control" value={value} title={title} placeholder=" "
-        style={{ paddingTop: 16, paddingBottom: 3, fontFamily: monospace ? "monospace" : undefined, fontSize: "0.76rem", width: "100%", boxSizing: "border-box" as const }}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
-      <span style={floatLabel(floated, focused)}>{label}</span>
-    </div>
-  );
-}
-
-function FloatTextarea({ label, value, onChange, title, rows }: {
-  label: string; value: string; onChange: (v: string) => void;
-  title?: string; rows?: number;
-}) {
-  const [focused, setFocused] = useState(false);
-  const floated = focused || value.length > 0;
-  return (
-    <div style={{ position: "relative" }}>
-      <textarea className="form-control" value={value} title={title} placeholder=" " rows={rows ?? 2}
-        style={{ paddingTop: 16, paddingBottom: 3, fontSize: "0.74rem", resize: "vertical", width: "100%", boxSizing: "border-box" as const }}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
-      <span style={{ ...floatLabel(floated, focused), top: floated ? 4 : 8, transform: "none" }}>{label}</span>
-    </div>
-  );
-}
-
-function FloatSelect({ label, value, onChange, title, children, style }: {
-  label: string; value: string; onChange: (v: string) => void;
-  title?: string; children: React.ReactNode; style?: React.CSSProperties;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ position: "relative", ...style }}>
-      <select className="form-control" value={value} title={title}
-        style={{ paddingTop: 16, paddingBottom: 3, fontSize: "0.75rem", width: "100%", boxSizing: "border-box" as const }}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
-        {children}
-      </select>
-      <span style={{ ...floatLabel(true, focused), pointerEvents: "none" }}>{label}</span>
-    </div>
-  );
 }
 
 // ── Placement tab: recursive field rows with indentation ─────────────────────
