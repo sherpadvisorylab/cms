@@ -70,8 +70,21 @@ function htmlToLiquidVariables(htmlString: string): {
   html: string;
   labelByVar: Record<string, string>;
 } {
+  // Protect existing Liquid syntax before DOM parsing so it is never treated
+  // as plain text. Both block tags {% ... %} and output tags {{ ... }} are
+  // replaced with unique sentinels and restored after the walk.
+  const liquidBlocks: string[] = [];
+  const protected_ = htmlString.replace(
+    /(\{%-?[\s\S]*?-?%\}|\{\{[\s\S]*?\}\})/g,
+    (match) => {
+      const idx = liquidBlocks.length;
+      liquidBlocks.push(match);
+      return `​__LQ${idx}__​`; // zero-width space ensures sentinel is isolated
+    }
+  );
+
   const div = document.createElement("div");
-  div.innerHTML = htmlString;
+  div.innerHTML = protected_;
   const used: Record<string, string> = {};
   const labelByVar: Record<string, string> = {};
 
@@ -88,7 +101,10 @@ function htmlToLiquidVariables(htmlString: string): {
 
   function walk(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = (node.textContent ?? "").trim();
+      const raw = node.textContent ?? "";
+      // Skip text nodes that contain a Liquid sentinel — preserve them as-is
+      if (raw.includes("__LQ") && raw.includes("__")) return;
+      const text = raw.trim();
       if (text.length > 0) {
         const baseName = toVariableName(text);
         const varName = ensureUnique(baseName, text);
@@ -105,7 +121,14 @@ function htmlToLiquidVariables(htmlString: string): {
   }
 
   walk(div);
-  return { html: div.innerHTML, labelByVar };
+
+  // Restore Liquid blocks
+  let html = div.innerHTML;
+  liquidBlocks.forEach((block, idx) => {
+    html = html.replace(`​__LQ${idx}__​`, block);
+  });
+
+  return { html, labelByVar };
 }
 
 /**
