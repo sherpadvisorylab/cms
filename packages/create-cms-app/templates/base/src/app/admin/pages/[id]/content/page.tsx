@@ -455,6 +455,8 @@ export default function ContentPage() {
   const [showPicker, setShowPicker] = useState(false);
   const [insertAfter, setInsertAfter] = useState<number | null>(null);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [showSaveMenu,       setShowSaveMenu]       = useState(false);
+  const saveBtnRef = useRef<HTMLDivElement>(null);
 
   const [showPreview, setShowPreview] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -542,6 +544,15 @@ export default function ContentPage() {
     setShowPicker(false);
     setInsertAfter(null);
   }
+
+  useEffect(() => {
+    if (!showSaveMenu) return;
+    function handler(e: MouseEvent) {
+      if (saveBtnRef.current && !saveBtnRef.current.contains(e.target as Node)) setShowSaveMenu(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showSaveMenu]);
 
   async function handleSave() {
     setSaving(true);
@@ -634,7 +645,7 @@ export default function ContentPage() {
               ?
             </button>
             <button
-              className="btn btn-sm"
+              className="btn btn-secondary btn-sm"
               onClick={() => setShowPreview((current) => !current)}
               title={showPreview ? "Hide preview" : "Show preview"}
               style={showPreview ? { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", fontWeight: 600 } : undefined}
@@ -642,19 +653,59 @@ export default function ContentPage() {
               Preview
             </button>
             {saved && <span style={{ fontSize: "0.82rem", color: "var(--success)", fontWeight: 600 }}>Saved</span>}
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowSaveAsTemplate(true)}
-              title="Save current structure as a reusable page template"
-            >
-              💾 Save as Template
-            </button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving || !hasUnsavedChanges}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                {saving && <ButtonSpinner color="#ffffff" />}
-                {saving ? "Saving..." : "Save Content"}
-              </span>
-            </button>
+
+            {/* Save Content split button */}
+            <div ref={saveBtnRef} style={{ position: "relative", display: "inline-flex" }}>
+              <div style={{
+                display: "inline-flex", alignItems: "stretch", borderRadius: 6,
+                overflow: "hidden", border: "1px solid var(--primary-dark, #1d4ed8)",
+              }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSave}
+                  disabled={saving || !hasUnsavedChanges}
+                  style={{ borderRadius: 0, borderRight: "1px solid rgba(255,255,255,0.25)" }}
+                >
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {saving && <ButtonSpinner color="#ffffff" />}
+                    {saving ? "Saving..." : "Save Content"}
+                  </span>
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowSaveMenu((v) => !v)}
+                  title="More save options"
+                  style={{ borderRadius: 0, padding: "0 8px" }}
+                >
+                  {showSaveMenu ? "▴" : "▾"}
+                </button>
+              </div>
+
+              {showSaveMenu && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 200,
+                  background: "#fff", border: "1px solid var(--border)", borderRadius: 8,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 200, overflow: "hidden",
+                }}>
+                  <button
+                    onClick={() => { setShowSaveMenu(false); setShowSaveAsTemplate(true); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%",
+                      padding: "10px 14px", textAlign: "left", background: "none",
+                      border: "none", cursor: "pointer", fontSize: "0.875rem",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span>💾</span>
+                    <span>
+                      <span style={{ display: "block", fontWeight: 600, color: "var(--text)" }}>Save as Template</span>
+                      <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>Reuse this layout on new pages</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
             <PublishToggle
               pageId={pageId}
               initialIsPublished={isPublished}
