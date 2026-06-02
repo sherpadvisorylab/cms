@@ -3,7 +3,7 @@
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking, CmsAreaAccessPolicy } from "@cms/domain";
+import type { CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking, CmsAreaAccessPolicy } from "@sherpacms/domain";
 
 export async function createArea(formData: FormData) {
   await cms.areas.create({

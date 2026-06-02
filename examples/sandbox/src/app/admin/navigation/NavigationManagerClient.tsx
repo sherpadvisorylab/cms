@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CodeEditor } from "@/components/admin/CodeEditor";
-import type { CmsNavigation, CmsNavigationItem } from "@cms/domain";
+import type { CmsNavigation, CmsNavigationItem } from "@sherpacms/domain";
 import type { AutocompleteVar } from "@/components/admin/CodeEditor";
 import { saveNavigationFull, createNavigationDirect, deleteNavigation } from "./actions";
 

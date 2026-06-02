@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { COMPONENT_TYPE_LABELS, type ComponentType } from "@cms/domain";
+import { COMPONENT_TYPE_LABELS, type ComponentType } from "@sherpacms/domain";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 

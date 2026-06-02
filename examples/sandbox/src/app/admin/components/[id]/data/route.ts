@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
-import type { CmsSettings } from "@cms/domain";
+import type { CmsSettings } from "@sherpacms/domain";
 
 // Built-in style variable keys — always included even if settings has no overrides
 const BUILTIN_STYLE_KEYS = [

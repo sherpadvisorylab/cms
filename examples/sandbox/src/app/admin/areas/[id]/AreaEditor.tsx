@@ -8,7 +8,7 @@ import { saveAreaFull } from "../actions";
 import type {
   CmsArea, CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking,
   CmsAreaAccessPolicy, CmsColorSchema, CmsLegalPage, CmsTrackingScript,
-} from "@cms/domain";
+} from "@sherpacms/domain";
 import type { AutocompleteVar, ComponentEmbed } from "@/components/admin/CodeEditor";
 
 // ── Page-level variables for Design tab editors ───────────────────────────────

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import { ComponentPickerModal } from "@/components/admin/ComponentPickerModal";
 import { clonePage, quickUpdatePage, updateStructure } from "./actions";
-import type { CmsPage, CmsArea, ComponentInstance } from "@cms/domain";
+import type { CmsPage, CmsArea, ComponentInstance } from "@sherpacms/domain";
 
 type PageRow = CmsPage & {
   publishedVersionNumber?: number | null;

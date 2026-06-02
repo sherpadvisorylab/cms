@@ -6,7 +6,7 @@ import { updateStructure } from "../../actions";
 import { ComponentPickerModal } from "@/components/admin/ComponentPickerModal";
 import { PageEditorHeader } from "../PageEditorHeader";
 import { PublishToggle } from "@/components/admin/PublishToggle";
-import type { ComponentInstance } from "@cms/domain";
+import type { ComponentInstance } from "@sherpacms/domain";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 

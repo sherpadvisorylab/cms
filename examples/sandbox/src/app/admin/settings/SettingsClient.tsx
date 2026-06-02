@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
-import type { CmsSettings } from "@cms/domain";
+import type { CmsSettings } from "@sherpacms/domain";
 import { saveBranding, saveAuthentication, saveSystemVars } from "./actions";
 import { ImageUploadField, getImageUrl, type ImageValue } from "@/components/admin/ImageUploadField";
 

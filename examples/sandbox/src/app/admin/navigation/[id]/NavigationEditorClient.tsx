@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
 import { CodeEditor } from "@/components/admin/CodeEditor";
-import type { CmsNavigation, CmsNavigationItem } from "@cms/domain";
+import type { CmsNavigation, CmsNavigationItem } from "@sherpacms/domain";
 import { saveNavigationFull, deleteNavigation } from "../actions";
 
 interface Props {
