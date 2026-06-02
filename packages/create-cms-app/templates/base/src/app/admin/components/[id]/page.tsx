@@ -281,10 +281,11 @@ const VALIDATOR_OPTIONS = [
 ];
 
 function PlacementFieldRow({
-  field, onUpdate,
+  field, onUpdate, onUpdateChild,
 }: {
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
+  onUpdateChild?: (cIdx: number, patch: Partial<SchemaField>) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const isCustomValidator = !!field.validator && !PREDEFINED_VALIDATORS[field.validator];
@@ -351,6 +352,31 @@ function PlacementFieldRow({
           )}
         </div>
       )}
+      {/* Nested children — hidden when collapsed */}
+      {!collapsed && isList && (field.childSchema ?? []).length > 0 && (
+        <div style={{ paddingLeft: 10, borderLeft: "2px solid var(--border)", marginTop: 2 }}>
+          {(field.childSchema ?? []).map((child, cIdx) => (
+            <Fragment key={`${child.key}-${cIdx}`}>
+              {cIdx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2px 0" }} />}
+              <PlacementFieldRow
+                field={child as SchemaField}
+                onUpdate={(patch) => {
+                  const ch = [...(field.childSchema ?? [])];
+                  ch[cIdx] = { ...ch[cIdx], ...patch };
+                  onUpdate({ childSchema: ch });
+                }}
+                onUpdateChild={(gcIdx, patch) => {
+                  const ch = [...(field.childSchema ?? [])];
+                  const grandchildren = [...(ch[cIdx].childSchema ?? [])];
+                  grandchildren[gcIdx] = { ...grandchildren[gcIdx], ...patch };
+                  ch[cIdx] = { ...ch[cIdx], childSchema: grandchildren };
+                  onUpdate({ childSchema: ch });
+                }}
+              />
+            </Fragment>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -367,19 +393,15 @@ function PlacementRows({
       {fields.map((field, idx) => (
         <Fragment key={`${field.key}-${idx}`}>
           {idx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2px 0" }} />}
-          <PlacementFieldRow field={field} onUpdate={(patch) => onUpdate(idx, patch)} />
-          {field.type === "list" && (field.childSchema ?? []).length > 0 && (
-            <div style={{ paddingLeft: 10, borderLeft: "2px solid var(--border)" }}>
-              <PlacementRows
-                fields={(field.childSchema ?? []) as SchemaField[]}
-                onUpdate={(cIdx, patch) => {
-                  const ch = [...(field.childSchema ?? [])];
-                  ch[cIdx] = { ...ch[cIdx], ...patch };
-                  onUpdate(idx, { childSchema: ch });
-                }}
-              />
-            </div>
-          )}
+          <PlacementFieldRow
+            field={field}
+            onUpdate={(patch) => onUpdate(idx, patch)}
+            onUpdateChild={(cIdx, patch) => {
+              const ch = [...(field.childSchema ?? [])];
+              ch[cIdx] = { ...ch[cIdx], ...patch };
+              onUpdate(idx, { childSchema: ch });
+            }}
+          />
         </Fragment>
       ))}
     </>
