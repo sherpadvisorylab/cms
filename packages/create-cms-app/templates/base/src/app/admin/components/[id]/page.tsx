@@ -119,12 +119,14 @@ function htmlToLiquidVariables(htmlString: string): {
 function extractTemplateVars(template: string): string[] {
   const found = new Set<string>();
   const loopCollections = new Set<string>();
+  // Collect loop collection names so we skip them as simple vars
   const reFor = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
   let m: RegExpExecArray | null;
   while ((m = reFor.exec(template)) !== null) {
     loopCollections.add(m[1].trim());
-    found.add(m[1].trim());
+    found.add(m[1].trim()); // still include so auto-add fires
   }
+  // {{ varName }} — simple variables (skip loop aliases like item.field)
   const reVar = /\{\{([^}]+)\}\}/g;
   while ((m = reVar.exec(template)) !== null) {
     const key = m[1].trim();
@@ -133,34 +135,65 @@ function extractTemplateVars(template: string): string[] {
   return Array.from(found);
 }
 
-/** Richer extraction used by the sync button: detects list fields + child schemas */
+/** Recursively build child schema for a loop body given the loop alias */
+function extractChildSchema(alias: string, body: string): ComponentSchemaField[] {
+  const children: SchemaField[] = [];
+  const seenKeys = new Set<string>();
+  let m: RegExpExecArray | null;
+
+  // Nested for loops: {% for innerAlias in alias.nestedField %}...{% endfor %}
+  const nestedForRe = new RegExp(
+    `\\{%-?\\s*for\\s+(\\w+)\\s+in\\s+${alias}\\.([a-z_][a-z0-9_]*)\\s*-?%\\}([\\s\\S]*?)\\{%-?\\s*endfor\\s*-?%\\}`,
+    "gi"
+  );
+  while ((m = nestedForRe.exec(body)) !== null) {
+    const innerAlias = m[1];
+    const nestedKey = m[2];
+    const nestedBody = m[3];
+    if (!seenKeys.has(nestedKey)) {
+      seenKeys.add(nestedKey);
+      children.push({
+        key: nestedKey, label: nestedKey.replace(/_/g, " "), type: "list",
+        loopAlias: innerAlias,
+        childSchema: extractChildSchema(innerAlias, nestedBody),
+      });
+    }
+  }
+
+  // Simple fields: {{ alias.field }}
+  const simpleRe = new RegExp(`\\{\\{\\s*${alias}\\.([a-z_][a-z0-9_]*)\\s*\\}\\}`, "gi");
+  while ((m = simpleRe.exec(body)) !== null) {
+    if (!seenKeys.has(m[1])) {
+      seenKeys.add(m[1]);
+      children.push({ key: m[1], label: m[1].replace(/_/g, " "), type: "text" });
+    }
+  }
+
+  return children as ComponentSchemaField[];
+}
+
+/** Richer extraction used by the sync button: detects list fields + child schemas (infinite nesting) */
 function extractTemplateSchema(template: string): SchemaField[] {
   const result: SchemaField[] = [];
   const seenKeys = new Set<string>();
-
-  const reFor = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
   let m: RegExpExecArray | null;
+
+  // Top-level for loops only (collection is a simple identifier, not dotted)
+  const reFor = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
   while ((m = reFor.exec(template)) !== null) {
     const alias = m[1];
     const collectionKey = m[2];
     const body = m[3];
     if (seenKeys.has(collectionKey)) continue;
     seenKeys.add(collectionKey);
-
-    const reField = new RegExp(`\\{\\{\\s*${alias}\\.([a-z_][a-z0-9_]*)\\s*\\}\\}`, "gi");
-    const childKeys = new Set<string>();
-    let fm: RegExpExecArray | null;
-    while ((fm = reField.exec(body)) !== null) childKeys.add(fm[1]);
-
     result.push({
-      key: collectionKey,
-      label: collectionKey.replace(/_/g, " "),
-      type: "list",
+      key: collectionKey, label: collectionKey.replace(/_/g, " "), type: "list",
       loopAlias: alias,
-      childSchema: Array.from(childKeys).map((k) => ({ key: k, label: k.replace(/_/g, " "), type: "text" as SchemaFieldType })),
+      childSchema: extractChildSchema(alias, body),
     });
   }
 
+  // Simple {{ varName }} variables
   const reVar = /\{\{([^}]+)\}\}/g;
   while ((m = reVar.exec(template)) !== null) {
     const key = m[1].trim();
@@ -173,25 +206,37 @@ function extractTemplateSchema(template: string): SchemaField[] {
   return result;
 }
 
-// ── Shared field editor row ───────────────────────────────────────────────────
+// ── Shared field editor row (self-contained, infinitely recursive) ────────────
 function SchemaFieldRow({
-  field, allowList, onUpdate, onRemove, onMoveUp, onMoveDown, disableMoveUp, disableMoveDown,
-  onAddChild, onUpdateChild, onRemoveChild, onMoveChildUp, onMoveChildDown,
+  field, onUpdate, onRemove, onMoveUp, onMoveDown, disableMoveUp, disableMoveDown,
 }: {
   field: SchemaField;
-  allowList: boolean;
   onUpdate: (patch: Partial<SchemaField>) => void;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   disableMoveUp: boolean;
   disableMoveDown: boolean;
-  onAddChild?: () => void;
-  onUpdateChild?: (cIdx: number, patch: Partial<SchemaField>) => void;
-  onRemoveChild?: (cIdx: number) => void;
-  onMoveChildUp?: (cIdx: number) => void;
-  onMoveChildDown?: (cIdx: number) => void;
 }) {
+  function addChild() {
+    const len = field.childSchema?.length ?? 0;
+    onUpdate({ childSchema: [...(field.childSchema ?? []), { key: `field_${len + 1}`, label: "New Field", type: "text" as SchemaFieldType }] });
+  }
+  function updateChild(cIdx: number, patch: Partial<SchemaField>) {
+    const ch = [...(field.childSchema ?? [])];
+    ch[cIdx] = { ...ch[cIdx], ...patch };
+    onUpdate({ childSchema: ch });
+  }
+  function removeChild(cIdx: number) {
+    onUpdate({ childSchema: (field.childSchema ?? []).filter((_, i) => i !== cIdx) });
+  }
+  function moveChild(cIdx: number, dir: -1 | 1) {
+    const ch = [...(field.childSchema ?? [])];
+    const t = cIdx + dir;
+    if (t < 0 || t >= ch.length) return;
+    [ch[cIdx], ch[t]] = [ch[t], ch[cIdx]];
+    onUpdate({ childSchema: ch });
+  }
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 11px", background: "var(--bg-light)" }}>
       <div style={{ display: "flex", gap: 5, marginBottom: 6 }}>
@@ -205,8 +250,7 @@ function SchemaFieldRow({
       <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
         <select className="form-control" style={{ flex: 1, fontSize: "0.77rem" }} value={field.type}
           onChange={(e) => onUpdate({ type: e.target.value as SchemaFieldType })}>
-          {(allowList ? SCHEMA_FIELD_TYPES : SCHEMA_FIELD_TYPES.filter((t) => t !== "list"))
-            .map((t) => <option key={t} value={t}>{t}</option>)}
+          {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} style={{ fontSize: "0.68rem" }}>▲</button>
         <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} style={{ fontSize: "0.68rem" }}>▼</button>
@@ -236,28 +280,27 @@ function SchemaFieldRow({
           </button>
         </div>
       )}
-      {field.type === "list" && allowList && (
+      {field.type === "list" && (
         <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6 }}>
             {field.loopAlias ? `${field.loopAlias} fields` : "item fields"}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 8, borderLeft: "2px solid var(--border)" }}>
             {(field.childSchema ?? []).map((child, cIdx) => (
               <SchemaFieldRow
                 key={cIdx}
                 field={child as SchemaField}
-                allowList={false}
-                onUpdate={(patch) => onUpdateChild?.(cIdx, patch)}
-                onRemove={() => onRemoveChild?.(cIdx)}
-                onMoveUp={() => onMoveChildUp?.(cIdx)}
-                onMoveDown={() => onMoveChildDown?.(cIdx)}
+                onUpdate={(patch) => updateChild(cIdx, patch)}
+                onRemove={() => removeChild(cIdx)}
+                onMoveUp={() => moveChild(cIdx, -1)}
+                onMoveDown={() => moveChild(cIdx, 1)}
                 disableMoveUp={cIdx === 0}
                 disableMoveDown={cIdx >= (field.childSchema?.length ?? 0) - 1}
               />
             ))}
           </div>
           <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 6, fontSize: "0.72rem" }}
-            onClick={onAddChild}>+ Add field</button>
+            onClick={addChild}>+ Add field</button>
         </div>
       )}
     </div>
@@ -383,9 +426,11 @@ export default function ComponentEditorPage() {
       return detected.map((d) => {
         const existing = byKey[d.key];
         if (!existing) return d;
+        // Upgrade text→list when detection recognises a loop collection
         if (d.type === "list" && existing.type !== "list") {
           return { ...d, label: existing.label };
         }
+        // Merge new child fields into existing list without removing existing ones
         if (d.type === "list" && existing.type === "list") {
           const existingChildKeys = new Set((existing.childSchema ?? []).map((c) => c.key));
           return {
@@ -586,18 +631,12 @@ export default function ComponentEditorPage() {
                           <SchemaFieldRow
                             key={idx}
                             field={field}
-                            allowList={true}
                             onUpdate={(patch) => updateField(idx, patch)}
                             onRemove={() => removeField(idx)}
                             onMoveUp={() => moveFieldUp(idx)}
                             onMoveDown={() => moveFieldDown(idx)}
                             disableMoveUp={idx === 0}
                             disableMoveDown={idx >= fields.length - 1}
-                            onAddChild={() => addChildField(idx)}
-                            onUpdateChild={(cIdx, patch) => updateChildField(idx, cIdx, patch)}
-                            onRemoveChild={(cIdx) => removeChildField(idx, cIdx)}
-                            onMoveChildUp={(cIdx) => moveChildFieldUp(idx, cIdx)}
-                            onMoveChildDown={(cIdx) => moveChildFieldDown(idx, cIdx)}
                           />
                         ))}
                       </div>
