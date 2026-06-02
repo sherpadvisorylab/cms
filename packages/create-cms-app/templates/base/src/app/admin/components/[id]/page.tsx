@@ -352,57 +352,59 @@ function SchemaFieldRow({
     onUpdate({ childSchema: ch });
   }
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 11px", background: "var(--bg-light)" }}>
-      <div style={{ display: "flex", gap: 5, marginBottom: 6 }}>
-        <input className="form-control" style={{ maxWidth: 90, fontFamily: "monospace", fontSize: "0.76rem" }}
+    <div style={{ padding: "10px 0" }}>
+      {/* Key + label + actions on one row */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 5 }}>
+        <input className="form-control" style={{ maxWidth: 84, fontFamily: "monospace", fontSize: "0.75rem" }}
           value={field.key} placeholder="key"
           onChange={(e) => onUpdate({ key: e.target.value.replace(/\s+/g, "_").toLowerCase() })} />
-        <input className="form-control" style={{ flex: 1, fontSize: "0.78rem" }}
+        <input className="form-control" style={{ flex: 1, fontSize: "0.77rem" }}
           value={field.label} placeholder="Label"
           onChange={(e) => onUpdate({ label: e.target.value })} />
+        <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} style={{ fontSize: "0.65rem" }}>▲</button>
+        <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} style={{ fontSize: "0.65rem" }}>▼</button>
+        <button className="btn-icon" onClick={onRemove} style={{ color: "var(--danger)", fontSize: "0.65rem" }}>✕</button>
       </div>
-      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-        <select className="form-control" style={{ flex: 1, fontSize: "0.77rem" }} value={field.type}
+      {/* Type + help text on second row */}
+      <div style={{ display: "flex", gap: 5 }}>
+        <select className="form-control" style={{ width: 110, fontSize: "0.75rem", flexShrink: 0 }} value={field.type}
           onChange={(e) => onUpdate({ type: e.target.value as SchemaFieldType })}>
           {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} style={{ fontSize: "0.68rem" }}>▲</button>
-        <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} style={{ fontSize: "0.68rem" }}>▼</button>
-        <button className="btn-icon" onClick={onRemove} style={{ color: "var(--danger)", fontSize: "0.68rem" }}>✕</button>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <input className="form-control" style={{ fontSize: "0.75rem" }}
+        <input className="form-control" style={{ flex: 1, fontSize: "0.74rem" }}
           value={field.helpText ?? ""} placeholder="Help text (tooltip in the editor)"
           onChange={(e) => onUpdate({ helpText: e.target.value })} />
       </div>
+      {/* Select options */}
       {field.type === "select" && (
-        <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 5 }}>Dropdown options</div>
+        <div style={{ marginTop: 6, paddingLeft: 12, borderLeft: "2px solid var(--border)" }}>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginBottom: 4 }}>Dropdown options</div>
           {(field.options ?? []).map((opt, oIdx) => (
             <div key={oIdx} style={{ display: "flex", gap: 4, marginBottom: 3 }}>
-              <input className="form-control" style={{ flex: 1, fontSize: "0.73rem" }} value={opt.label} placeholder="Label"
+              <input className="form-control" style={{ flex: 1, fontSize: "0.72rem" }} value={opt.label} placeholder="Label"
                 onChange={(e) => { const opts = [...(field.options ?? [])]; opts[oIdx] = { ...opts[oIdx], label: e.target.value }; onUpdate({ options: opts }); }} />
-              <input className="form-control" style={{ flex: 1, fontSize: "0.73rem", fontFamily: "monospace" }} value={opt.value} placeholder="value"
+              <input className="form-control" style={{ flex: 1, fontSize: "0.72rem", fontFamily: "monospace" }} value={opt.value} placeholder="value"
                 onChange={(e) => { const opts = [...(field.options ?? [])]; opts[oIdx] = { ...opts[oIdx], value: e.target.value }; onUpdate({ options: opts }); }} />
-              <button className="btn-icon" style={{ color: "var(--danger)", fontSize: "0.68rem" }}
+              <button className="btn-icon" style={{ color: "var(--danger)", fontSize: "0.67rem" }}
                 onClick={() => onUpdate({ options: (field.options ?? []).filter((_, i) => i !== oIdx) })}>✕</button>
             </div>
           ))}
-          <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 2, fontSize: "0.72rem" }}
+          <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 2, fontSize: "0.71rem" }}
             onClick={() => onUpdate({ options: [...(field.options ?? []), { label: "", value: "" }] })}>
             + Add option
           </button>
         </div>
       )}
+      {/* List child schema — indented with left border, no boxes */}
       {field.type === "list" && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6 }}>
+        <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid var(--border)" }}>
+          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginBottom: 2 }}>
             {field.loopAlias ? `${field.loopAlias} fields` : "item fields"}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 8, borderLeft: "2px solid var(--border)" }}>
-            {(field.childSchema ?? []).map((child, cIdx) => (
+          {(field.childSchema ?? []).map((child, cIdx) => (
+            <Fragment key={cIdx}>
+              {cIdx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0" }} />}
               <SchemaFieldRow
-                key={cIdx}
                 field={child as SchemaField}
                 onUpdate={(patch) => updateChild(cIdx, patch)}
                 onRemove={() => removeChild(cIdx)}
@@ -411,9 +413,9 @@ function SchemaFieldRow({
                 disableMoveUp={cIdx === 0}
                 disableMoveDown={cIdx >= (field.childSchema?.length ?? 0) - 1}
               />
-            ))}
-          </div>
-          <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 6, fontSize: "0.72rem" }}
+            </Fragment>
+          ))}
+          <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 4, fontSize: "0.71rem" }}
             onClick={addChild}>+ Add field</button>
         </div>
       )}
@@ -743,18 +745,20 @@ export default function ComponentEditorPage() {
                     {fields.length === 0 ? (
                       <div style={{ color: "var(--text-muted)", fontSize: "0.83rem", textAlign: "center", padding: "14px 0" }}>No variables defined</div>
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                      <div style={{ marginBottom: 8 }}>
                         {fields.map((field, idx) => (
-                          <SchemaFieldRow
-                            key={idx}
-                            field={field}
-                            onUpdate={(patch) => updateField(idx, patch)}
-                            onRemove={() => removeField(idx)}
-                            onMoveUp={() => moveFieldUp(idx)}
-                            onMoveDown={() => moveFieldDown(idx)}
-                            disableMoveUp={idx === 0}
-                            disableMoveDown={idx >= fields.length - 1}
-                          />
+                          <Fragment key={idx}>
+                            {idx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0" }} />}
+                            <SchemaFieldRow
+                              field={field}
+                              onUpdate={(patch) => updateField(idx, patch)}
+                              onRemove={() => removeField(idx)}
+                              onMoveUp={() => moveFieldUp(idx)}
+                              onMoveDown={() => moveFieldDown(idx)}
+                              disableMoveUp={idx === 0}
+                              disableMoveDown={idx >= fields.length - 1}
+                            />
+                          </Fragment>
                         ))}
                       </div>
                     )}
