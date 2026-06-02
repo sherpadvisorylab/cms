@@ -17,7 +17,7 @@ import {
 type Tab = "template" | "css" | "js" | "schema" | "settings";
 type BackendTab = "variables" | "placement";
 
-type SchemaField = ComponentSchemaField & { colWidth?: string };
+type SchemaField = ComponentSchemaField & { colWidth?: string; loopAlias?: string };
 
 function parseSchema(raw: unknown): SchemaField[] {
   if (Array.isArray(raw)) return raw as SchemaField[];
@@ -156,6 +156,7 @@ function extractTemplateSchema(template: string): SchemaField[] {
       key: collectionKey,
       label: collectionKey.replace(/_/g, " "),
       type: "list",
+      loopAlias: alias,
       childSchema: Array.from(childKeys).map((k) => ({ key: k, label: k.replace(/_/g, " "), type: "text" as SchemaFieldType })),
     });
   }
@@ -237,7 +238,9 @@ function SchemaFieldRow({
       )}
       {field.type === "list" && allowList && (
         <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6 }}>Item fields</div>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6 }}>
+            {field.loopAlias ? `${field.loopAlias} fields` : "item fields"}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {(field.childSchema ?? []).map((child, cIdx) => (
               <SchemaFieldRow
