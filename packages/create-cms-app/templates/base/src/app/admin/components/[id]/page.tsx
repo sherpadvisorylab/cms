@@ -299,53 +299,53 @@ function PlacementFieldRow({
     : { fontFamily: "monospace", color: "var(--primary)", fontSize: "0.74rem" };
 
   return (
-    <div style={{ padding: "9px 0" }}>
-      {/* Row 1: key only (label removed — redundant) */}
-      <div style={{ marginBottom: 6 }}>
-        <span style={keyStyle}>{displayKey}</span>
-      </div>
-      {/* Row 2: width + required (hidden for list fields) */}
-      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: isList ? 0 : 6 }}>
-        <FloatSelect label="Width" value={field.colWidth ?? "full"} onChange={(v) => onUpdate({ colWidth: v })} style={{ flex: 1 }}>
+    <div style={{ padding: "8px 0" }}>
+      {/* Row 1: key/label (flex-1) + Width select (compact, auto width) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isList ? 0 : 6 }}>
+        <span style={{ ...keyStyle, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {displayKey}
+        </span>
+        <select
+          className="form-control"
+          style={{ width: "auto", minWidth: 60, fontSize: "0.73rem", padding: "2px 4px", flexShrink: 0 }}
+          value={field.colWidth ?? "full"}
+          onChange={(e) => onUpdate({ colWidth: e.target.value })}
+        >
           <option value="full">Full</option>
           <option value="half">Half</option>
           <option value="third">Third</option>
-        </FloatSelect>
-        {!isList && (
-          <label
-            style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0, userSelect: "none" }}
-            title="When enabled, editors must fill this field before saving"
-          >
-            <div
-              onClick={() => onUpdate({ required: !field.required })}
-              style={{ width: 28, height: 16, borderRadius: 8, background: field.required ? "var(--primary)" : "var(--border)", position: "relative", cursor: "pointer", transition: "background 0.15s", flexShrink: 0 }}
-            >
-              <div style={{ position: "absolute", top: 2, left: field.required ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-            </div>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Required</span>
-          </label>
-        )}
+        </select>
       </div>
-      {/* Row 3: validator (hidden for list fields) */}
+      {/* Rows 2–3: required + validator — non-list fields only */}
       {!isList && (
-        <div style={{ display: "flex", gap: 6 }}>
-          <FloatSelect label="Validator" value={validatorSelectValue}
-            style={{ flex: 1 }}
-            title="Validate the field value against a predefined pattern or custom regex"
-            onChange={(v) => {
-              if (v === "") onUpdate({ validator: undefined });
-              else if (v === "__custom__") onUpdate({ validator: "/" });
-              else onUpdate({ validator: v });
-            }}>
-            {VALIDATOR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </FloatSelect>
-          {isCustomValidator && (
-            <FloatInput label="Regex (e.g. /^\\d+$/)" value={field.validator ?? ""}
-              style={{ flex: 2 }}
-              title="Custom regular expression — e.g. /^\\d{4}$/ or /^[A-Z]+$/i"
-              onChange={(v) => onUpdate({ validator: v })} />
-          )}
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", userSelect: "none" }}
+              title="When enabled, editors must fill this field before saving">
+              <div onClick={() => onUpdate({ required: !field.required })}
+                style={{ width: 28, height: 16, borderRadius: 8, background: field.required ? "var(--primary)" : "var(--border)", position: "relative", cursor: "pointer", transition: "background 0.15s" }}>
+                <div style={{ position: "absolute", top: 2, left: field.required ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+              </div>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Required</span>
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <FloatSelect label="Validator" value={validatorSelectValue} style={{ flex: 1 }}
+              title="Validate the field value against a predefined pattern or custom regex"
+              onChange={(v) => {
+                if (v === "") onUpdate({ validator: undefined });
+                else if (v === "__custom__") onUpdate({ validator: "/" });
+                else onUpdate({ validator: v });
+              }}>
+              {VALIDATOR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </FloatSelect>
+            {isCustomValidator && (
+              <FloatInput label="Regex (e.g. /^\\d+$/)" value={field.validator ?? ""} style={{ flex: 2 }}
+                title="Custom regular expression — e.g. /^\\d{4}$/ or /^[A-Z]+$/i"
+                onChange={(v) => onUpdate({ validator: v })} />
+            )}
+          </div>
+        </>
       )}
     </div>
   );
