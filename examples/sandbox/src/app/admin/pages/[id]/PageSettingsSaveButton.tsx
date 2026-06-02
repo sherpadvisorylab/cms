@@ -9,8 +9,8 @@ export function PageSettingsSaveButton() {
   }
 
   return (
-    <button className="btn btn-primary" onClick={handleClick}>
-      💾 Save Settings
+    <button className="btn btn-primary btn-sm" onClick={handleClick}>
+      Save Settings
     </button>
   );
 }
