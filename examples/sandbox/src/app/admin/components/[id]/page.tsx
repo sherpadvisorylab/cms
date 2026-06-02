@@ -135,28 +135,53 @@ function extractTemplateVars(template: string): string[] {
   return Array.from(found);
 }
 
-/** Recursively build child schema for a loop body given the loop alias */
-function extractChildSchema(alias: string, body: string): ComponentSchemaField[] {
+interface ParsedLoop { alias: string; collection: string; body: string }
+
+/**
+ * Stack-based parser: correctly handles nested for loops.
+ * Non-greedy regex would stop at the FIRST endfor (inner loop's),
+ * producing a truncated body. This parser counts depth instead.
+ */
+function parseAllForLoops(template: string): ParsedLoop[] {
+  const result: ParsedLoop[] = [];
+  // Match any {% for ... %} or {% endfor %} tag
+  const tagRe = /\{%-?\s*(for\s+(\w+)\s+in\s+([a-z_][a-z0-9_.]*)(?:\s[^%]*)?\s*|endfor\s*)-?%\}/gi;
+  const stack: { alias: string; collection: string; bodyStart: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = tagRe.exec(template)) !== null) {
+    const inner = m[1].trim();
+    if (inner.startsWith("for ")) {
+      const fm = /^for\s+(\w+)\s+in\s+([a-z_][a-z0-9_.]*)/.exec(inner);
+      if (fm) stack.push({ alias: fm[1], collection: fm[2], bodyStart: m.index + m[0].length });
+    } else {
+      const top = stack.pop();
+      if (top) result.push({ alias: top.alias, collection: top.collection, body: template.slice(top.bodyStart, m.index) });
+    }
+  }
+  return result;
+}
+
+function extractChildSchema(alias: string, body: string, allLoops: ParsedLoop[]): ComponentSchemaField[] {
   const children: SchemaField[] = [];
   const seenKeys = new Set<string>();
   let m: RegExpExecArray | null;
 
-  // All for loops inside the body (both {% for x in alias.field %} and {% for x in field %})
-  const innerForRe = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_.]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
+  // Find for-loop opening tags inside the body
+  const innerForRe = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_.]*)\s*(?:[^%]*)?\s*-?%\}/gi;
   while ((m = innerForRe.exec(body)) !== null) {
     const innerAlias = m[1];
     const rawCollection = m[2];
-    const nestedBody = m[3];
-    // Normalise: strip "alias." prefix if present, otherwise use the raw key
+    // Normalise: strip "alias." prefix → nested key
     const nestedKey = rawCollection.startsWith(`${alias}.`)
       ? rawCollection.slice(alias.length + 1)
       : rawCollection;
     if (seenKeys.has(nestedKey)) continue;
     seenKeys.add(nestedKey);
+    const innerLoop = allLoops.find((l) => l.alias === innerAlias);
     children.push({
       key: nestedKey, label: nestedKey.replace(/_/g, " "), type: "list",
       loopAlias: innerAlias,
-      childSchema: extractChildSchema(innerAlias, nestedBody),
+      childSchema: innerLoop ? extractChildSchema(innerAlias, innerLoop.body, allLoops) : [],
     });
   }
 
@@ -174,35 +199,31 @@ function extractChildSchema(alias: string, body: string): ComponentSchemaField[]
 
 /** Richer extraction used by the sync button: detects list fields + child schemas (infinite nesting) */
 function extractTemplateSchema(template: string): SchemaField[] {
-  const result: SchemaField[] = [];
-  let m: RegExpExecArray | null;
+  const allLoops = parseAllForLoops(template);
 
-  // Collect all for-loop entries with their positions
-  const forRe = /\{%-?\s*for\s+(\w+)\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/gi;
-  const loops: { alias: string; collection: string; body: string }[] = [];
-  while ((m = forRe.exec(template)) !== null) {
-    loops.push({ alias: m[1], collection: m[2], body: m[3] });
-  }
-
-  // Find which collections are used inside other loops (nested) → skip at top level
+  // Collections that appear inside another loop body are nested → skip at top level
   const nestedCollections = new Set<string>();
-  for (const loop of loops) {
+  for (const loop of allLoops) {
     const innerRe = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
+    let m: RegExpExecArray | null;
     while ((m = innerRe.exec(loop.body)) !== null) nestedCollections.add(m[1]);
   }
 
+  const result: SchemaField[] = [];
   const seenKeys = new Set<string>();
-  for (const { alias, collection, body } of loops) {
+
+  for (const { alias, collection, body } of allLoops) {
     if (seenKeys.has(collection) || nestedCollections.has(collection)) continue;
     seenKeys.add(collection);
     result.push({
       key: collection, label: collection.replace(/_/g, " "), type: "list",
       loopAlias: alias,
-      childSchema: extractChildSchema(alias, body),
+      childSchema: extractChildSchema(alias, body, allLoops),
     });
   }
 
   // Simple {{ varName }} variables
+  let m: RegExpExecArray | null;
   const reVar = /\{\{([^}]+)\}\}/g;
   while ((m = reVar.exec(template)) !== null) {
     const key = m[1].trim();
