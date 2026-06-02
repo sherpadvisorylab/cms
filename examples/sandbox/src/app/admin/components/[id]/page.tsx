@@ -269,13 +269,11 @@ function extractTemplateSchema(template: string): SchemaField[] {
 // ── Floating label input components ──────────────────────────────────────────
 const floatLabel = (floated: boolean, focused: boolean): React.CSSProperties => ({
   position: "absolute", left: 8, pointerEvents: "none",
-  transition: "top 0.15s ease, font-size 0.15s ease, color 0.15s ease, letter-spacing 0.15s ease",
+  transition: "top 0.15s ease, font-size 0.15s ease, color 0.15s ease",
   top: floated ? 4 : "50%",
   transform: floated ? "none" : "translateY(-50%)",
-  fontSize: floated ? "0.56rem" : "0.77rem",
+  fontSize: floated ? "0.58rem" : "0.77rem",
   color: focused ? "var(--primary)" : "var(--text-muted)",
-  letterSpacing: floated ? "0.05em" : "normal",
-  textTransform: floated ? "uppercase" : "none",
   lineHeight: 1, whiteSpace: "nowrap",
 });
 
