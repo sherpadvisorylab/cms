@@ -58,13 +58,25 @@ export function ImageUploadField({
   const isVideo  = url && /\.(mp4|webm|mov)/i.test(url);
   const acceptAttr = accept === "video" ? "video/*" : accept === "all" ? "image/*,video/*" : "image/*";
 
-  function emitUrl(nextUrl: string) {
-    if (withAlt) onChange(buildImageValue(nextUrl, alt));
+  function emitUrl(nextUrl: string, suggestedAlt?: string) {
+    if (withAlt) onChange(buildImageValue(nextUrl, suggestedAlt ?? alt));
     else onChange(nextUrl);
   }
   function emitAlt(nextAlt: string) {
     if (!withAlt) return;
     onChange(buildImageValue(url, nextAlt));
+  }
+
+  function slugifyFilename(name: string): string {
+    const dotIdx = name.lastIndexOf(".");
+    const ext    = dotIdx >= 0 ? name.slice(dotIdx + 1).toLowerCase() : "";
+    const base   = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
+    const slug   = base
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "file";
+    return ext ? `${slug}.${ext}` : slug;
   }
 
   function isAcceptable(file: File) {
@@ -78,12 +90,15 @@ export function ImageUploadField({
     setError(null);
     setUploading(true);
     try {
+      const slugName   = slugifyFilename(file.name);
+      const originalAlt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
       const form = new FormData();
       form.append("file", file);
+      form.append("filename", slugName);
       const res  = await fetch("/api/admin/upload-asset", { method: "POST", body: form });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? `Upload failed (${res.status})`);
-      emitUrl(data.url);
+      emitUrl(data.url, !alt ? originalAlt : undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -193,7 +208,7 @@ export function ImageUploadField({
       {showLibrary && (
         <MediaLibraryModal
           filter={accept}
-          onSelect={(selectedUrl) => emitUrl(selectedUrl)}
+          onSelect={(selectedUrl, selectedAlt) => emitUrl(selectedUrl, !alt ? selectedAlt : undefined)}
           onClose={() => setShowLibrary(false)}
         />
       )}

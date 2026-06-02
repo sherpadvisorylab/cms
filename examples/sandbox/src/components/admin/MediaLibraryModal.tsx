@@ -6,10 +6,15 @@ import { useEffect, useState, useCallback } from "react";
 type Asset = { name: string; url: string; contentType: string; size: number };
 
 interface MediaLibraryModalProps {
-  onSelect: (url: string) => void;
+  onSelect: (url: string, alt?: string) => void;
   onClose:  () => void;
   filter?:  "image" | "video" | "all";
 }
+
+type DupeConfirm = {
+  slugName: string;
+  resolve: (action: "overwrite" | "keep") => void;
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatSize(bytes: number) {
@@ -18,22 +23,54 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function cleanName(raw: string) {
-  // Strip leading timestamp-random prefix added on upload: "1234567890-abc123.jpg" → "abc123.jpg"
-  const parts = raw.split("-");
-  return parts.length > 1 && /^\d{13}$/.test(parts[0]) ? parts.slice(1).join("-") : raw;
+function slugifyFilename(name: string): string {
+  const dotIdx = name.lastIndexOf(".");
+  const ext    = dotIdx >= 0 ? name.slice(dotIdx + 1).toLowerCase() : "";
+  const base   = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
+  const slug   = base
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "file";
+  return ext ? `${slug}.${ext}` : slug;
+}
+
+/** For assets already in the library derive a human-readable alt from the slug name. */
+function altFromSlug(slugName: string): string {
+  const dotIdx = slugName.lastIndexOf(".");
+  const base   = dotIdx >= 0 ? slugName.slice(0, dotIdx) : slugName;
+  // Strip legacy timestamp-hash prefix (old uploads: "1234567890123-abc123")
+  const clean  = /^\d{13}-/.test(base) ? base.replace(/^\d{13}-/, "") : base;
+  return clean.replace(/-+/g, " ").trim();
+}
+
+/** Find next available counter name: slug-2.ext, slug-3.ext … */
+function findAvailableName(slugName: string, existingNames: Set<string>): string {
+  if (!existingNames.has(slugName)) return slugName;
+  const dotIdx = slugName.lastIndexOf(".");
+  const base   = dotIdx >= 0 ? slugName.slice(0, dotIdx) : slugName;
+  const ext    = dotIdx >= 0 ? slugName.slice(dotIdx) : "";
+  let counter  = 2;
+  while (existingNames.has(`${base}-${counter}${ext}`)) counter++;
+  return `${base}-${counter}${ext}`;
+}
+
+/** Strip legacy timestamp-hash prefix for display (backward compat with old uploads). */
+function displayName(raw: string) {
+  return /^\d{13}-/.test(raw) ? raw.replace(/^\d{13}-/, "") : raw;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLibraryModalProps) {
-  const [assets,          setAssets]          = useState<Asset[]>([]);
-  const [loading,         setLoading]         = useState(true);
-  const [error,           setError]           = useState<string | null>(null);
-  const [search,          setSearch]          = useState("");
-  const [deleting,        setDeleting]        = useState<string | null>(null);
-  const [confirmDelete,   setConfirmDelete]   = useState<Asset | null>(null);
-  const [dragOver,        setDragOver]        = useState(false);
-  const [uploadProgress,  setUploadProgress]  = useState<{ done: number; total: number } | null>(null);
+  const [assets,         setAssets]         = useState<Asset[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState<string | null>(null);
+  const [search,         setSearch]         = useState("");
+  const [deleting,       setDeleting]       = useState<string | null>(null);
+  const [confirmDelete,  setConfirmDelete]  = useState<Asset | null>(null);
+  const [dragOver,       setDragOver]       = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [dupeConfirm,    setDupeConfirm]    = useState<DupeConfirm | null>(null);
 
   const loadAssets = useCallback(() => {
     setLoading(true);
@@ -50,19 +87,33 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
 
   useEffect(() => { loadAssets(); }, [loadAssets]);
 
-  // Close on Escape
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape" && !dupeConfirm && !confirmDelete) onClose(); }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, dupeConfirm, confirmDelete]);
 
-  async function uploadOne(file: File) {
+  async function uploadOne(file: File, filename: string): Promise<string> {
     const form = new FormData();
     form.append("file", file);
+    form.append("filename", filename);
     const res  = await fetch("/api/admin/upload-asset", { method: "POST", body: form });
     const data = await res.json() as { url?: string; error?: string };
     if (!res.ok || !data.url) throw new Error(data.error ?? `Upload failed (${res.status})`);
+    return data.url;
+  }
+
+  /** Resolve the final filename for a file, showing dupe dialog if needed. */
+  async function resolveFilename(file: File, existingNames: Set<string>): Promise<string> {
+    const slug = slugifyFilename(file.name);
+    if (!existingNames.has(slug)) return slug;
+
+    const action = await new Promise<"overwrite" | "keep">((resolve) => {
+      setDupeConfirm({ slugName: slug, resolve });
+    });
+    setDupeConfirm(null);
+
+    return action === "overwrite" ? slug : findAvailableName(slug, existingNames);
   }
 
   function isAcceptable(file: File) {
@@ -71,21 +122,33 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
     return file.type.startsWith("image/") || file.type.startsWith("video/");
   }
 
+  async function handleFiles(files: File[]) {
+    const acceptable = files.filter(isAcceptable);
+    if (acceptable.length === 0) { setError("No supported files in drop"); return; }
+    setError(null);
+    setUploadProgress({ done: 0, total: acceptable.length });
+
+    const existingNames = new Set(assets.map((a) => a.name));
+
+    for (let i = 0; i < acceptable.length; i++) {
+      try {
+        const filename = await resolveFilename(acceptable[i], existingNames);
+        await uploadOne(acceptable[i], filename);
+        existingNames.add(filename);
+      } catch (err) {
+        setError((err as Error).message);
+      }
+      setUploadProgress({ done: i + 1, total: acceptable.length });
+    }
+    setUploadProgress(null);
+    loadAssets();
+  }
+
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     if (uploadProgress) return;
-    const files = Array.from(e.dataTransfer.files ?? []).filter(isAcceptable);
-    if (files.length === 0) { setError("No supported files in drop"); return; }
-    setError(null);
-    setUploadProgress({ done: 0, total: files.length });
-    for (let i = 0; i < files.length; i++) {
-      try { await uploadOne(files[i]); }
-      catch (err) { setError((err as Error).message); }
-      setUploadProgress({ done: i + 1, total: files.length });
-    }
-    setUploadProgress(null);
-    loadAssets();
+    await handleFiles(Array.from(e.dataTransfer.files ?? []));
   }
 
   async function handleDelete(asset: Asset) {
@@ -116,7 +179,7 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !dupeConfirm) onClose(); }}
     >
       <div
         onDragOver={(e) => { e.preventDefault(); if (!uploadProgress) setDragOver(true); }}
@@ -225,7 +288,7 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
 
                   {/* Click to select */}
                   <button
-                    onClick={() => { onSelect(asset.url); onClose(); }}
+                    onClick={() => { onSelect(asset.url, altFromSlug(asset.name)); onClose(); }}
                     style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}
                   >
                     {asset.contentType.startsWith("video/") ? (
@@ -235,13 +298,13 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
                     ) : (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
-                        src={asset.url} alt={asset.name}
+                        src={asset.url} alt={altFromSlug(asset.name)}
                         style={{ width: "100%", height: 75, objectFit: "cover", borderRadius: 4, display: "block" }}
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     )}
                     <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", wordBreak: "break-all", lineHeight: 1.3 }}>
-                      {cleanName(asset.name)}
+                      {displayName(asset.name)}
                     </span>
                     <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{formatSize(asset.size)}</span>
                   </button>
@@ -251,6 +314,31 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
           )}
         </div>
       </div>
+
+      {/* Duplicate file confirmation */}
+      {dupeConfirm && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h4 style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700 }}>⚠️ File already exists</h4>
+            <p style={{ margin: "0 0 8px", fontSize: "0.88rem", color: "var(--text-muted)" }}>
+              A file with this name is already in the library:
+            </p>
+            <p style={{ margin: "0 0 20px", fontSize: "0.82rem", fontWeight: 600, wordBreak: "break-all", background: "var(--bg-light)", padding: "6px 10px", borderRadius: 6 }}>
+              {dupeConfirm.slugName}
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button className="btn btn-secondary" onClick={() => dupeConfirm.resolve("keep")}>
+                Keep both
+              </button>
+              <button className="btn btn-danger" onClick={() => dupeConfirm.resolve("overwrite")}>
+                Overwrite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       {confirmDelete && (
@@ -264,7 +352,7 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
               This action cannot be undone. The file will be permanently removed from storage.
             </p>
             <p style={{ margin: "0 0 20px", fontSize: "0.8rem", fontWeight: 600, wordBreak: "break-all" }}>
-              {cleanName(confirmDelete.name)}
+              {displayName(confirmDelete.name)}
             </p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)} disabled={deleting !== null}>Cancel</button>
