@@ -417,9 +417,9 @@ function ComponentCard({
           <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>No editable fields.</p>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "12px 16px" }}>
-            {schema.map((field) => (
+            {schema.map((field, fieldIdx) => (
               <div
-                key={field.key}
+                key={`${field.key}-${fieldIdx}`}
                 style={{ gridColumn: COL_SPAN[(field as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}
               >
                 <FieldLabel required={(field as SchemaFieldWithMeta).required}>{field.label}</FieldLabel>
