@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
@@ -278,9 +278,8 @@ function PlacementRows({
   return (
     <>
       {fields.map((field, idx) => (
-        <>
+        <Fragment key={`${field.key}-${idx}`}>
           <div
-            key={`${field.key}-${idx}`}
             style={{ padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-light)", marginLeft: depth * 16 }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
@@ -303,7 +302,7 @@ function PlacementRows({
             </div>
           </div>
           {field.type === "list" && (field.childSchema ?? []).length > 0 && (
-            <div key={`${field.key}-${idx}-children`} style={{ paddingLeft: 4, borderLeft: "2px solid var(--border)", marginLeft: depth * 16 + 10 }}>
+            <div style={{ paddingLeft: 4, borderLeft: "2px solid var(--border)", marginLeft: depth * 16 + 10 }}>
               <PlacementRows
                 fields={(field.childSchema ?? []) as SchemaField[]}
                 onUpdate={(cIdx, patch) => {
@@ -315,7 +314,7 @@ function PlacementRows({
               />
             </div>
           )}
-        </>
+        </Fragment>
       ))}
     </>
   );
