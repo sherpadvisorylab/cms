@@ -15,7 +15,7 @@ export type Provider = "supabase" | "firebase";
 export interface ScaffoldOptions {
   /** Override project name (defaults to directory basename) */
   name?: string;
-  /** Use workspace:* / npm "*" for @cms/* deps (monorepo mode) */
+  /** Use workspace:* / npm "*" for @sherpacms/* deps (monorepo mode) */
   workspace: boolean;
   /** Backend provider — determines which auth/storage/db files are copied */
   provider: Provider;

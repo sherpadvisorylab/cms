@@ -1,4 +1,4 @@
-import type { CmsForm, IFormRepository } from "@cms/domain";
+import type { CmsForm, IFormRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

@@ -15,7 +15,7 @@ import {
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
-} from "@cms/infrastructure";
+} from "@sherpacms/infrastructure";
 import type {
   CmsArea,
   CmsPage,
@@ -33,9 +33,9 @@ import type {
   IFormRepository,
   ILayoutTemplateRepository,
   IRenderEngine,
-} from "@cms/domain";
-import { FormRenderer } from "@cms/form-generator";
-import type { FormSchema } from "@cms/form-generator";
+} from "@sherpacms/domain";
+import { FormRenderer } from "@sherpacms/form-generator";
+import type { FormSchema } from "@sherpacms/form-generator";
 
 /** Single entry in the generated sitemap */
 export interface SitemapEntry {

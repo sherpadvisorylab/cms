@@ -1,4 +1,4 @@
-import type { StorageAdapter } from "@cms/infrastructure";
+import type { StorageAdapter } from "@sherpacms/infrastructure";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 /**

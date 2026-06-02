@@ -1,4 +1,4 @@
-import type { CmsLayoutTemplate, LayoutTemplateType, ILayoutTemplateRepository } from "@cms/domain";
+import type { CmsLayoutTemplate, LayoutTemplateType, ILayoutTemplateRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

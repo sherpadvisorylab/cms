@@ -1,5 +1,5 @@
 {
-  "name": "@cms/create-cms-app",
+  "name": "@sherpacms/create-cms-app",
   "version": "0.1.0",
   "description": "Scaffold a new CMS vertical project",
   "bin": {

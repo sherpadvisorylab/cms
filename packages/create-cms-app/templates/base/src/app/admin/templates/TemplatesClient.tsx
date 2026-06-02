@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
 import { CodeEditor } from "@/components/admin/CodeEditor";
-import type { CmsLayoutTemplate } from "@cms/domain";
+import type { CmsLayoutTemplate } from "@sherpacms/domain";
 import { createLayoutTemplate, updateLayoutTemplate, deleteLayoutTemplate } from "./actions";
 
 type Tab = "layouts" | "email" | "page";

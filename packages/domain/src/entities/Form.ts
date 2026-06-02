@@ -1,6 +1,6 @@
 /**
  * CMS Form definition for {{form:variable}} embedding.
- * Schema is typed as `unknown` to avoid circular dependency with @cms/form-generator.
+ * Schema is typed as `unknown` to avoid circular dependency with @sherpacms/form-generator.
  * At runtime the CMS package casts it to FormSchema when rendering.
  */
 export interface CmsForm {

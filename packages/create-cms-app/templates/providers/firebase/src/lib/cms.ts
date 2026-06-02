@@ -1,4 +1,4 @@
-import { CMS } from "@cms/cms";
+import { CMS } from "@sherpacms/cms";
 import { FirebaseAdapter } from "./db/adapter";
 import { initAdmin } from "./firebase/admin";
 

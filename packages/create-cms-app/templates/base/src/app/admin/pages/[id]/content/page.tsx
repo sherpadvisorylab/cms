@@ -9,7 +9,7 @@ import { ComponentPickerModal } from "@/components/admin/ComponentPickerModal";
 import { ImageUploadField, type ImageValue } from "@/components/admin/ImageUploadField";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
-import type { ComponentInstance, ComponentSchemaField } from "@cms/domain";
+import type { ComponentInstance, ComponentSchemaField } from "@sherpacms/domain";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 type VersionInfo = {

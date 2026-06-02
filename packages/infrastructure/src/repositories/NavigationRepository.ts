@@ -1,4 +1,4 @@
-import type { CmsNavigation, INavigationRepository } from "@cms/domain";
+import type { CmsNavigation, INavigationRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

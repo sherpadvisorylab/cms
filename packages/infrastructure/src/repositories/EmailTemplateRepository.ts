@@ -1,5 +1,5 @@
-import type { EmailTemplate } from "@cms/domain";
-import type { IEmailTemplateRepository } from "@cms/domain";
+import type { EmailTemplate } from "@sherpacms/domain";
+import type { IEmailTemplateRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

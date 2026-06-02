@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryAdapter } from "@cms/infrastructure";
+import { InMemoryAdapter } from "@sherpacms/infrastructure";
 import { CMS } from "../CMS";
 
 describe("CMS", () => {

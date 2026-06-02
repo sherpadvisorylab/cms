@@ -3,7 +3,7 @@
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ComponentInstance, CmsPageSeo } from "@cms/domain";
+import type { ComponentInstance, CmsPageSeo } from "@sherpacms/domain";
 
 type PageVersionRecord = {
   id: string;

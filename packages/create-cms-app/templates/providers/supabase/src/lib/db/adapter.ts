@@ -1,10 +1,10 @@
 import { eq, and } from "drizzle-orm";
-import type { StorageAdapter } from "@cms/infrastructure";
+import type { StorageAdapter } from "@sherpacms/infrastructure";
 import { db } from "./index";
 import { COLLECTION_MAP, type CollectionName } from "./schema";
 
 /**
- * Drizzle-based StorageAdapter for @cms/cms.
+ * Drizzle-based StorageAdapter for @sherpacms/cms.
  * Maps the CMS collection names to Drizzle table objects backed by Supabase Postgres.
  */
 export class DrizzleAdapter implements StorageAdapter {

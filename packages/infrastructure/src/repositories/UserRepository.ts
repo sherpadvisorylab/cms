@@ -1,4 +1,4 @@
-import type { CmsUser, IUserRepository } from "@cms/domain";
+import type { CmsUser, IUserRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

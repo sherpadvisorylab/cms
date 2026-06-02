@@ -1,4 +1,4 @@
-import type { CmsSettings, ISettingsRepository } from "@cms/domain";
+import type { CmsSettings, ISettingsRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 
 const SETTINGS_ID = "global";

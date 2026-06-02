@@ -1,5 +1,5 @@
-import type { CmsComponent, ComponentVersion } from "@cms/domain";
-import type { IComponentRepository, IComponentVersionRepository } from "@cms/domain";
+import type { CmsComponent, ComponentVersion } from "@sherpacms/domain";
+import type { IComponentRepository, IComponentVersionRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

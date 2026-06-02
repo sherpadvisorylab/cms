@@ -10,7 +10,7 @@
     "seed:layouts": "tsx scripts/seed-layouts.ts"
   },
   "dependencies": {
-    "@cms/cms": "__CMS_DEP__",
+    "@sherpacms/cms": "__CMS_DEP__",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-css": "^6.3.1",

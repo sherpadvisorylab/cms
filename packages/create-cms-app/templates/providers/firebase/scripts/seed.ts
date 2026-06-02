@@ -5,7 +5,7 @@
  */
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { CMS } from "@cms/cms";
+import { CMS } from "@sherpacms/cms";
 import { FirebaseAdapter } from "../src/lib/db/adapter";
 import * as dotenv from "dotenv";
 

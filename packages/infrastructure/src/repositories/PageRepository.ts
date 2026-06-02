@@ -1,5 +1,5 @@
-import type { CmsPage, PageVersion } from "@cms/domain";
-import type { IPageRepository, IPageVersionRepository } from "@cms/domain";
+import type { CmsPage, PageVersion } from "@sherpacms/domain";
+import type { IPageRepository, IPageVersionRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

@@ -1,5 +1,5 @@
 import { Liquid } from "liquidjs";
-import type { IRenderEngine, RenderInput } from "@cms/domain";
+import type { IRenderEngine, RenderInput } from "@sherpacms/domain";
 
 const engine = new Liquid({
   strictVariables: false,

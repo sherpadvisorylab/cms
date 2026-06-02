@@ -12,7 +12,7 @@ import {
   type ComponentSchemaField,
   type SchemaFieldType,
   type ComponentType,
-} from "@cms/domain";
+} from "@sherpacms/domain";
 
 type Tab = "template" | "css" | "js" | "schema" | "settings";
 type BackendTab = "variables" | "placement";

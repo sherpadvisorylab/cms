@@ -9,7 +9,7 @@ program
   .description("Scaffold a new CMS vertical project")
   .version("0.1.0")
   .argument("<project-dir>", "directory to create the project in (e.g. my-project or examples/myapp)")
-  .option("-w, --workspace", "use npm workspace '*' for @cms/* dependencies (monorepo mode)", false)
+  .option("-w, --workspace", "use npm workspace '*' for @sherpacms/* dependencies (monorepo mode)", false)
   .option("-n, --name <name>", "project name (defaults to the directory basename)")
   .option(
     "-p, --provider <provider>",

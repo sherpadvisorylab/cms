@@ -1,4 +1,4 @@
-import type { CmsArea, IAreaRepository } from "@cms/domain";
+import type { CmsArea, IAreaRepository } from "@sherpacms/domain";
 import type { StorageAdapter } from "../adapters/StorageAdapter";
 import { generateId } from "../utils/storage";
 

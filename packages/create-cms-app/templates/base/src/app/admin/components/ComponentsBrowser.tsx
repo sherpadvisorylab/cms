@@ -11,7 +11,7 @@ import {
   COMPONENT_CATEGORIES_BY_TYPE,
   type ComponentType,
   type ComponentStatus,
-} from "@cms/domain";
+} from "@sherpacms/domain";
 import { quickUpdateComponent, importComponent } from "./actions";
 import { useRouter } from "next/navigation";
 

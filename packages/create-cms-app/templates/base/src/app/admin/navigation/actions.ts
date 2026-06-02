@@ -3,7 +3,7 @@
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { CmsNavigationItem } from "@cms/domain";
+import type { CmsNavigationItem } from "@sherpacms/domain";
 
 export async function createNavigation(formData: FormData) {
   await cms.navigations.create({
