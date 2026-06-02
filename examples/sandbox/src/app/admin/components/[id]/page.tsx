@@ -582,18 +582,28 @@ export default function ComponentEditorPage() {
 
   const rightPanelRef = useRef<HTMLDivElement>(null);
 
-  // ── Sync variables from template ────────────────────────────────────────────
-  // When the template content changes, scan for {{ varName }} and add any new
-  // variables not already in the fields array. Never removes existing fields.
+  // ── Sync variables from template ─────────────────────────────────────────────
+  // Full sync on every template change: adds new vars, removes stale ones,
+  // upgrades types (text→list), merges child schemas. Preserves user settings
+  // (label, helpText, colWidth, required, validator) for keys that survive.
   useEffect(() => {
-    const keys = extractTemplateVars(templateLiquid);
-    if (keys.length === 0) return;
+    const trimmed = templateLiquid.trim();
+    if (!trimmed) return;
+    const detected = extractTemplateSchema(trimmed);
+    if (detected.length === 0) return; // partial edit — don't wipe everything
     setFields((prev) => {
-      const existingKeys = new Set(prev.map((f) => f.key));
-      const newFields: SchemaField[] = keys
-        .filter((k) => !existingKeys.has(k))
-        .map((k) => ({ key: k, label: k.replace(/_/g, " "), type: "text" as const }));
-      return newFields.length > 0 ? [...prev, ...newFields] : prev;
+      const byKey = Object.fromEntries(prev.map((f) => [f.key, f]));
+      const synced = detected.map((d) => {
+        const existing = byKey[d.key];
+        if (!existing) return d;
+        if (d.type === "list" && existing.type !== "list") return { ...d, label: existing.label };
+        if (d.type === "list" && existing.type === "list") {
+          const existingByKey = Object.fromEntries((existing.childSchema ?? []).map((c) => [c.key, c]));
+          return { ...existing, loopAlias: d.loopAlias ?? existing.loopAlias, childSchema: (d.childSchema ?? []).map((c) => existingByKey[c.key] ?? c) };
+        }
+        return existing;
+      });
+      return JSON.stringify(synced) !== JSON.stringify(prev) ? synced : prev;
     });
   }, [templateLiquid]);
 
