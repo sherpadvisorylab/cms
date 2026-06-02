@@ -1,6 +1,24 @@
 import { cms } from "@/lib/cms";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { TemplatesClient } from "./TemplatesClient";
+import { db } from "@/lib/db";
+import { cmsPageTemplates } from "@/lib/db/schema";
+import { desc } from "drizzle-orm";
+
+async function fetchPageTemplates() {
+  try {
+    const rows = await db
+      .select({ id: cmsPageTemplates.id, name: cmsPageTemplates.name, structure: cmsPageTemplates.structure })
+      .from(cmsPageTemplates)
+      .orderBy(desc(cmsPageTemplates.createdAt));
+    return rows.map((r) => ({
+      id:             r.id,
+      name:           r.name,
+      componentCount: Array.isArray(r.structure) ? r.structure.length : 0,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function TemplatesPage({
   searchParams,
@@ -12,7 +30,7 @@ export default async function TemplatesPage({
   const [layoutTemplates, emailTemplates, pageTemplates] = await Promise.all([
     cms.layoutTemplates.findAll().catch(() => []),
     cms.emailTemplates.findAll().catch(() => []),
-    cms.templates.findAll().catch(() => []),
+    fetchPageTemplates(),
   ]);
 
   return (

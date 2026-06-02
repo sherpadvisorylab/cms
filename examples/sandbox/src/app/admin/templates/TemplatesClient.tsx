@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
@@ -20,7 +20,7 @@ interface Props {
   initialTab:      Tab;
   layoutTemplates: CmsLayoutTemplate[];
   emailTemplates:  { id: string; name: string; templateKey: string; subject?: string }[];
-  pageTemplates:   { id: string; name: string; description?: string }[];
+  pageTemplates:   { id: string; name: string; componentCount: number }[];
 }
 
 export function TemplatesClient({ initialTab, layoutTemplates, emailTemplates, pageTemplates }: Props) {
@@ -297,27 +297,61 @@ function EmailTab({ templates }: { templates: Props["emailTemplates"] }) {
 
 // ── Page Tab ─────────────────────────────────────────────────────────────────
 function PageTab({ templates }: { templates: Props["pageTemplates"] }) {
-  if (templates.length === 0) {
+  const [list,    setList]    = useState(templates);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await fetch(`/api/admin/page-templates/${id}`, { method: "DELETE" });
+    setList((prev) => prev.filter((t) => t.id !== id));
+    setDeleting(null);
+  }
+
+  if (list.length === 0) {
     return (
       <div className="empty-state">
         <p>No page templates yet.</p>
         <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-          Page templates are pre-built component layouts that can be applied when creating a new page.
+          Open any page in the content editor and click <strong>💾 Save as Template</strong> to create one.
         </p>
       </div>
     );
   }
+
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       <table className="data-table">
         <thead>
-          <tr><th>Name</th><th>Description</th></tr>
+          <tr>
+            <th>Name</th>
+            <th style={{ textAlign: "center" }}>Components</th>
+            <th style={{ width: 160 }}></th>
+          </tr>
         </thead>
         <tbody>
-          {templates.map((t) => (
+          {list.map((t) => (
             <tr key={t.id}>
-              <td style={{ fontWeight: 600 }}>{t.name}</td>
-              <td style={{ color: "var(--text-muted)" }}>{t.description || "—"}</td>
+              <td style={{ fontWeight: 600 }}>📄 {t.name}</td>
+              <td style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                {t.componentCount}
+              </td>
+              <td>
+                <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                  <a
+                    href={`/admin/pages/new?template=${t.id}`}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Use
+                  </a>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    disabled={deleting === t.id}
+                    onClick={() => handleDelete(t.id)}
+                  >
+                    {deleting === t.id ? "…" : "Delete"}
+                  </button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
