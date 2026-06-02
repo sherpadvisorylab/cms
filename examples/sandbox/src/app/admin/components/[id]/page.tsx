@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
 import { FloatInput, FloatTextarea, FloatSelect } from "@/components/admin/FloatField";
+import { PREDEFINED_VALIDATORS } from "@/components/admin/validators";
 import { createComponent, updateComponent, deleteComponent, createVersion } from "../actions";
 import { CodeEditor, type FormEmbed, type AutocompleteVar, type ComponentEmbed, type LocalVar } from "@/components/admin/CodeEditor";
 import {
@@ -18,7 +19,12 @@ import {
 type Tab = "template" | "css" | "js" | "schema" | "settings";
 type BackendTab = "variables" | "placement";
 
-type SchemaField = ComponentSchemaField & { colWidth?: string; loopAlias?: string };
+type SchemaField = ComponentSchemaField & {
+  colWidth?: string;
+  loopAlias?: string;
+  required?: boolean;
+  validator?: string; // predefined key (e.g. "email") or custom regex (/pattern/flags)
+};
 
 function parseSchema(raw: unknown): SchemaField[] {
   if (Array.isArray(raw)) return raw as SchemaField[];
@@ -268,42 +274,90 @@ function extractTemplateSchema(template: string): SchemaField[] {
 }
 
 // ── Placement tab: recursive field rows with indentation ─────────────────────
+const VALIDATOR_OPTIONS = [
+  { value: "", label: "None" },
+  ...Object.entries(PREDEFINED_VALIDATORS).map(([k, v]) => ({ value: k, label: v.label })),
+  { value: "__custom__", label: "Custom regex…" },
+];
+
+function PlacementFieldRow({
+  field, onUpdate,
+}: {
+  field: SchemaField;
+  onUpdate: (patch: Partial<SchemaField>) => void;
+}) {
+  const isCustomValidator = !!field.validator && !PREDEFINED_VALIDATORS[field.validator];
+  const validatorSelectValue = isCustomValidator ? "__custom__" : (field.validator ?? "");
+
+  return (
+    <div style={{ padding: "9px 0" }}>
+      {/* Row 1: key + label */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+        <span style={{ fontFamily: "monospace", color: "var(--primary)", fontSize: "0.74rem", flexShrink: 0 }}>
+          {`{{${field.key}}}`}
+        </span>
+        <span style={{ fontSize: "0.71rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {field.label}
+        </span>
+      </div>
+      {/* Row 2: width + required */}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+        <FloatSelect label="Width" value={field.colWidth ?? "full"} onChange={(v) => onUpdate({ colWidth: v })} style={{ flex: 1 }}>
+          <option value="full">Full</option>
+          <option value="half">Half</option>
+          <option value="third">Third</option>
+        </FloatSelect>
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0, userSelect: "none" }}
+          title="When enabled, editors must fill this field before saving"
+        >
+          <div
+            onClick={() => onUpdate({ required: !field.required })}
+            style={{ width: 28, height: 16, borderRadius: 8, background: field.required ? "var(--primary)" : "var(--border)", position: "relative", cursor: "pointer", transition: "background 0.15s", flexShrink: 0 }}
+          >
+            <div style={{ position: "absolute", top: 2, left: field.required ? 14 : 2, width: 12, height: 12, borderRadius: "50%", background: "white", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+          </div>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Required</span>
+        </label>
+      </div>
+      {/* Row 3: validator */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <FloatSelect label="Validator" value={validatorSelectValue}
+          style={{ flex: 1 }}
+          title="Validate the field value against a predefined pattern or custom regex"
+          onChange={(v) => {
+            if (v === "") onUpdate({ validator: undefined });
+            else if (v === "__custom__") onUpdate({ validator: "/" });
+            else onUpdate({ validator: v });
+          }}>
+          {VALIDATOR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </FloatSelect>
+        {isCustomValidator && (
+          <FloatInput label="Regex (e.g. /^\\d+$/)" value={field.validator ?? ""}
+            style={{ flex: 2 }}
+            title="Custom regular expression — e.g. /^\\d{4}$/ or /^[A-Z]+$/i"
+            onChange={(v) => onUpdate({ validator: v })} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlacementRows({
-  fields, onUpdate, depth = 0,
+  fields, onUpdate,
 }: {
   fields: SchemaField[];
   onUpdate: (idx: number, patch: Partial<SchemaField>) => void;
-  depth?: number;
 }) {
   if (fields.length === 0) return null;
   return (
     <>
       {fields.map((field, idx) => (
         <Fragment key={`${field.key}-${idx}`}>
-          <div
-            style={{ padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-light)", marginLeft: depth * 16 }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              <span style={{ fontFamily: "monospace", color: "var(--primary)", fontSize: "0.73rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {`{{${field.key}}}`}
-              </span>
-              <select
-                className="form-control"
-                style={{ width: 74, fontSize: "0.74rem", padding: "2px 4px", flexShrink: 0 }}
-                value={field.colWidth ?? "full"}
-                onChange={(e) => onUpdate(idx, { colWidth: e.target.value })}
-              >
-                <option value="full">Full</option>
-                <option value="half">Half</option>
-                <option value="third">Third</option>
-              </select>
-            </div>
-            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {field.label}
-            </div>
-          </div>
+          {idx > 0 && <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2px 0" }} />}
+          <PlacementFieldRow field={field} onUpdate={(patch) => onUpdate(idx, patch)} />
           {field.type === "list" && (field.childSchema ?? []).length > 0 && (
-            <div style={{ paddingLeft: 4, borderLeft: "2px solid var(--border)", marginLeft: depth * 16 + 10 }}>
+            <div style={{ paddingLeft: 10, borderLeft: "2px solid var(--border)" }}>
               <PlacementRows
                 fields={(field.childSchema ?? []) as SchemaField[]}
                 onUpdate={(cIdx, patch) => {
@@ -311,7 +365,6 @@ function PlacementRows({
                   ch[cIdx] = { ...ch[cIdx], ...patch };
                   onUpdate(idx, { childSchema: ch });
                 }}
-                depth={0}
               />
             </div>
           )}

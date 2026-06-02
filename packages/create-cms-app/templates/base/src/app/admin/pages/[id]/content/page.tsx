@@ -10,6 +10,7 @@ import { ImageUploadField, type ImageValue } from "@/components/admin/ImageUploa
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import type { ComponentInstance, ComponentSchemaField } from "@sherpacms/domain";
+import { validateFieldValue } from "@/components/admin/validators";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 type VersionInfo = {
@@ -214,6 +215,45 @@ function FieldInput({
   }
 }
 
+type SchemaFieldWithMeta = ComponentSchemaField & { required?: boolean; validator?: string };
+
+function ValidatedFieldInput({
+  field, value, onChange,
+}: {
+  field: SchemaFieldWithMeta;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const [dirty, setDirty] = useState(false);
+  const error = dirty ? validateFieldValue(value, field) : (
+    // Always show error for non-empty values that fail the validator
+    field.validator && String(value ?? "").trim()
+      ? validateFieldValue(value, { validator: field.validator })
+      : null
+  );
+  const hasRequired = field.required && !String(value ?? "").trim();
+
+  return (
+    <div>
+      <div
+        onBlur={() => setDirty(true)}
+        style={error ? { borderRadius: 4, outline: "1px solid var(--danger)" } : undefined}
+      >
+        <FieldInput field={field} value={value} onChange={(v) => { setDirty(true); onChange(v); }} />
+      </div>
+      {error ? (
+        <p style={{ color: "var(--danger)", fontSize: "0.72rem", marginTop: 3, display: "flex", alignItems: "center", gap: 4, margin: "3px 0 0" }}>
+          <span aria-hidden>⚠</span> {error}
+        </p>
+      ) : hasRequired && (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.71rem", marginTop: 3, margin: "3px 0 0" }}>
+          Required
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ListFieldInput({
   field,
   value,
@@ -270,11 +310,14 @@ function ListFieldInput({
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "10px 12px" }}>
             {childSchema.map((childField) => (
-              <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as ComponentSchemaField & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}>
+              <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}>
                 <label className="form-label" style={{ display: "block", marginBottom: 3, fontSize: "0.78rem" }}>
                   {childField.label}
+                  {(childField as SchemaFieldWithMeta).required && (
+                    <span style={{ color: "var(--danger)", marginLeft: 2 }} title="Required">*</span>
+                  )}
                 </label>
-                <FieldInput field={childField} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
+                <ValidatedFieldInput field={childField as SchemaFieldWithMeta} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
               </div>
             ))}
           </div>
@@ -348,12 +391,15 @@ function ComponentCard({
             {schema.map((field) => (
               <div
                 key={field.key}
-                style={{ gridColumn: COL_SPAN[(field as ComponentSchemaField & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}
+                style={{ gridColumn: COL_SPAN[(field as SchemaFieldWithMeta & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}
               >
                 <label className="form-label" style={{ display: "block", marginBottom: 4 }}>
                   {field.label}
+                  {(field as SchemaFieldWithMeta).required && (
+                    <span style={{ color: "var(--danger)", marginLeft: 2 }} title="Required">*</span>
+                  )}
                 </label>
-                <FieldInput field={field} value={instance.props[field.key]} onChange={(nextValue) => onPropChange(field.key, nextValue)} />
+                <ValidatedFieldInput field={field as SchemaFieldWithMeta} value={instance.props[field.key]} onChange={(nextValue) => onPropChange(field.key, nextValue)} />
               </div>
             ))}
           </div>
