@@ -232,7 +232,7 @@ function ListFieldInput({
 
   function addItem() {
     const empty: Record<string, unknown> = {};
-    childSchema.forEach((f) => { empty[f.key] = f.defaultValue ?? ""; });
+    childSchema.forEach((f) => { empty[f.key] = f.defaultValue ?? (f.type === "list" ? [] : ""); });
     onChange([...items, empty]);
   }
 
