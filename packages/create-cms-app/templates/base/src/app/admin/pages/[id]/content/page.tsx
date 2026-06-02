@@ -268,9 +268,9 @@ function ListFieldInput({
               <button className="btn-icon" onClick={() => removeItem(itemIdx)} style={{ color: "var(--danger)", fontSize: "0.68rem" }}>✕</button>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "10px 12px" }}>
             {childSchema.map((childField) => (
-              <div key={childField.key}>
+              <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as ComponentSchemaField & { colWidth?: string }).colWidth ?? "full"] ?? "span 12" }}>
                 <label className="form-label" style={{ display: "block", marginBottom: 3, fontSize: "0.78rem" }}>
                   {childField.label}
                 </label>
