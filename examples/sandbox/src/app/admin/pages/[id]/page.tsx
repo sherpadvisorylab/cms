@@ -2,8 +2,7 @@ import { cms } from "@/lib/cms";
 import { notFound } from "next/navigation";
 import { DeleteButton } from "@/components/admin/ui";
 import { updatePage, deletePage } from "../actions";
-import { PublishToggle } from "@/components/admin/PublishToggle";
-import { PageSettingsSaveButton } from "./PageSettingsSaveButton";
+import { PageSettingsActions } from "./PageSettingsActions";
 import { PageSchemaEditor } from "./PageSchemaEditor";
 import type { ComponentSchemaEntry, PageSchemaConfig } from "./PageSchemaEditor";
 import { PageEditorHeader } from "./PageEditorHeader";
@@ -70,10 +69,12 @@ export default async function PageSettingsPage({
         title={page.title}
         isPublished={isPublished}
         actions={
-          <>
-            <PublishToggle pageId={id} initialIsPublished={isPublished} pageSlug={page.slug} />
-            <PageSettingsSaveButton />
-          </>
+          <PageSettingsActions
+            pageId={id}
+            initialIsPublished={isPublished}
+            publishedVersionNumber={publishedVersion?.version ?? null}
+            pageSlug={page.slug}
+          />
         }
       />
 
