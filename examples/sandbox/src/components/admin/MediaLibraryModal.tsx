@@ -128,7 +128,9 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
     setError(null);
     setUploadProgress({ done: 0, total: acceptable.length });
 
-    const existingNames = new Set(assets.map((a) => a.name));
+    // Normalise existing names so slug comparison works regardless of whether
+    // an asset was uploaded with the old timestamp-hash scheme or the new slug scheme.
+    const existingNames = new Set(assets.map((a) => slugifyFilename(displayName(a.name))));
 
     for (let i = 0; i < acceptable.length; i++) {
       try {
