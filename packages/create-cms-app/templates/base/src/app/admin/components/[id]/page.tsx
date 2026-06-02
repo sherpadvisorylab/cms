@@ -118,8 +118,45 @@ function htmlToLiquidVariables(htmlString: string): {
  */
 /** Returns only top-level variable keys (used by auto-add useEffect). */
 function extractTemplateVars(template: string): string[] {
-  // Reuse the full schema parser so nested collections are never auto-added as text
   return extractTemplateSchema(template).map((f) => f.key);
+}
+
+/**
+ * Auto-fix nested for loops to use dot notation.
+ * `{% for icon in icons %}` inside `{% for article in articles %}`
+ *   → `{% for icon in article.icons %}`
+ *
+ * LiquidJS requires the parent alias prefix to access nested array fields.
+ * Returns the fixed template and whether any changes were made.
+ */
+function fixNestedLoopSyntax(template: string): { template: string; fixed: boolean } {
+  const allLoops = parseAllForLoops(template);
+  let result = template;
+  let fixed = false;
+
+  for (const loop of allLoops) {
+    if (loop.collection.includes(".")) continue; // already dot notation
+
+    // Find the parent loop whose body contains this loop's for-tag
+    for (const parent of allLoops) {
+      if (parent === loop) continue;
+      const inParent = new RegExp(
+        `\\{%-?\\s*for\\s+${loop.alias}\\s+in\\s+${loop.collection}\\s*-?%\\}`
+      ).test(parent.body);
+      if (!inParent) continue;
+
+      // Replace all occurrences of `{% for alias in collection %}` with dot notation
+      const re = new RegExp(
+        `(\\{%-?\\s*for\\s+${loop.alias}\\s+in\\s+)${loop.collection}(\\s*-?%\\})`,
+        "g"
+      );
+      const next = result.replace(re, `$1${parent.alias}.${loop.collection}$2`);
+      if (next !== result) { result = next; fixed = true; }
+      break;
+    }
+  }
+
+  return { template: result, fixed };
 }
 
 interface ParsedLoop { alias: string; collection: string; body: string }
@@ -454,7 +491,9 @@ export default function ComponentEditorPage() {
   async function handleSaveVersion() {
     setSaving(true);
     try {
-      await createVersion(id, { templateLiquid, schemaJson: fieldsToJson(fields), schemaOrgTemplate, css, js });
+      const { template: fixedTemplate, fixed } = fixNestedLoopSyntax(templateLiquid);
+      if (fixed) setTemplateLiquid(fixedTemplate);
+      await createVersion(id, { templateLiquid: fixed ? fixedTemplate : templateLiquid, schemaJson: fieldsToJson(fields), schemaOrgTemplate, css, js });
       setCurrentVersion((v) => v + 1);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to save version");
@@ -498,7 +537,10 @@ export default function ComponentEditorPage() {
     updateField(idx, { childSchema: (fields[idx].childSchema ?? []).filter((_, i) => i !== cIdx) });
   }
   function syncFieldsFromTemplate() {
-    const detected = extractTemplateSchema(templateLiquid);
+    // Auto-fix nested loops to dot notation before extracting schema
+    const { template: fixedTemplate, fixed } = fixNestedLoopSyntax(templateLiquid);
+    if (fixed) setTemplateLiquid(fixedTemplate);
+    const detected = extractTemplateSchema(fixed ? fixedTemplate : templateLiquid);
     setFields((prev) => {
       const byKey = Object.fromEntries(prev.map((f) => [f.key, f]));
       return detected.map((d) => {
