@@ -5,11 +5,12 @@ export default async function ComponentsPage() {
   const components = await cms.components.findAll();
 
   const rows: ComponentRow[] = components.map((c) => ({
-    id:        c.id,
-    name:      c.name,
+    id: c.id,
+    name: c.name,
     namespace: c.namespace ?? null,
-    type:      (c.type ?? "page") as ComponentRow["type"],
-    status:    (c.status as ComponentRow["status"]),
+    category: c.category ?? null,
+    type: (c.type ?? "page") as ComponentRow["type"],
+    status: c.status as ComponentRow["status"],
   }));
 
   return (

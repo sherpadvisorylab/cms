@@ -14,10 +14,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   return NextResponse.json({
-    id:             component.id,
-    name:           component.name,
-    namespace:      component.namespace ?? null,
-    componentType:  component.type ?? "page",
+    id: component.id,
+    name: component.name,
+    namespace: component.namespace ?? null,
+    category: component.category ?? null,
+    componentType: component.type ?? "page",
     status:         component.status,
     previewImageUrl: component.previewImageUrl ?? "",
     templateLiquid: version?.templateLiquid ?? "",

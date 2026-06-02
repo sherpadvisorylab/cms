@@ -227,6 +227,18 @@ export default function ComponentEditorPage() {
     [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
     setFields(next);
   }
+  function addChildField(idx: number) {
+    const child = fields[idx].childSchema ?? [];
+    updateField(idx, { childSchema: [...child, { key: `field_${child.length + 1}`, label: "New Field", type: "text" as SchemaFieldType }] });
+  }
+  function updateChildField(idx: number, cIdx: number, patch: Partial<ComponentSchemaField>) {
+    const child = [...(fields[idx].childSchema ?? [])];
+    child[cIdx] = { ...child[cIdx], ...patch };
+    updateField(idx, { childSchema: child });
+  }
+  function removeChildField(idx: number, cIdx: number) {
+    updateField(idx, { childSchema: (fields[idx].childSchema ?? []).filter((_, i) => i !== cIdx) });
+  }
 
   if (loading) return <div className="empty-state"><p>Loading component…</p></div>;
 
@@ -449,6 +461,28 @@ export default function ComponentEditorPage() {
                                   onClick={() => updateField(idx, { options: [...(field.options ?? []), { label: "", value: "" }] })}>
                                   + Add option
                                 </button>
+                              </div>
+                            )}
+                            {/* List child schema */}
+                            {field.type === "list" && (
+                              <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 5 }}>Item fields</div>
+                                {(field.childSchema ?? []).map((child, cIdx) => (
+                                  <div key={cIdx} style={{ display: "flex", gap: 4, marginBottom: 4, alignItems: "center" }}>
+                                    <input className="form-control" style={{ width: 72, fontFamily: "monospace", fontSize: "0.71rem" }} value={child.key} placeholder="key"
+                                      onChange={(e) => updateChildField(idx, cIdx, { key: e.target.value.replace(/\s+/g, "_").toLowerCase() })} />
+                                    <input className="form-control" style={{ flex: 1, fontSize: "0.71rem" }} value={child.label} placeholder="Label"
+                                      onChange={(e) => updateChildField(idx, cIdx, { label: e.target.value })} />
+                                    <select className="form-control" style={{ width: 84, fontSize: "0.71rem" }} value={child.type}
+                                      onChange={(e) => updateChildField(idx, cIdx, { type: e.target.value as SchemaFieldType })}>
+                                      {SCHEMA_FIELD_TYPES.filter((t) => t !== "list").map((t) => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    <button className="btn-icon" style={{ color: "var(--danger)", fontSize: "0.68rem" }}
+                                      onClick={() => removeChildField(idx, cIdx)}>✕</button>
+                                  </div>
+                                ))}
+                                <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 2, fontSize: "0.72rem" }}
+                                  onClick={() => addChildField(idx)}>+ Add field</button>
                               </div>
                             )}
                           </div>

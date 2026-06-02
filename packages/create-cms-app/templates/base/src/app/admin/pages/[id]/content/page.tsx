@@ -193,6 +193,14 @@ function FieldInput({
           ))}
         </select>
       );
+    case "list":
+      return (
+        <ListFieldInput
+          field={field}
+          value={(value ?? []) as Array<Record<string, unknown>>}
+          onChange={onChange}
+        />
+      );
     default:
       return (
         <input
@@ -204,6 +212,79 @@ function FieldInput({
         />
       );
   }
+}
+
+function ListFieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: ComponentSchemaField;
+  value: Array<Record<string, unknown>>;
+  onChange: (value: unknown) => void;
+}) {
+  const items = Array.isArray(value) ? value : [];
+  const childSchema = field.childSchema ?? [];
+
+  function updateItem(itemIdx: number, key: string, val: unknown) {
+    onChange(items.map((item, i) => (i === itemIdx ? { ...item, [key]: val } : item)));
+  }
+
+  function addItem() {
+    const empty: Record<string, unknown> = {};
+    childSchema.forEach((f) => { empty[f.key] = f.defaultValue ?? ""; });
+    onChange([...items, empty]);
+  }
+
+  function removeItem(itemIdx: number) {
+    onChange(items.filter((_, i) => i !== itemIdx));
+  }
+
+  function moveItem(itemIdx: number, direction: -1 | 1) {
+    const next = [...items];
+    const target = itemIdx + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[itemIdx], next[target]] = [next[target], next[itemIdx]];
+    onChange(next);
+  }
+
+  if (childSchema.length === 0) {
+    return (
+      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: 0 }}>
+        No item fields defined. Add fields in the component editor.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      {items.map((item, itemIdx) => (
+        <div key={itemIdx} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", marginBottom: 8, background: "var(--bg-light)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: "var(--text-muted)" }}>#{itemIdx + 1}</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button className="btn-icon" onClick={() => moveItem(itemIdx, -1)} disabled={itemIdx === 0} style={{ fontSize: "0.68rem" }}>▲</button>
+              <button className="btn-icon" onClick={() => moveItem(itemIdx, 1)} disabled={itemIdx >= items.length - 1} style={{ fontSize: "0.68rem" }}>▼</button>
+              <button className="btn-icon" onClick={() => removeItem(itemIdx)} style={{ color: "var(--danger)", fontSize: "0.68rem" }}>✕</button>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {childSchema.map((childField) => (
+              <div key={childField.key}>
+                <label className="form-label" style={{ display: "block", marginBottom: 3, fontSize: "0.78rem" }}>
+                  {childField.label}
+                </label>
+                <FieldInput field={childField} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-secondary btn-sm" style={{ width: "100%", marginTop: 4 }} onClick={addItem}>
+        + Add item
+      </button>
+    </div>
+  );
 }
 
 function ComponentCard({

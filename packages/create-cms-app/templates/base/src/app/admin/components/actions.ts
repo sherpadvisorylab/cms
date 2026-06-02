@@ -5,11 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createComponent(formData: FormData) {
-  const name      = formData.get("name") as string;
-  const namespace = (formData.get("namespace") as string) || undefined;
-  const type      = ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation";
+  const name = formData.get("name") as string;
+  const category = (formData.get("category") as string) || undefined;
+  const type = ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation";
 
-  const component = await cms.components.create({ name, namespace, type, status: "draft" });
+  const component = await cms.components.create({ name, category, type, status: "draft" });
 
   // Create initial placeholder version
   await cms.componentVersions.createVersion(component.id, {
@@ -24,28 +24,30 @@ export async function createComponent(formData: FormData) {
 
 export async function updateComponent(id: string, formData: FormData) {
   await cms.components.update(id, {
-    name:      formData.get("name") as string,
-    namespace: (formData.get("namespace") as string) || undefined,
-    status:    ((formData.get("status") as string) || "published") as "draft" | "published",
-    type:      ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation",
+    name: formData.get("name") as string,
+    category: (formData.get("category") as string) || undefined,
+    status: ((formData.get("status") as string) || "published") as "draft" | "published",
+    type: ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation",
   });
   revalidatePath("/admin/components");
-  redirect("/admin/components");
+  revalidatePath(`/admin/components/${id}`);
+  redirect(`/admin/components/${id}`);
 }
 
 export async function quickUpdateComponent(id: string, data: {
   name: string;
-  namespace: string | null;
+  category: string | null;
   status: string;
   type: string;
 }) {
   await cms.components.update(id, {
-    name:      data.name,
-    namespace: data.namespace ?? undefined,
-    status:    data.status as "draft" | "published",
-    type:      data.type as "page" | "ui" | "navigation",
+    name: data.name,
+    category: data.category ?? undefined,
+    status: data.status as "draft" | "published",
+    type: data.type as "page" | "ui" | "navigation",
   });
   revalidatePath("/admin/components");
+  revalidatePath(`/admin/components/${id}`);
 }
 
 export async function deleteComponent(id: string) {
