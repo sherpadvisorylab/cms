@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db";
+import { cmsPageTemplates } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 async function requireAuth() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  return !!user;
 }
 
 export async function GET(
@@ -14,15 +17,14 @@ export async function GET(
   if (!await requireAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("page_templates")
-    .select("id, name, structure")
-    .eq("id", id)
-    .single();
+  const [row] = await db
+    .select()
+    .from(cmsPageTemplates)
+    .where(eq(cmsPageTemplates.id, id))
+    .limit(1);
 
-  if (error || !data) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(data);
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(row);
 }
 
 export async function DELETE(
@@ -32,8 +34,6 @@ export async function DELETE(
   if (!await requireAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const supabase = await createClient();
-  const { error } = await supabase.from("page_templates").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await db.delete(cmsPageTemplates).where(eq(cmsPageTemplates.id, id));
   return NextResponse.json({ ok: true });
 }

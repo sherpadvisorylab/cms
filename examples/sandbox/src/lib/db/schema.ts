@@ -170,6 +170,14 @@ export const cmsUsers = pgTable("cms_users", {
   lastLogin: timestamp("last_login", { withTimezone: true }),
 });
 
+// ── Page Structure Templates ──────────────────────────────────────────────────
+export const cmsPageTemplates = pgTable("cms_page_templates", {
+  id:        text("id").primaryKey(),
+  name:      text("name").notNull(),
+  structure: jsonb("structure").default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 // ── Collection → Table map (used by DrizzleAdapter) ──────────────────────────
 export const COLLECTION_MAP = {
   areas:             cmsAreas,
