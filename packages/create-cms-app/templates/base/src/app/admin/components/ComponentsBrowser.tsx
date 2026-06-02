@@ -43,7 +43,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   Navbar: "☰",
   Breadcrumb: "›",
   Sidebar: "⫿",
-  "Footer nav": "🔗",
   Tabs: "📁",
   Pagination: "…",
   Menu: "☰",

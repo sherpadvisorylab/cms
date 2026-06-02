@@ -2,7 +2,7 @@
   "name": "Navbar - Sticky Responsive",
   "type": "navigation",
   "category": "Navbar",
-  "status": "draft",
+  "status": "published",
   "version": {
     "templateLiquid": "<nav class=\"nr-nav\" id=\"nr-nav\"><div class=\"nr-inner\"><a class=\"nr-brand\" href=\"/\">{{ siteName }}</a><button class=\"nr-toggle\" aria-label=\"Toggle menu\" onclick=\"document.getElementById('nr-menu').classList.toggle('nr-open')\"><span></span><span></span><span></span></button><ul class=\"nr-menu\" id=\"nr-menu\">{% for item in menu %}<li>{% if item.isButton %}<a class=\"nr-cta\" href=\"{{ item.url }}\">{{ item.label }}</a>{% else %}<a class=\"nr-link\" href=\"{{ item.url }}\">{{ item.label }}</a>{% endif %}</li>{% endfor %}</ul></div></nav>",
     "schema": [{ "key": "siteName", "label": "Site Name", "type": "text" }],

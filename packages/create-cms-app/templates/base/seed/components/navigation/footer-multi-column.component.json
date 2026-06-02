@@ -2,7 +2,7 @@
   "name": "Footer - Multi-column",
   "type": "navigation",
   "category": "Footer",
-  "status": "draft",
+  "status": "published",
   "version": {
     "templateLiquid": "<footer class=\"fm-footer\"><div class=\"fm-inner\"><div class=\"fm-brand\"><a class=\"fm-name\" href=\"/\">{{ siteName }}</a><p class=\"fm-tagline\">Building great experiences.</p></div><nav class=\"fm-links\">{% for item in menu %}<a class=\"fm-link\" href=\"{{ item.url }}\">{{ item.label }}</a>{% endfor %}</nav></div><div class=\"fm-bottom\"><span>&copy; 2025 {{ siteName }}. All rights reserved.</span></div></footer>",
     "schema": [{ "key": "siteName", "label": "Site Name", "type": "text" }],

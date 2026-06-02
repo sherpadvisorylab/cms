@@ -21,8 +21,8 @@ export const COMPONENT_CATEGORIES_BY_TYPE: Record<ComponentType, string[]> = {
     "Divider", "Layout block", "Fixed block", "Decorative",
   ],
   navigation: [
-    "Header", "Navbar", "Breadcrumb", "Sidebar", "Sidebar nav",
-    "Footer nav", "Tabs", "Pagination", "Menu", "Mega menu", "Mobile menu",
+    "Header", "Navbar", "Breadcrumb", "Sidebar", "Footer",
+    "Tabs", "Pagination", "Menu", "Mega menu", "Mobile menu",
   ],
 };
 
