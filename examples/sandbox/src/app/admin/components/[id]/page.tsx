@@ -354,64 +354,73 @@ function SchemaFieldRow({
     onUpdate({ childSchema: ch });
   }
 
+  const micro: React.CSSProperties = { fontSize: "0.6rem", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2, display: "block" };
+
   return (
     <div style={{ padding: "9px 0" }}>
-      {/* Row 1: property name (full width) + icons + collapse */}
-      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: collapsed ? 0 : 5 }}>
-        <input
-          className="form-control"
-          style={{ flex: 1, fontFamily: "monospace", fontSize: "0.76rem" }}
-          value={field.key}
-          placeholder="property_name"
-          title="Variable key — used in Liquid template as {{ key }}"
-          onChange={(e) => onUpdate({ key: e.target.value.replace(/\s+/g, "_").toLowerCase() })}
-        />
+      {/* Row 1: KEY (full width) + icons + collapse */}
+      <div style={{ display: "flex", gap: 4, alignItems: "flex-end", marginBottom: collapsed ? 0 : 5 }}>
+        <div style={{ flex: 1 }}>
+          <span style={micro}>Key</span>
+          <input
+            className="form-control"
+            style={{ fontFamily: "monospace", fontSize: "0.76rem", width: "100%" }}
+            value={field.key}
+            placeholder="property_name"
+            title="Variable key — used in Liquid template as {{ key }}"
+            onChange={(e) => onUpdate({ key: e.target.value.replace(/\s+/g, "_").toLowerCase() })}
+          />
+        </div>
         <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} title="Move up" style={{ fontSize: "0.65rem" }}>▲</button>
         <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} title="Move down" style={{ fontSize: "0.65rem" }}>▼</button>
         <button className="btn-icon" onClick={onRemove} title="Remove field" style={{ color: "var(--danger)", fontSize: "0.65rem" }}>✕</button>
-        <button
-          className="btn-icon"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? "Expand field" : "Collapse field"}
-          style={{ fontSize: "0.65rem" }}
-        >
+        <button className="btn-icon" onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Expand field" : "Collapse field"} style={{ fontSize: "0.65rem" }}>
           {collapsed ? "+" : "−"}
         </button>
       </div>
 
       {!collapsed && (
         <>
-          {/* Row 2: label (full width) + type */}
+          {/* Row 2: LABEL (full width) + TYPE */}
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-            <input
-              className="form-control"
-              style={{ flex: 1, fontSize: "0.77rem" }}
-              value={field.label}
-              placeholder="Label"
-              title="Display label shown to editors in the content form"
-              onChange={(e) => onUpdate({ label: e.target.value })}
-            />
-            <select
-              className="form-control"
-              style={{ width: 96, fontSize: "0.75rem", flexShrink: 0 }}
-              value={field.type}
-              title="Field type — determines the input widget in the page editor"
-              onChange={(e) => onUpdate({ type: e.target.value as SchemaFieldType })}
-            >
-              {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <div style={{ flex: 1 }}>
+              <span style={micro}>Label</span>
+              <input
+                className="form-control"
+                style={{ fontSize: "0.77rem", width: "100%" }}
+                value={field.label}
+                placeholder="Display label"
+                title="Display label shown to editors in the content form"
+                onChange={(e) => onUpdate({ label: e.target.value })}
+              />
+            </div>
+            <div style={{ width: 96, flexShrink: 0 }}>
+              <span style={micro}>Type</span>
+              <select
+                className="form-control"
+                style={{ fontSize: "0.75rem", width: "100%" }}
+                value={field.type}
+                title="Field type — determines the input widget in the page editor"
+                onChange={(e) => onUpdate({ type: e.target.value as SchemaFieldType })}
+              >
+                {SCHEMA_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
 
-          {/* Row 3: help text / placeholder */}
-          <textarea
-            className="form-control"
-            rows={2}
-            style={{ fontSize: "0.74rem", resize: "vertical", width: "100%", boxSizing: "border-box" }}
-            value={field.helpText ?? ""}
-            placeholder="Help text / placeholder shown in the editor…"
-            title="Tooltip or placeholder text displayed to editors in the content form"
-            onChange={(e) => onUpdate({ helpText: e.target.value })}
-          />
+          {/* Row 3: HELP TEXT */}
+          <div>
+            <span style={micro}>Help text / placeholder</span>
+            <textarea
+              className="form-control"
+              rows={2}
+              style={{ fontSize: "0.74rem", resize: "vertical", width: "100%", boxSizing: "border-box" }}
+              value={field.helpText ?? ""}
+              placeholder="Shown as tooltip or placeholder in the editor…"
+              title="Tooltip or placeholder text displayed to editors in the content form"
+              onChange={(e) => onUpdate({ helpText: e.target.value })}
+            />
+          </div>
 
           {/* Select options */}
           {field.type === "select" && (
