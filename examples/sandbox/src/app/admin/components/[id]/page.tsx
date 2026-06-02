@@ -116,23 +116,10 @@ function htmlToLiquidVariables(htmlString: string): {
  * Any name containing ":" or "." is a CMS-managed reference and must NEVER
  * appear in the Variables panel.
  */
+/** Returns only top-level variable keys (used by auto-add useEffect). */
 function extractTemplateVars(template: string): string[] {
-  const found = new Set<string>();
-  const loopCollections = new Set<string>();
-  // Collect loop collection names so we skip them as simple vars
-  const reFor = /\{%-?\s*for\s+\w+\s+in\s+([a-z_][a-z0-9_]*)\s*-?%\}/gi;
-  let m: RegExpExecArray | null;
-  while ((m = reFor.exec(template)) !== null) {
-    loopCollections.add(m[1].trim());
-    found.add(m[1].trim()); // still include so auto-add fires
-  }
-  // {{ varName }} — simple variables (skip loop aliases like item.field)
-  const reVar = /\{\{([^}]+)\}\}/g;
-  while ((m = reVar.exec(template)) !== null) {
-    const key = m[1].trim();
-    if (/^[a-z_][a-z0-9_]*$/i.test(key)) found.add(key);
-  }
-  return Array.from(found);
+  // Reuse the full schema parser so nested collections are never auto-added as text
+  return extractTemplateSchema(template).map((f) => f.key);
 }
 
 interface ParsedLoop { alias: string; collection: string; body: string }
@@ -240,6 +227,61 @@ function extractTemplateSchema(template: string): SchemaField[] {
   }
 
   return result;
+}
+
+// ── Placement tab: recursive field rows with indentation ─────────────────────
+function PlacementRows({
+  fields, onUpdate, depth = 0,
+}: {
+  fields: SchemaField[];
+  onUpdate: (idx: number, patch: Partial<SchemaField>) => void;
+  depth?: number;
+}) {
+  if (fields.length === 0) return null;
+  return (
+    <>
+      {fields.map((field, idx) => (
+        <>
+          <div
+            key={`${field.key}-${idx}`}
+            style={{ padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-light)", marginLeft: depth * 16 }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              <span style={{ fontFamily: "monospace", color: "var(--primary)", fontSize: "0.73rem", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {`{{${field.key}}}`}
+              </span>
+              <select
+                className="form-control"
+                style={{ width: 74, fontSize: "0.74rem", padding: "2px 4px", flexShrink: 0 }}
+                value={field.colWidth ?? "full"}
+                onChange={(e) => onUpdate(idx, { colWidth: e.target.value })}
+              >
+                <option value="full">Full</option>
+                <option value="half">Half</option>
+                <option value="third">Third</option>
+              </select>
+            </div>
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {field.label}
+            </div>
+          </div>
+          {field.type === "list" && (field.childSchema ?? []).length > 0 && (
+            <div key={`${field.key}-${idx}-children`} style={{ paddingLeft: 4, borderLeft: "2px solid var(--border)", marginLeft: depth * 16 + 10 }}>
+              <PlacementRows
+                fields={(field.childSchema ?? []) as SchemaField[]}
+                onUpdate={(cIdx, patch) => {
+                  const ch = [...(field.childSchema ?? [])];
+                  ch[cIdx] = { ...ch[cIdx], ...patch };
+                  onUpdate(idx, { childSchema: ch });
+                }}
+                depth={0}
+              />
+            </div>
+          )}
+        </>
+      ))}
+    </>
+  );
 }
 
 // ── Shared field editor row (self-contained, infinitely recursive) ────────────
@@ -690,36 +732,10 @@ export default function ComponentEditorPage() {
                       <div style={{ color: "var(--text-muted)", fontSize: "0.83rem", textAlign: "center", padding: "14px 0" }}>Add variables first</div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        {fields.map((field, idx) => (
-                          <div key={idx} style={{ padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-light)" }}>
-                            {/* key + select on same row, key truncated */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                              <span style={{
-                                fontFamily: "monospace", color: "var(--primary)", fontSize: "0.73rem",
-                                flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                              }}>
-                                {`{{${field.key}}}`}
-                              </span>
-                              <select
-                                className="form-control"
-                                style={{ width: 74, fontSize: "0.74rem", padding: "2px 4px", flexShrink: 0 }}
-                                value={field.colWidth ?? "full"}
-                                onChange={(e) => updateField(idx, { colWidth: e.target.value })}
-                              >
-                                <option value="full">Full</option>
-                                <option value="half">Half</option>
-                                <option value="third">Third</option>
-                              </select>
-                            </div>
-                            {/* label below, truncated */}
-                            <div style={{
-                              fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 2,
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            }}>
-                              {field.label}
-                            </div>
-                          </div>
-                        ))}
+                        <PlacementRows
+                          fields={fields}
+                          onUpdate={(idx, patch) => updateField(idx, patch)}
+                        />
                       </div>
                     )}
                   </>
