@@ -170,13 +170,6 @@ export function PublishToggle({
               />
             )}
 
-            {pageSlug && (
-              <a href={`/${pageSlug}`} target="_blank" rel="noreferrer"
-                style={{ textDecoration: "none" }} onClick={() => setOpen(false)}>
-                <MenuLink label="View page" description="Open the generated page in a new tab" icon="↗" />
-              </a>
-            )}
-
             {isPublished && (
               <MenuButton
                 label="Unpublish"

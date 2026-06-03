@@ -683,27 +683,6 @@ export default function ContentPage() {
                       </span>
                     </a>
                   )}
-                  {previewUrl && (
-                    <a
-                      href={previewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setShowPreviewMenu(false)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 14px", textDecoration: "none",
-                        color: "var(--text)", borderTop: "1px solid var(--bg-light)",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <span>👁</span>
-                      <span>
-                        <span style={{ display: "block", fontWeight: 600, fontSize: "0.88rem" }}>Draft preview</span>
-                        <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>Opens with ?draft=1</span>
-                      </span>
-                    </a>
-                  )}
                 </div>
               )}
             </div>
