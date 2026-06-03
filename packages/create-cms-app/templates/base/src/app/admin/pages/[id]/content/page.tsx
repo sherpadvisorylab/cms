@@ -409,8 +409,9 @@ export default function ContentPage() {
   const params = useParams();
   const pageId = params.id as string;
 
-  const [pageTitle, setPageTitle] = useState("");
-  const [pageSlug, setPageSlug] = useState("");
+  const [pageTitle,      setPageTitle]      = useState("");
+  const [pageSlug,       setPageSlug]       = useState("");
+  const [systemPageType, setSystemPageType] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
   const [publishedVersionId, setPublishedVersionId] = useState<string | null>(null);
@@ -451,6 +452,7 @@ export default function ContentPage() {
         const nextStructure = data.structure ?? [];
         setPageTitle(data.pageTitle ?? "Page");
         setPageSlug(data.pageSlug ?? "");
+        setSystemPageType(data.systemPageType ?? null);
         setIsPublished(!!data.isPublished);
         setLatestVersionId(data.latestVersionId ?? null);
         setPublishedVersionId(data.publishedVersionId ?? null);
@@ -595,9 +597,11 @@ export default function ContentPage() {
     localStorage.setItem(tourKey, "1");
   }
 
-  // Home system page has slug "/" or "" — treat as root
-  const publicPath  = (!pageSlug || pageSlug === "/") ? "/" : `/${pageSlug}`;
-  const previewUrl  = `${publicPath}?draft=1`;
+  // Compute canonical public URL — system pages use their type URL, not their slug
+  const publicPath = systemPageType === "home"
+    ? "/"
+    : (!pageSlug || pageSlug === "/" ? "/" : `/${pageSlug}`);
+  const previewUrl = `${publicPath}?draft=1`;
   const hasUnsavedChanges = serializeStructure(structure) !== savedStructureJson;
   const canPublish = !hasUnsavedChanges && !!latestVersionId && (!isPublished || latestVersionId !== publishedVersionId);
 

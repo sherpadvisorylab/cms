@@ -20,14 +20,6 @@ function render404Cached(areaName: string) {
   )();
 }
 
-/**
- * Public CMS page renderer — returns full HTML from the area's head/body templates.
- * Published pages are served from Next.js cache (ISR); invalidated on publish via revalidateTag.
- * Draft preview bypasses cache and requires an authenticated admin session.
- *
- * GET /[slug]          → published page (cached)
- * GET /[slug]?draft=1  → draft preview — requires admin session
- */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
@@ -44,35 +36,41 @@ export async function GET(
 
   const areaName = await getPrimaryPublicAreaName();
 
-  // Draft: always fresh from DB, no cache.
+  // Redirect if this slug belongs to a system page with a different canonical URL.
+  // e.g. /home → / (when "home" page is assigned as system home)
+  if (!isDraft) {
+    const area = await cms.areas.findByKey(areaName).catch(() => null);
+    if (area?.systemPages) {
+      for (const [type, pageId] of Object.entries(area.systemPages)) {
+        const allPages = await cms.pages.findAll(areaName).catch(() => []);
+        const sysPage = allPages.find((p) => p.id === pageId);
+        if (sysPage?.slug === slug) {
+          const canonical = type === "home" ? "/" : null;
+          if (canonical && canonical !== `/${slug}`) {
+            return Response.redirect(new URL(canonical, request.url), 301);
+          }
+        }
+      }
+    }
+  }
+
+  // Draft: always fresh from Firestore, no cache.
   // Published: served from Next.js cache, invalidated on publish via revalidateTag.
   const html = isDraft
-    ? await cms.renderPage(areaName, slug, { draft: true }).catch(() => null)
-    : await renderPageCached(areaName, slug).catch(() => null);
+    ? await cms.renderPage(areaName, slug, { draft: true })
+    : await renderPageCached(areaName, slug);
 
   if (!html) {
     const notFound = isDraft
-      ? (await cms.renderSystemPage(areaName, "404").catch(() => null) ?? await cms.renderPage(areaName, "404", {}).catch(() => null))
-      : await render404Cached(areaName).catch(() => null);
-    return new Response(
-      notFound ?? `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px"><h2>404 — Page not found</h2><p>/${slug}</p></body></html>`,
-      { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
-    );
+      ? (await cms.renderSystemPage(areaName, "404") ?? await cms.renderPage(areaName, "404", {}))
+      : await render404Cached(areaName);
+    return new Response(notFound ?? "<h1>404 Not Found</h1>", {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
-  const draftBanner = isDraft
-    ? `<script>
-        var b=document.createElement('div');
-        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#fef3c7;color:#92400e;padding:6px 16px;font-size:13px;font-weight:600;text-align:center;border-bottom:1px solid #fcd34d;font-family:sans-serif';
-        b.textContent='DRAFT PREVIEW — not published';
-        document.body.prepend(b);
-        document.body.style.marginTop='33px';
-      </script>`
-    : "";
-
-  const finalHtml = html.replace("</body>", `${draftBanner}</body>`);
-
-  return new Response(finalHtml, {
+  return new Response(html, {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",

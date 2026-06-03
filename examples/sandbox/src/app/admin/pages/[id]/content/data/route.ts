@@ -4,15 +4,22 @@ import { cms } from "@/lib/cms";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [allPages, version, components, publishedVersion] = await Promise.all([
+  const [allPages, version, components, publishedVersion, areas] = await Promise.all([
     cms.pages.findAll(),
     cms.pageVersions.getLatest(id),
     cms.components.findAll(),
     cms.pageVersions.getLatestPublished(id).catch(() => null),
+    cms.areas.findAll().catch(() => []),
   ]);
 
   const page = allPages.find((p) => p.id === id);
   if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Determine if this page is a system page and what type
+  const pageArea = areas.find((a) => a.name === page.area);
+  const systemPageType = pageArea?.systemPages
+    ? (Object.entries(pageArea.systemPages).find(([, pid]) => pid === id)?.[0] ?? null)
+    : null;
 
   const structure = version?.structure ?? [];
 
@@ -27,10 +34,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   );
 
   return NextResponse.json({
-    pageTitle:   page.title,
-    pageSlug:    page.slug,
-    pageArea:    page.area,
-    isPublished: page.status === "published" && !!publishedVersion,
+    pageTitle:      page.title,
+    pageSlug:       page.slug,
+    pageArea:       page.area,
+    systemPageType: systemPageType,
+    isPublished:    page.status === "published" && !!publishedVersion,
     latestVersionId: version?.id ?? null,
     latestVersionNumber: version?.version ?? null,
     publishedVersionId: publishedVersion?.id ?? null,
