@@ -595,7 +595,9 @@ export default function ContentPage() {
     localStorage.setItem(tourKey, "1");
   }
 
-  const previewUrl = pageSlug ? `/${pageSlug}?draft=1` : null;
+  // Home system page has slug "/" or "" — treat as root
+  const publicPath  = (!pageSlug || pageSlug === "/") ? "/" : `/${pageSlug}`;
+  const previewUrl  = `${publicPath}?draft=1`;
   const hasUnsavedChanges = serializeStructure(structure) !== savedStructureJson;
   const canPublish = !hasUnsavedChanges && !!latestVersionId && (!isPublished || latestVersionId !== publishedVersionId);
 
@@ -662,27 +664,25 @@ export default function ContentPage() {
                   background: "#fff", border: "1px solid var(--border)", borderRadius: 8,
                   boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 190, overflow: "hidden",
                 }}>
-                  {pageSlug && (
-                    <a
-                      href={`/${pageSlug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setShowPreviewMenu(false)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 14px", textDecoration: "none",
-                        color: "var(--text)",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <span>↗</span>
-                      <span>
-                        <span style={{ display: "block", fontWeight: 600, fontSize: "0.88rem" }}>View public page</span>
-                        <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>/{pageSlug}</span>
-                      </span>
-                    </a>
-                  )}
+                  <a
+                    href={publicPath}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => setShowPreviewMenu(false)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 14px", textDecoration: "none",
+                      color: "var(--text)",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span>↗</span>
+                    <span>
+                      <span style={{ display: "block", fontWeight: 600, fontSize: "0.88rem" }}>View public page</span>
+                      <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>{publicPath}</span>
+                    </span>
+                  </a>
                 </div>
               )}
             </div>
@@ -843,7 +843,7 @@ export default function ContentPage() {
                   />
                 ) : (
                   <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 40, fontSize: "0.85rem" }}>
-                    Save the page first to enable preview.
+                    No preview available — set a slug in Settings.
                   </div>
                 )}
               </div>
