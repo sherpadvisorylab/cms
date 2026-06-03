@@ -427,7 +427,9 @@ export default function ContentPage() {
   const [insertAfter, setInsertAfter] = useState<number | null>(null);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [showSaveMenu,       setShowSaveMenu]       = useState(false);
-  const saveBtnRef = useRef<HTMLDivElement>(null);
+  const [showPreviewMenu,    setShowPreviewMenu]    = useState(false);
+  const saveBtnRef    = useRef<HTMLDivElement>(null);
+  const previewBtnRef = useRef<HTMLDivElement>(null);
 
   const [showPreview, setShowPreview] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
@@ -525,6 +527,15 @@ export default function ContentPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showSaveMenu]);
 
+  useEffect(() => {
+    if (!showPreviewMenu) return;
+    function handler(e: MouseEvent) {
+      if (previewBtnRef.current && !previewBtnRef.current.contains(e.target as Node)) setShowPreviewMenu(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPreviewMenu]);
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -615,14 +626,87 @@ export default function ContentPage() {
             >
               ?
             </button>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowPreview((current) => !current)}
-              title={showPreview ? "Hide preview" : "Show preview"}
-              style={showPreview ? { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", fontWeight: 600 } : undefined}
-            >
-              Preview
-            </button>
+            {/* Preview split button */}
+            <div ref={previewBtnRef} style={{ position: "relative", display: "inline-flex" }}>
+              <div style={{
+                display: "inline-flex", alignItems: "stretch", borderRadius: 6, overflow: "hidden",
+                border: showPreview ? "1px solid #bfdbfe" : "1px solid var(--border)",
+              }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowPreview((v) => !v)}
+                  title={showPreview ? "Hide preview" : "Show inline preview"}
+                  style={{
+                    borderRadius: 0, borderRight: `1px solid ${showPreview ? "#bfdbfe" : "var(--border)"}`,
+                    ...(showPreview ? { background: "#eff6ff", color: "#1d4ed8", fontWeight: 600 } : {}),
+                  }}
+                >
+                  Preview
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowPreviewMenu((v) => !v)}
+                  title="More preview options"
+                  style={{
+                    borderRadius: 0, padding: "0 7px",
+                    ...(showPreview ? { background: "#eff6ff", color: "#1d4ed8" } : {}),
+                  }}
+                >
+                  {showPreviewMenu ? "▴" : "▾"}
+                </button>
+              </div>
+
+              {showPreviewMenu && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200,
+                  background: "#fff", border: "1px solid var(--border)", borderRadius: 8,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 190, overflow: "hidden",
+                }}>
+                  {pageSlug && (
+                    <a
+                      href={`/${pageSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setShowPreviewMenu(false)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 14px", textDecoration: "none",
+                        color: "var(--text)",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span>↗</span>
+                      <span>
+                        <span style={{ display: "block", fontWeight: 600, fontSize: "0.88rem" }}>View public page</span>
+                        <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>/{pageSlug}</span>
+                      </span>
+                    </a>
+                  )}
+                  {previewUrl && (
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setShowPreviewMenu(false)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 14px", textDecoration: "none",
+                        color: "var(--text)", borderTop: "1px solid var(--bg-light)",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span>👁</span>
+                      <span>
+                        <span style={{ display: "block", fontWeight: 600, fontSize: "0.88rem" }}>Draft preview</span>
+                        <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>Opens with ?draft=1</span>
+                      </span>
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
             {saved && <span style={{ fontSize: "0.82rem", color: "var(--success)", fontWeight: 600 }}>Saved</span>}
 
             {/* Save Content split button */}
