@@ -7,6 +7,7 @@ import { PageSchemaEditor } from "./PageSchemaEditor";
 import type { ComponentSchemaEntry, PageSchemaConfig } from "./PageSchemaEditor";
 import { PageEditorHeader } from "./PageEditorHeader";
 import { SystemPageBadges } from "@/components/admin/SystemPageBadges";
+import { VersionBadge } from "@/components/admin/VersionBadge";
 
 export default async function PageSettingsPage({
   params,
@@ -68,11 +69,13 @@ export default async function PageSettingsPage({
         id={id}
         title={page.title}
         isPublished={isPublished}
+        badge={<VersionBadge versionNumber={latestVersion?.version ?? null} />}
         actions={
           <PageSettingsActions
             pageId={id}
             initialIsPublished={isPublished}
             publishedVersionNumber={publishedVersion?.version ?? null}
+            publishedVersionId={publishedVersion?.id ?? null}
             pageSlug={page.slug}
           />
         }

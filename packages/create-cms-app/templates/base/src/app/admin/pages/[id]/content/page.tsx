@@ -12,6 +12,7 @@ import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import type { ComponentInstance, ComponentSchemaField } from "@sherpacms/domain";
 import { validateFieldValue } from "@/components/admin/validators";
 import { SaveAsTemplateDialog } from "@/components/admin/SaveAsTemplateDialog";
+import { VersionBadge } from "@/components/admin/VersionBadge";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
 type VersionInfo = {
@@ -60,37 +61,7 @@ const TOUR_STEPS = [
   },
 ] as const;
 
-function VersionBadge({ versionNumber }: { versionNumber: number | null }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "3px 10px",
-        borderRadius: 999,
-        background: versionNumber ? "#eff6ff" : "#f8fafc",
-        border: `1px solid ${versionNumber ? "#bfdbfe" : "var(--border)"}`,
-        color: versionNumber ? "#1d4ed8" : "var(--text-muted)",
-        fontSize: "0.74rem",
-        fontWeight: 700,
-        lineHeight: 1,
-      }}
-      title={versionNumber ? `You are editing version ${versionNumber}` : "This page has not been versioned yet"}
-    >
-      <span
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          background: versionNumber ? "#2563eb" : "#94a3b8",
-          flexShrink: 0,
-        }}
-      />
-      {versionNumber ? `Editing v${versionNumber}` : "Draft"}
-    </span>
-  );
-}
+// VersionBadge is now imported from @/components/admin/VersionBadge
 
 function ButtonSpinner({
   size = 12,
