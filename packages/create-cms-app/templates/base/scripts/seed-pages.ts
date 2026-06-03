@@ -18,7 +18,7 @@ type SeedPageDefinition = {
 };
 
 async function readSeedPages() {
-  return readSeedEntries<SeedPageDefinition>("pages", ".page.json");
+  return readSeedEntries<SeedPageDefinition>("templates/pages", ".page.json");
 }
 
 async function getDefaultAreaName(cms: any) {
