@@ -1,0 +1,10 @@
+{
+  "systemPageType": "home",
+  "title": "Home",
+  "slug": "home",
+  "status": "published",
+  "structure": [],
+  "seo": {
+    "metaTitle": "Home"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "systemPageType": "404",
+  "title": "404 - Page Not Found",
+  "slug": "not-found",
+  "status": "published",
+  "structure": [],
+  "seo": {
+    "metaTitle": "Page Not Found"
+  }
+}

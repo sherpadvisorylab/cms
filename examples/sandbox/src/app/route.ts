@@ -24,15 +24,9 @@ export async function GET() {
   const areaName = await getPrimaryPublicAreaName();
   const html     = await renderHomeCached(areaName);
 
+  // Should not happen in a seeded project — home system page is always created by seed-system-pages.ts
   if (!html) {
-    return new Response(
-      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px">
-        <h2>No homepage configured yet</h2>
-        <p>Create a page and assign it as the Home system page in the CMS admin.</p>
-        <p><a href="/admin">Open Admin</a></p>
-      </body></html>`,
-      { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
-    );
+    return Response.redirect("/admin/pages", 302);
   }
 
   return new Response(html, {
