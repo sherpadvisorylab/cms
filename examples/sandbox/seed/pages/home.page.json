@@ -2,7 +2,11 @@
   "systemPageType": "home",
   "title": "Home",
   "slug": "home",
-  "seo": { "metaTitle": "Home", "metaDescription": "Welcome to our website." },
+  "status": "published",
+  "seo": {
+    "metaTitle": "Home",
+    "metaDescription": "Welcome to our website."
+  },
   "seedComponentName": "Home - Starter",
   "defaultContent": {
     "title": "Welcome",

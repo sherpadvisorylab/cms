@@ -10,7 +10,6 @@ async function main() {
   const { seedComponents } = await import("./seed-components");
   const { seedLayoutTemplates } = await import("./seed-layouts");
   const { seedPages } = await import("./seed-pages");
-  const { seedSystemPages } = await import("./seed-system-pages");
 
   console.log("Seeding starter content...\n");
   await seedSettings(cms);
@@ -19,7 +18,6 @@ async function main() {
   await seedComponents(cms);
   await seedLayoutTemplates(cms);
   await seedPages(cms);
-  await seedSystemPages(cms);
 
   const loadDbModule = new Function("return import('../src/lib/db/index')");
   const db = await Promise.resolve(loadDbModule()).catch(() => null);

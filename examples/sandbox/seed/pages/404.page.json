@@ -2,7 +2,10 @@
   "systemPageType": "404",
   "title": "404 - Page Not Found",
   "slug": "not-found",
-  "seo": { "metaTitle": "Page Not Found" },
+  "status": "published",
+  "seo": {
+    "metaTitle": "Page Not Found"
+  },
   "seedComponentName": "404 - Not Found",
   "defaultContent": {
     "title": "Page Not Found",

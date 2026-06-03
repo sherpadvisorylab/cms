@@ -9,6 +9,12 @@ type SeedPageDefinition = {
   structure?: unknown[];
   content?: Record<string, unknown>;
   seo?: Record<string, unknown>;
+  /** Marks this page as a system page and assigns it that role after creation. */
+  systemPageType?: string;
+  /** Name of a seeded component to include as the page's starter content. */
+  seedComponentName?: string;
+  /** Default field values for the seed component instance. */
+  defaultContent?: Record<string, unknown>;
 };
 
 async function readSeedPages() {
@@ -27,39 +33,67 @@ async function getDefaultAreaName(cms: any) {
 }
 
 export async function seedPages(cms: any) {
-  const [seedPages, existingPages, defaultAreaName] = await Promise.all([
+  const [seedPageDefs, existingPages, defaultAreaName, allComponents, areas] = await Promise.all([
     readSeedPages(),
     cms.pages.findAll().catch(() => []),
     getDefaultAreaName(cms),
+    cms.components.findAll().catch(() => []),
+    cms.areas.findAll().catch(() => []),
   ]);
 
-  for (const pageDef of seedPages) {
+  for (const pageDef of seedPageDefs) {
     const area = pageDef.area || defaultAreaName;
     const slug = pageDef.slug ?? "";
-    const existing = existingPages.find((page: any) => page.area === area && page.slug === slug);
 
-    if (existing) {
+    // Skip if system page type already assigned for this area
+    if (pageDef.systemPageType) {
+      const areaObj = areas.find((a: any) => a.name === area);
+      if (areaObj?.systemPages?.[pageDef.systemPageType]) {
+        console.log(`  -> skip system page (already assigned): ${pageDef.systemPageType}`);
+        continue;
+      }
+    }
+
+    const existing = existingPages.find((page: any) => page.area === area && page.slug === slug);
+    if (existing && !pageDef.systemPageType) {
       console.log(`  -> skip (exists): ${pageDef.title} [${area}] /${slug}`);
       continue;
     }
 
-    const page = await cms.pages.create({
+    // Build structure from named seed component if provided
+    let structure = pageDef.structure ?? [];
+    if (pageDef.seedComponentName && structure.length === 0) {
+      const comp = allComponents.find((c: any) => c.name === pageDef.seedComponentName);
+      if (comp) {
+        structure = [{ componentId: comp.id, content: pageDef.defaultContent ?? {} }];
+      } else {
+        console.warn(`  warning: component "${pageDef.seedComponentName}" not found for page "${pageDef.title}"`);
+      }
+    }
+
+    const page = existing ?? await cms.pages.create({
       area,
       slug,
-      title: pageDef.title,
-      status: pageDef.status ?? "draft",
+      title:    pageDef.title,
+      status:   pageDef.status ?? "draft",
       parentId: pageDef.parentId ?? null,
-      structure: pageDef.structure ?? [],
-      content: pageDef.content ?? {},
-      seo: pageDef.seo ?? {},
+      structure,
+      content:  pageDef.content ?? {},
+      seo:      pageDef.seo ?? {},
     });
 
     await cms.pageVersions.createVersion(page.id, {
-      structure: pageDef.structure ?? [],
+      structure,
       content: pageDef.content ?? {},
       publish: (pageDef.status ?? "draft") === "published",
     });
 
-    console.log(`  + created page: ${pageDef.title} [${area}] /${slug}`);
+    if (pageDef.systemPageType) {
+      await cms.pages.update(page.id, { status: "published" });
+      await cms.assignSystemPage(area, pageDef.systemPageType, page.id);
+      console.log(`  + created system page (${pageDef.systemPageType}): ${pageDef.title} [${area}] /${slug}`);
+    } else {
+      console.log(`  + created page: ${pageDef.title} [${area}] /${slug}`);
+    }
   }
 }
