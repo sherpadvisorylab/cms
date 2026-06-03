@@ -1,0 +1,17 @@
+{
+  "name": "Home - Starter",
+  "type": "page",
+  "category": "Hero",
+  "status": "published",
+  "version": {
+    "templateLiquid": "<section class=\"hs-hero\"><div class=\"hs-inner\"><h1 class=\"hs-title\">{{ title }}</h1>{% if subtitle %}<p class=\"hs-subtitle\">{{ subtitle }}</p>{% endif %}{% if ctaLabel %}<a href=\"{{ ctaUrl | default: '/' }}\" class=\"hs-cta\">{{ ctaLabel }}</a>{% endif %}</div></section>",
+    "schema": [
+      { "key": "title",    "label": "Title",            "type": "text" },
+      { "key": "subtitle", "label": "Subtitle",         "type": "text" },
+      { "key": "ctaLabel", "label": "CTA button label", "type": "text" },
+      { "key": "ctaUrl",   "label": "CTA button URL",   "type": "text" }
+    ],
+    "css": ".hs-hero{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;background:linear-gradient(135deg,var(--primary,#2563eb) 0%,var(--secondary,#1e3a8a) 100%);color:#fff;padding:4rem 1.5rem}.hs-inner{max-width:720px;margin:0 auto}.hs-title{font-size:clamp(2rem,6vw,4rem);font-weight:800;line-height:1.1;margin:0 0 1.25rem;letter-spacing:-.02em}.hs-subtitle{font-size:1.15rem;opacity:.85;margin:0 auto 2.5rem;line-height:1.7;max-width:540px}.hs-cta{display:inline-block;background:#fff;color:var(--primary,#2563eb);padding:.9rem 2.25rem;border-radius:8px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(0,0,0,.2)}.hs-cta:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.25)}",
+    "js": ""
+  }
+}

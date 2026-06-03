@@ -1,0 +1,17 @@
+{
+  "name": "404 - Not Found",
+  "type": "page",
+  "category": "System",
+  "status": "published",
+  "version": {
+    "templateLiquid": "<section class=\"nf-section\"><div class=\"nf-inner\"><div class=\"nf-code\">404</div><h1 class=\"nf-title\">{{ title | default: 'Page Not Found' }}</h1><p class=\"nf-message\">{{ message | default: \"The page you're looking for doesn't exist.\" }}</p><a href=\"{{ homeUrl | default: '/' }}\" class=\"nf-btn\">{{ homeLabel | default: 'Back to Home' }}</a></div></section>",
+    "schema": [
+      { "key": "title",     "label": "Title",                 "type": "text" },
+      { "key": "message",   "label": "Message",               "type": "text" },
+      { "key": "homeLabel", "label": "Back to home label",    "type": "text" },
+      { "key": "homeUrl",   "label": "Back to home URL",      "type": "text" }
+    ],
+    "css": ".nf-section{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:4rem 1.5rem;background:var(--bg-surface,#f8fafc)}.nf-inner{max-width:480px;margin:0 auto}.nf-code{font-size:clamp(6rem,20vw,11rem);font-weight:900;line-height:1;color:var(--primary,#2563eb);opacity:.12;margin-bottom:-1.5rem;letter-spacing:-.05em;user-select:none}.nf-title{font-size:clamp(1.5rem,4vw,2.25rem);font-weight:700;color:var(--text-primary,#111827);margin:0 0 1rem}.nf-message{font-size:1rem;color:var(--text-muted,#6b7280);margin:0 0 2.5rem;line-height:1.7}.nf-btn{display:inline-block;background:var(--primary,#2563eb);color:#fff;padding:.8rem 2rem;border-radius:8px;font-weight:600;text-decoration:none;transition:background .15s,transform .15s}.nf-btn:hover{background:var(--secondary,#1e3a8a);transform:translateY(-1px)}",
+    "js": ""
+  }
+}

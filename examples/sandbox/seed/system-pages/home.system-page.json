@@ -2,9 +2,12 @@
   "systemPageType": "home",
   "title": "Home",
   "slug": "home",
-  "status": "published",
-  "structure": [],
-  "seo": {
-    "metaTitle": "Home"
+  "seo": { "metaTitle": "Home", "metaDescription": "Welcome to our website." },
+  "seedComponentName": "Home - Starter",
+  "defaultContent": {
+    "title": "Welcome",
+    "subtitle": "Build something amazing with this CMS.",
+    "ctaLabel": "Get Started",
+    "ctaUrl": "/contact"
   }
 }

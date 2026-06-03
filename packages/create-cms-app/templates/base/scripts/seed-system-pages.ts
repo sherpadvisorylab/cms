@@ -5,8 +5,8 @@ type SeedSystemPageDef = {
   title: string;
   slug: string;
   area?: string;
-  structure?: unknown[];
-  content?: Record<string, unknown>;
+  seedComponentName?: string;
+  defaultContent?: Record<string, unknown>;
   seo?: Record<string, unknown>;
 };
 
@@ -23,9 +23,10 @@ async function getDefaultAreaName(cms: any): Promise<string> {
 export async function seedSystemPages(cms: any) {
   const defs = await readSeedEntries<SeedSystemPageDef>("system-pages", ".system-page.json");
 
-  const [areas, allPages, defaultAreaName] = await Promise.all([
+  const [areas, allPages, allComponents, defaultAreaName] = await Promise.all([
     cms.areas.findAll().catch(() => []),
     cms.pages.findAll().catch(() => []),
+    cms.components.findAll().catch(() => []),
     getDefaultAreaName(cms),
   ]);
 
@@ -33,41 +34,46 @@ export async function seedSystemPages(cms: any) {
     const areaName = def.area || defaultAreaName;
     const areaObj  = areas.find((a: any) => a.name === areaName);
 
-    // Skip if already assigned
     if (areaObj?.systemPages?.[def.systemPageType]) {
       console.log(`  -> skip system page (already assigned): ${def.systemPageType}`);
       continue;
     }
 
-    // Reuse existing page with same slug, or create a new one
+    const structure: any[] = [];
+    if (def.seedComponentName) {
+      const comp = allComponents.find((c: any) => c.name === def.seedComponentName);
+      if (comp) {
+        structure.push({ componentId: comp.id, content: def.defaultContent ?? {} });
+      } else {
+        console.warn(`  warning: component not found for system page ${def.systemPageType}: "${def.seedComponentName}"`);
+      }
+    }
+
     let page = allPages.find((p: any) => p.area === areaName && p.slug === def.slug);
 
     if (!page) {
       page = await cms.pages.create({
-        area:      areaName,
-        slug:      def.slug,
-        title:     def.title,
-        status:    "draft",
-        parentId:  null,
-        structure: def.structure ?? [],
-        content:   def.content ?? {},
-        seo:       def.seo ?? {},
+        area:     areaName,
+        slug:     def.slug,
+        title:    def.title,
+        status:   "draft",
+        parentId: null,
+        structure,
+        content:  {},
+        seo:      def.seo ?? {},
       });
     }
 
-    // Create a published version
     await cms.pageVersions.createVersion(page.id, {
-      structure: def.structure ?? [],
-      content:   def.content ?? {},
-      publish:   true,
+      structure,
+      content: {},
+      publish: true,
     });
 
-    // Mark page status as published
     await cms.pages.update(page.id, { status: "published" });
-
-    // Assign as system page (updates area.systemPages)
     await cms.assignSystemPage(areaName, def.systemPageType, page.id);
 
-    console.log(`  + seeded system page (${def.systemPageType}): ${def.title} [${areaName}]`);
+    const note = structure.length ? "" : " (empty — design in admin)";
+    console.log(`  + seeded system page (${def.systemPageType}): ${def.title} [${areaName}]${note}`);
   }
 }

@@ -2,9 +2,12 @@
   "systemPageType": "404",
   "title": "404 - Page Not Found",
   "slug": "not-found",
-  "status": "published",
-  "structure": [],
-  "seo": {
-    "metaTitle": "Page Not Found"
+  "seo": { "metaTitle": "Page Not Found" },
+  "seedComponentName": "404 - Not Found",
+  "defaultContent": {
+    "title": "Page Not Found",
+    "message": "The page you're looking for doesn't exist.",
+    "homeLabel": "Back to Home",
+    "homeUrl": "/"
   }
 }
