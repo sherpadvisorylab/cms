@@ -36,20 +36,21 @@ export async function GET(
 
   const areaName = await getPrimaryPublicAreaName();
 
-  // Redirect if this slug belongs to a system page with a different canonical URL.
-  // e.g. /home → / (when "home" page is assigned as system home)
+  // System page slugs return 404 — slug is no longer a valid public URL
+  // (SYSTEM_PAGE_RULES.oldSlugReturns404)
   if (!isDraft) {
     const area = await cms.areas.findByKey(areaName).catch(() => null);
     if (area?.systemPages) {
-      for (const [type, pageId] of Object.entries(area.systemPages)) {
-        const allPages = await cms.pages.findAll(areaName).catch(() => []);
-        const sysPage = allPages.find((p) => p.id === pageId);
-        if (sysPage?.slug === slug) {
-          const canonical = type === "home" ? "/" : null;
-          if (canonical && canonical !== `/${slug}`) {
-            return Response.redirect(new URL(canonical, request.url), 301);
-          }
-        }
+      const allPages = await cms.pages.findAll(areaName).catch(() => []);
+      const isSystemSlug = Object.values(area.systemPages).some((pageId) =>
+        allPages.find((p) => p.id === pageId)?.slug === slug,
+      );
+      if (isSystemSlug) {
+        const notFound = await render404Cached(areaName).catch(() => null);
+        return new Response(
+          notFound ?? `<!DOCTYPE html><html><body><h2>404 — Not found</h2></body></html>`,
+          { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
+        );
       }
     }
   }

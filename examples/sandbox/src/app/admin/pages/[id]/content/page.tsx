@@ -750,6 +750,7 @@ export default function ContentPage() {
               canPublish={canPublish}
               publishedVersionNumber={publishedVersionNumber}
               pageSlug={pageSlug}
+              isSystemPage={!!systemPageType}
               onOpenHistory={openHistory}
               onToggle={(published, info) => {
                 setIsPublished(published);

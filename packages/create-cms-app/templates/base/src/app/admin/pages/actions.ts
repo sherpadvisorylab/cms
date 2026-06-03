@@ -4,6 +4,7 @@ import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ComponentInstance, CmsPageSeo } from "@sherpacms/domain";
+import { SYSTEM_PAGE_RULES, getSystemPageType } from "@/lib/systemPageRules";
 
 type PageVersionRecord = {
   id: string;
@@ -164,12 +165,13 @@ export async function quickUpdatePage(id: string, data: {
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 export async function deletePage(id: string) {
-  // Guard: system pages are not deletable
-  const page = (await cms.pages.findAll()).find((p) => p.id === id);
-  if (page) {
-    const area = await cms.areas.findByKey(page.area).catch(() => null);
-    const isSystem = area?.systemPages && Object.values(area.systemPages).includes(id);
-    if (isSystem) throw new Error("System pages cannot be deleted. Unassign the system page role first.");
+  if (!SYSTEM_PAGE_RULES.canDelete) {
+    const page = (await cms.pages.findAll()).find((p) => p.id === id);
+    if (page) {
+      const area = await cms.areas.findByKey(page.area).catch(() => null);
+      if (getSystemPageType(area?.systemPages, id))
+        throw new Error("System pages cannot be deleted. Unassign the system page role first.");
+    }
   }
   await cms.pages.delete(id);
   revalidatePath("/admin/pages");
@@ -238,9 +240,19 @@ export async function savePageSchemaConfig(pageId: string, config: {
 // ── System page assignment ────────────────────────────────────────────────────
 export async function assignSystemPage(areaName: string, type: string, pageId: string) {
   await cms.assignSystemPage(areaName, type, pageId);
+
+  // SYSTEM_PAGE_RULES.autoPublishOnAssign — system pages must always be published
+  if (SYSTEM_PAGE_RULES.autoPublishOnAssign) {
+    const page = (await cms.pages.findAll()).find((p) => p.id === pageId);
+    if (page && page.status !== "published") {
+      const latest = await cms.pageVersions.getLatest(pageId).catch(() => null);
+      if (latest) await markVersionAsPublished(pageId, latest.id);
+      await cms.pages.update(pageId, { status: "published" });
+    }
+  }
+
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
-  // Revalidate the appropriate public route
   if (type === "home") revalidatePath("/");
   revalidatePath(`/${type}`);
 }
@@ -254,6 +266,14 @@ export async function removeSystemPage(areaName: string, type: string) {
 
 // ── Unpublish (sets status back to draft, keeps version history intact) ───────
 export async function unpublishPage(pageId: string) {
+  if (!SYSTEM_PAGE_RULES.canUnpublish) {
+    const page = (await cms.pages.findAll()).find((p) => p.id === pageId);
+    if (page) {
+      const area = await cms.areas.findByKey(page.area).catch(() => null);
+      if (getSystemPageType(area?.systemPages, pageId))
+        throw new Error("System pages cannot be unpublished.");
+    }
+  }
   const allPages = await cms.pages.findAll();
   const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
   await cms.pages.update(pageId, { status: "draft" });

@@ -9,6 +9,8 @@ interface Props {
   canPublish?: boolean;
   publishedVersionNumber?: number | null;
   pageSlug?: string;
+  /** When true, hides the Unpublish option (system page rule). */
+  isSystemPage?: boolean;
   onOpenHistory?: () => void;
   onToggle?: (isPublished: boolean, info?: { versionId?: string; versionNumber?: number | null }) => void;
 }
@@ -19,6 +21,7 @@ export function PublishToggle({
   canPublish = !initialIsPublished,
   publishedVersionNumber = null,
   pageSlug,
+  isSystemPage = false,
   onOpenHistory,
   onToggle,
 }: Props) {
@@ -170,7 +173,7 @@ export function PublishToggle({
               />
             )}
 
-            {isPublished && (
+            {isPublished && !isSystemPage && (
               <MenuButton
                 label="Unpublish"
                 description="Move the page back to draft"
@@ -178,6 +181,11 @@ export function PublishToggle({
                 loading={pendingAction === "unpublish"}
                 onClick={handleUnpublish}
               />
+            )}
+            {isPublished && isSystemPage && (
+              <div style={{ padding: "10px 14px", fontSize: "0.78rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                🔒 System pages cannot be unpublished
+              </div>
             )}
           </div>
         )}

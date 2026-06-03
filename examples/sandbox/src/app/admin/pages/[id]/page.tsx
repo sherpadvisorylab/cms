@@ -77,6 +77,7 @@ export default async function PageSettingsPage({
             publishedVersionNumber={publishedVersion?.version ?? null}
             publishedVersionId={publishedVersion?.id ?? null}
             pageSlug={page.slug}
+            isSystemPage={isSystemPage}
           />
         }
       />

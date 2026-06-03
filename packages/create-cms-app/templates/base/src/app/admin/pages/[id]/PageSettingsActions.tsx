@@ -21,6 +21,7 @@ interface Props {
   publishedVersionNumber: number | null;
   publishedVersionId:   string | null;
   pageSlug:             string;
+  isSystemPage?:        boolean;
 }
 
 export function PageSettingsActions({
@@ -29,6 +30,7 @@ export function PageSettingsActions({
   publishedVersionNumber,
   publishedVersionId: initialPublishedVersionId,
   pageSlug,
+  isSystemPage = false,
 }: Props) {
   const [isDirty,      setIsDirty]      = useState(false);
   const [isPublished,  setIsPublished]  = useState(initialIsPublished);
@@ -101,6 +103,7 @@ export function PageSettingsActions({
         canPublish={canPublish}
         publishedVersionNumber={pubVerNum}
         pageSlug={pageSlug}
+        isSystemPage={isSystemPage}
         onOpenHistory={openHistory}
         onToggle={(published, info) => {
           setIsPublished(published);
