@@ -1,35 +1,31 @@
 import { cms } from "@/lib/cms";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
-import { unstable_cache } from "next/cache";
 
 /**
  * Root Route Handler — serves the system "home" page at /.
  * Bypasses Next.js layout to return the full CMS-rendered HTML document
  * (including area body template, navigation embeds, CSS/JS), identical
  * to how [slug]/route.ts renders all other public pages.
+ *
+ * Note: caching is intentionally omitted here to avoid stale-null issues
+ * on cold starts. The [slug]/route.ts pages use unstable_cache; the home
+ * route relies on HTTP-level caching and ISR invalidation via revalidatePath('/').
  */
-function renderHomeCached(areaName: string) {
-  return unstable_cache(
-    async () => {
-      // Prefer system page "home" if assigned
-      const systemHtml = await cms.renderSystemPage(areaName, "home").catch(() => null);
-      if (systemHtml) return systemHtml;
-      // Fallback: find first published page with a home-like slug
-      const pages = await cms.pages.findAll(areaName).catch(() => []);
-      const published = pages.filter((p) => p.status === "published");
-      const candidate = ["", "/", "home", "index"]
-        .map((s) => published.find((p) => p.slug === s))
-        .find(Boolean);
-      return candidate ? cms.renderPage(areaName, candidate.slug, {}) : null;
-    },
-    [`render:${areaName}:home`],
-    { revalidate: false, tags: ["home-page", "pages"] },
-  )();
-}
-
 export async function GET() {
   const areaName = await getPrimaryPublicAreaName();
-  const html = await renderHomeCached(areaName);
+
+  // Prefer system page "home" if assigned
+  let html = await cms.renderSystemPage(areaName, "home").catch(() => null);
+
+  // Fallback: find first published page with a home-like slug
+  if (!html) {
+    const pages = await cms.pages.findAll(areaName).catch(() => []);
+    const published = pages.filter((p) => p.status === "published");
+    const candidate = ["", "/", "home", "index"]
+      .map((s) => published.find((p) => p.slug === s))
+      .find(Boolean);
+    if (candidate) html = await cms.renderPage(areaName, candidate.slug, {}).catch(() => null);
+  }
 
   if (!html) {
     return new Response(
