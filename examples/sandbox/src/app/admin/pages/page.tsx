@@ -17,6 +17,16 @@ export default async function PagesPage({
     cms.pages.findAll(),
     cms.areas.findAll(),
   ]);
+
+  // Build map of pageId → system page type from all areas
+  const systemPageMap: Record<string, string> = {};
+  for (const area of areas) {
+    if (area.systemPages) {
+      for (const [type, pageId] of Object.entries(area.systemPages)) {
+        systemPageMap[pageId] = type;
+      }
+    }
+  }
   const publishedVersions = await Promise.all(
     pages.map(async (page) => ({
       pageId: page.id,
@@ -106,7 +116,7 @@ export default async function PagesPage({
       </div>
 
       {/* Table */}
-      <PagesTable pages={pagesWithPublishedVersion} areas={areas} search={q} areaFilter={area} />
+      <PagesTable pages={pagesWithPublishedVersion} areas={areas} search={q} areaFilter={area} systemPageMap={systemPageMap} />
     </div>
   );
 }

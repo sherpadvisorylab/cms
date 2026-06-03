@@ -12,11 +12,18 @@ type PageRow = CmsPage & {
   publishedVersionNumber?: number | null;
 };
 
+const SYSTEM_PAGE_LABELS: Record<string, { icon: string; label: string }> = {
+  home: { icon: "🏠", label: "Home" },
+  "404": { icon: "🚫", label: "404" },
+};
+
 type Props = {
   pages: PageRow[];
   areas: CmsArea[];
   search: string;
   areaFilter: string;
+  /** Maps pageId → system page type (e.g. "home", "404") */
+  systemPageMap?: Record<string, string>;
 };
 
 type DrawerComponentMeta = {
@@ -43,7 +50,7 @@ function toSlug(text: string) {
     .replace(/^-|-$/g, "");
 }
 
-export function PagesTable({ pages, areas, search, areaFilter }: Props) {
+export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {} }: Props) {
   const router = useRouter();
   const areaMap = Object.fromEntries(areas.map((a) => [a.name, a.displayName || a.name]));
 
@@ -287,8 +294,23 @@ export function PagesTable({ pages, areas, search, areaFilter }: Props) {
                       {page.title}
                     </span>
                   </td>
-                  <td style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                    /{page.slug}
+                  <td>
+                    {systemPageMap[page.id] ? (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        background: "#dcfce7", color: "#15803d",
+                        border: "1px solid #bbf7d0",
+                        fontSize: "0.74rem", fontWeight: 700,
+                        padding: "2px 9px", borderRadius: 999,
+                      }}>
+                        {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.icon ?? "⚙️"}{" "}
+                        {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.label ?? systemPageMap[page.id]}
+                      </span>
+                    ) : (
+                      <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        /{page.slug}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span
@@ -320,7 +342,7 @@ export function PagesTable({ pages, areas, search, areaFilter }: Props) {
                     </span>
                   </td>
                   <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
-                    {page.updatedAt ? new Date(page.updatedAt).toLocaleDateString() : "—"}
+                    {page.updatedAt ? new Date(page.updatedAt).toLocaleDateString("en-CA") : "—"}
                   </td>
                   <td style={{ whiteSpace: "nowrap" }} onClick={(event) => event.stopPropagation()}>
                     <button
