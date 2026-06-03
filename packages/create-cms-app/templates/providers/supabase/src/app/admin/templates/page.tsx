@@ -1,25 +1,25 @@
 import { cms } from "@/lib/cms";
-import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { TemplatesClient } from "./TemplatesClient";
-import { initAdmin } from "@/lib/firebase/admin";
-import { getFirestore } from "firebase-admin/firestore";
-
-initAdmin();
+import { db } from "@/lib/db";
+import { cmsPageTemplates } from "@/lib/db/schema";
+import { desc } from "drizzle-orm";
 
 async function fetchPageTemplates() {
   try {
-    const snap = await getFirestore()
-      .collection("pageTemplates")
-      .orderBy("createdAt", "desc")
-      .get();
-    return snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id:             doc.id,
-        name:           d.name as string,
-        componentCount: Array.isArray(d.structure) ? (d.structure as unknown[]).length : 0,
-      };
-    });
+    const rows = await db
+      .select({
+        id: cmsPageTemplates.id,
+        name: cmsPageTemplates.name,
+        structure: cmsPageTemplates.structure,
+      })
+      .from(cmsPageTemplates)
+      .orderBy(desc(cmsPageTemplates.createdAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      componentCount: Array.isArray(row.structure) ? row.structure.length : 0,
+    }));
   } catch {
     return [];
   }

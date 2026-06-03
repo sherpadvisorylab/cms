@@ -8,22 +8,17 @@ export async function DELETE(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  let url: string;
+  let name: string;
   try {
-    const body = await req.json() as { url?: string };
-    if (!body.url) throw new Error("missing");
-    url = body.url;
+    const body = await req.json() as { name?: string };
+    if (!body.name) throw new Error("missing");
+    name = body.name;
   } catch {
-    return Response.json({ error: "Missing asset URL" }, { status: 400 });
+    return Response.json({ error: "Missing asset name" }, { status: 400 });
   }
 
-  // Extract file path from public URL:
-  // https://<ref>.supabase.co/storage/v1/object/public/cms-assets/<path>
-  const match = url.match(/\/storage\/v1\/object\/public\/cms-assets\/(.+)$/);
-  if (!match) return Response.json({ error: "Invalid asset URL" }, { status: 400 });
-
   const admin = createAdminClient();
-  const { error } = await admin.storage.from(BUCKET).remove([match[1]]);
+  const { error } = await admin.storage.from(BUCKET).remove([name]);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   return Response.json({ ok: true });

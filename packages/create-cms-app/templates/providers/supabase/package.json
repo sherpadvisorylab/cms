@@ -23,6 +23,8 @@
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.16",
     "@tiptap/extension-bullet-list": "^3.24.0",
+    "@tiptap/core": "^3.24.0",
+    "@tiptap/extension-image": "^3.24.0",
     "@tiptap/extension-link": "^3.24.0",
     "@tiptap/extension-ordered-list": "^3.24.0",
     "@tiptap/extension-text-align": "^3.24.0",

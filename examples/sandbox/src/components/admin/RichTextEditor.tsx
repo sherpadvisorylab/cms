@@ -1,73 +1,42 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import BulletList from "@tiptap/extension-bullet-list";
-import OrderedList from "@tiptap/extension-ordered-list";
-import TextAlign from "@tiptap/extension-text-align";
-
-const StyledBulletList = BulletList.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      listStyleType: {
-        default: "disc",
-        parseHTML: (element) => element.style.listStyleType || element.getAttribute("data-list-style") || "disc",
-        renderHTML: (attributes) => ({
-          "data-list-style": attributes.listStyleType,
-          style: `list-style-type: ${attributes.listStyleType};`,
-        }),
-      },
-    };
-  },
-});
-
-const StyledOrderedList = OrderedList.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      listStyleType: {
-        default: "decimal",
-        parseHTML: (element) => element.style.listStyleType || element.getAttribute("data-list-style") || "decimal",
-        renderHTML: (attributes) => ({
-          "data-list-style": attributes.listStyleType,
-          style: `list-style-type: ${attributes.listStyleType};`,
-        }),
-      },
-    };
-  },
-});
-
-const EMOJIS = ["😀", "😉", "😍", "👏", "🔥", "✅", "⭐", "🚀", "🎯", "💡", "📌", "📎"];
-
-const TEXT_STYLE_OPTIONS = [
-  { value: "paragraph", label: "Paragraph" },
-  { value: "2", label: "Heading 2" },
-  { value: "3", label: "Heading 3" },
-  { value: "4", label: "Heading 4" },
-  { value: "5", label: "Heading 5" },
-] as const;
-
-const ORDERED_LIST_OPTIONS = [
-  { value: "decimal", label: "1. 2. 3." },
-  { value: "lower-alpha", label: "a. b. c." },
-  { value: "upper-alpha", label: "A. B. C." },
-] as const;
-
-const BULLET_LIST_OPTIONS = [
-  { value: "disc", label: "Disc bullets" },
-  { value: "circle", label: "Circle bullets" },
-  { value: "square", label: "Square bullets" },
-] as const;
-
-const ALIGN_OPTIONS = [
-  { value: "left", label: "Left" },
-  { value: "center", label: "Center" },
-  { value: "right", label: "Right" },
-  { value: "justify", label: "Justify" },
-] as const;
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { MediaLibraryModal } from "./MediaLibraryModal";
+import {
+  ALIGN_OPTIONS,
+  BULLET_LIST_OPTIONS,
+  EMOJIS,
+  ORDERED_LIST_OPTIONS,
+  TEXT_STYLE_OPTIONS,
+} from "./rich-text/config";
+import {
+  insertAssetFromLibrary,
+  insertCustomHtml,
+  insertDivider,
+  insertEmoji,
+  insertUploadedAsset,
+  setBulletListStyle,
+  setLink,
+  setOrderedListStyle,
+  setTextAlignment,
+  setTextStyle,
+  toggleBlockquote,
+  toggleBold,
+  toggleCodeBlock,
+  toggleItalic,
+  toggleStrike,
+} from "./rich-text/commands";
+import { richTextExtensions } from "./rich-text/extensions";
+import { DEFAULT_TOOLBAR_STATE, resolveToolbarState } from "./rich-text/state";
+import type {
+  AssetKind,
+  MenuKind,
+  OrderedListStyle,
+  BulletListStyle,
+  TextStyleValue,
+  AlignmentValue,
+} from "./rich-text/types";
 
 interface RichTextEditorProps {
   value: string;
@@ -76,14 +45,12 @@ interface RichTextEditorProps {
   minHeight?: number;
 }
 
-type AssetKind = "image" | "video" | "file";
-type MenuKind = "ordered" | "bullet" | "insert" | "emoji" | "align" | null;
-
 export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }: RichTextEditorProps) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceValue, setSourceValue] = useState(value || "");
   const [activeMenu, setActiveMenu] = useState<MenuKind>(null);
-  const [uploading, setUploading] = useState<AssetKind | null>(null);
+  const [assetBrowserKind, setAssetBrowserKind] = useState<AssetKind | null>(null);
+  const [uploadingKind, setUploadingKind] = useState<AssetKind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -93,23 +60,38 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
 
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        bulletList: false,
-        orderedList: false,
-      }),
-      StyledBulletList,
-      StyledOrderedList,
-      Link.configure({ openOnClick: false, HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" } }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
+    // Monorepo installs can duplicate Tiptap type declarations across workspaces.
+    // The runtime extensions are valid; we narrow the type here to keep the shared editor portable.
+    extensions: richTextExtensions as never[],
     content: value || "",
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
+    editorProps: {
+      handleClick(_view, _pos, event) {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return false;
+
+        const anchor = target.closest("a[href]");
+        if (!(anchor instanceof HTMLAnchorElement)) return false;
+
+        event.preventDefault();
+
+        if (event.ctrlKey || event.metaKey) {
+          window.open(anchor.href, "_blank", "noopener,noreferrer");
+        }
+
+        return true;
+      },
+    },
+    onUpdate: ({ editor: instance }) => {
+      const html = instance.getHTML();
       setSourceValue(html);
       onChange(html);
     },
   });
+
+  const toolbarState = useEditorState({
+    editor,
+    selector: ({ editor: instance }) => resolveToolbarState(instance),
+  }) ?? DEFAULT_TOOLBAR_STATE;
 
   useEffect(() => {
     if (!editor) return;
@@ -132,102 +114,48 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
   }, []);
 
   if (!editor) return null;
-  const editorInstance = editor;
+  const activeEditor = editor;
 
-  async function uploadAsset(file: File): Promise<string> {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch("/api/admin/upload-asset", { method: "POST", body: form });
-    const data = await res.json() as { url?: string; error?: string };
-    if (!res.ok || !data.url) {
-      throw new Error(data.error ?? "Upload failed");
-    }
-    return data.url;
+  function closeMenu() {
+    setActiveMenu(null);
   }
 
-  async function handleAssetSelection(kind: AssetKind, file: File | null) {
+  function openAssetBrowser(kind: AssetKind) {
+    setError(null);
+    setAssetBrowserKind(kind);
+    closeMenu();
+  }
+
+  function handleAssetLibrarySelect(url: string, label?: string) {
+    if (!assetBrowserKind) return;
+    insertAssetFromLibrary(activeEditor, assetBrowserKind, url, label);
+    setAssetBrowserKind(null);
+  }
+
+  async function handleAssetUpload(kind: AssetKind, file: File | null) {
     if (!file) return;
     setError(null);
-    setUploading(kind);
+    setUploadingKind(kind);
     try {
-      const url = await uploadAsset(file);
-      if (kind === "image") {
-        const alt = window.prompt("Alt text", "") ?? "";
-        editorInstance.chain().focus().insertContent(`<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="max-width:100%;height:auto;" />`).run();
-      } else if (kind === "video") {
-        editorInstance.chain().focus().insertContent(`<video controls src="${escapeHtml(url)}" style="max-width:100%;height:auto;"></video>`).run();
-      } else {
-        const label = window.prompt("Attachment label", file.name) ?? file.name;
-        editorInstance.chain().focus().insertContent(`<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" data-attachment="true">${escapeHtml(label)}</a></p>`).run();
-      }
-      setActiveMenu(null);
+      await insertUploadedAsset(activeEditor, kind, file);
+      closeMenu();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setUploading(null);
+      setUploadingKind(null);
       if (imageInputRef.current) imageInputRef.current.value = "";
       if (videoInputRef.current) videoInputRef.current.value = "";
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-  function setLink() {
-    const prev = editorInstance.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL", prev ?? "https://");
-    if (url === null) return;
-    if (!url) {
-      editorInstance.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editorInstance.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  }
-
-  function applyTextStyle(next: string) {
-    const chain = editorInstance.chain().focus();
-    if (next === "paragraph") {
-      chain.setParagraph().run();
-      return;
-    }
-    chain.toggleHeading({ level: Number(next) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
-  }
-
-  function applyOrderedListStyle(next: string) {
-    const chain = editorInstance.chain().focus();
-    if (!editorInstance.isActive("orderedList")) {
-      chain.toggleOrderedList();
-    }
-    chain.updateAttributes("orderedList", { listStyleType: next }).run();
-    setActiveMenu(null);
-  }
-
-  function applyBulletListStyle(next: string) {
-    const chain = editorInstance.chain().focus();
-    if (!editorInstance.isActive("bulletList")) {
-      chain.toggleBulletList();
-    }
-    chain.updateAttributes("bulletList", { listStyleType: next }).run();
-    setActiveMenu(null);
-  }
-
-  function applyAlign(next: string) {
-    editorInstance.chain().focus().setTextAlign(next).run();
-    setActiveMenu(null);
-  }
-
-  function insertCustomHtml() {
-    const snippet = window.prompt("Custom HTML", "<div>Custom block</div>");
-    if (!snippet) return;
-    editorInstance.chain().focus().insertContent(snippet).run();
-    setActiveMenu(null);
-  }
-
   function toggleSourceMode() {
     if (sourceMode) {
-      editorInstance.commands.setContent(sourceValue || "", { emitUpdate: false });
+      activeEditor.commands.setContent(sourceValue || "", { emitUpdate: false });
       onChange(sourceValue || "");
     } else {
-      setSourceValue(editorInstance.getHTML());
-      setActiveMenu(null);
+      setSourceValue(activeEditor.getHTML());
+      closeMenu();
     }
     setSourceMode((current) => !current);
   }
@@ -242,24 +170,13 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
     setActiveMenu((current) => (current === menu ? null : menu));
   }
 
-  const currentTextStyle =
-    editor.isActive("heading", { level: 2 }) ? "2" :
-    editor.isActive("heading", { level: 3 }) ? "3" :
-    editor.isActive("heading", { level: 4 }) ? "4" :
-    editor.isActive("heading", { level: 5 }) ? "5" :
-    "paragraph";
-
-  const currentOrderedStyle = (editorInstance.getAttributes("orderedList").listStyleType as string | undefined) ?? "decimal";
-  const currentBulletStyle = (editorInstance.getAttributes("bulletList").listStyleType as string | undefined) ?? "disc";
-  const currentAlignment =
-    editor.isActive({ textAlign: "justify" }) ? "justify" :
-    editor.isActive({ textAlign: "right" }) ? "right" :
-    editor.isActive({ textAlign: "center" }) ? "center" :
-    "left";
-
-  const currentOrderedLabel = ORDERED_LIST_OPTIONS.find((option) => option.value === currentOrderedStyle)?.label ?? "1. 2. 3.";
-  const currentBulletLabel = BULLET_LIST_OPTIONS.find((option) => option.value === currentBulletStyle)?.label ?? "Disc bullets";
-  const currentAlignLabel = ALIGN_OPTIONS.find((option) => option.value === currentAlignment)?.label ?? "Left";
+  const currentOrderedLabel =
+    ORDERED_LIST_OPTIONS.find((option) => option.value === toolbarState.lists.orderedStyle)?.label ?? "1. 2. 3.";
+  const currentBulletLabel =
+    BULLET_LIST_OPTIONS.find((option) => option.value === toolbarState.lists.bulletStyle)?.label ?? "Disc bullets";
+  const currentAlignLabel =
+    ALIGN_OPTIONS.find((option) => option.value === toolbarState.alignment)?.label ?? "Left";
+  const showPlaceholder = Boolean(placeholder) && activeEditor.isEmpty;
 
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", position: "relative", background: "#fff" }}>
@@ -277,6 +194,12 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
         .rich-editor .ProseMirror hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
         .rich-editor .ProseMirror img,
         .rich-editor .ProseMirror video { display: block; max-width: 100%; border-radius: 6px; margin: 0.8rem 0; }
+        .rich-editor .ProseMirror a[href]:not([data-attachment="true"]) {
+          color: var(--primary);
+          text-decoration: underline;
+          text-decoration-thickness: 1.5px;
+          text-underline-offset: 2px;
+        }
         .rich-editor .ProseMirror a[data-attachment="true"] { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--border); border-radius: 999px; text-decoration: none; }
       `}</style>
 
@@ -294,8 +217,8 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
       >
         <ToolbarGroup grow>
           <select
-            value={currentTextStyle}
-            onChange={(event) => applyTextStyle(event.target.value)}
+            value={toolbarState.blocks.textStyle}
+            onChange={(event) => setTextStyle(activeEditor, event.target.value as TextStyleValue)}
             className="form-control"
             style={{
               ...menuButtonStyle(false),
@@ -314,23 +237,24 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
         </ToolbarGroup>
 
         <ToolbarGroup>
-          <ToolbarButton active={editor.isActive("bold")} label="Bold" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().toggleBold().run(); }}>
+          <ToolbarButton active={toolbarState.marks.bold} label="Bold" onMouseDown={(event) => { event.preventDefault(); toggleBold(activeEditor); }}>
             <BoldIcon />
           </ToolbarButton>
-          <ToolbarButton active={editor.isActive("italic")} label="Italic" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().toggleItalic().run(); }}>
+          <ToolbarButton active={toolbarState.marks.italic} label="Italic" onMouseDown={(event) => { event.preventDefault(); toggleItalic(activeEditor); }}>
             <ItalicIcon />
           </ToolbarButton>
-          <ToolbarButton active={editor.isActive("strike")} label="Strike" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().toggleStrike().run(); }}>
+          <ToolbarButton active={toolbarState.marks.strike} label="Strike" onMouseDown={(event) => { event.preventDefault(); toggleStrike(activeEditor); }}>
             <StrikeIcon />
           </ToolbarButton>
-          <ToolbarButton active={editor.isActive("link")} label="Link" onMouseDown={(event) => { event.preventDefault(); setLink(); }}>
+          <ToolbarButton active={toolbarState.marks.link} label="Link" onMouseDown={(event) => { event.preventDefault(); setLink(activeEditor); }}>
             <LinkIcon />
           </ToolbarButton>
         </ToolbarGroup>
 
         <ToolbarGroup>
           <ToolbarMenu
-            active={activeMenu === "ordered" || editor.isActive("orderedList")}
+            active={toolbarState.lists.ordered}
+            open={activeMenu === "ordered"}
             label={currentOrderedLabel}
             icon={<OrderedListIcon />}
             onToggle={() => toggleMenu("ordered")}
@@ -338,10 +262,11 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
             {ORDERED_LIST_OPTIONS.map((option) => (
               <MenuOptionButton
                 key={option.value}
-                active={editor.isActive("orderedList") && currentOrderedStyle === option.value}
+                active={toolbarState.lists.ordered && toolbarState.lists.orderedStyle === option.value}
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  applyOrderedListStyle(option.value);
+                  setOrderedListStyle(activeEditor, option.value as OrderedListStyle);
+                  closeMenu();
                 }}
               >
                 <MenuRow icon={<OrderedListIcon />} label={option.label} />
@@ -350,7 +275,8 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
           </ToolbarMenu>
 
           <ToolbarMenu
-            active={activeMenu === "bullet" || editor.isActive("bulletList")}
+            active={toolbarState.lists.bullet}
+            open={activeMenu === "bullet"}
             label={currentBulletLabel}
             icon={<BulletListIcon />}
             onToggle={() => toggleMenu("bullet")}
@@ -358,10 +284,11 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
             {BULLET_LIST_OPTIONS.map((option) => (
               <MenuOptionButton
                 key={option.value}
-                active={editor.isActive("bulletList") && currentBulletStyle === option.value}
+                active={toolbarState.lists.bullet && toolbarState.lists.bulletStyle === option.value}
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  applyBulletListStyle(option.value);
+                  setBulletListStyle(activeEditor, option.value as BulletListStyle);
+                  closeMenu();
                 }}
               >
                 <MenuRow icon={<BulletListIcon />} label={option.label} />
@@ -369,16 +296,16 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
             ))}
           </ToolbarMenu>
 
-          <ToolbarButton active={false} label="Divider" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().setHorizontalRule().run(); }}>
+          <ToolbarButton active={false} label="Divider" onMouseDown={(event) => { event.preventDefault(); insertDivider(activeEditor); }}>
             <DividerIcon />
           </ToolbarButton>
         </ToolbarGroup>
 
         <ToolbarGroup>
-          <ToolbarButton active={editor.isActive("blockquote")} label="Quote" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().toggleBlockquote().run(); }}>
+          <ToolbarButton active={toolbarState.blocks.blockquote} label="Quote" onMouseDown={(event) => { event.preventDefault(); toggleBlockquote(activeEditor); }}>
             <QuoteIcon />
           </ToolbarButton>
-          <ToolbarButton active={editor.isActive("codeBlock")} label="Code block" onMouseDown={(event) => { event.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); }}>
+          <ToolbarButton active={toolbarState.blocks.codeBlock} label="Code block" onMouseDown={(event) => { event.preventDefault(); toggleCodeBlock(activeEditor); }}>
             <CodeIcon />
           </ToolbarButton>
           <ToolbarButton active={sourceMode} label="Source mode" onMouseDown={(event) => { event.preventDefault(); toggleSourceMode(); }}>
@@ -388,43 +315,54 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
 
         <ToolbarGroup>
           <ToolbarMenu
-            active={activeMenu === "insert" || uploading !== null}
+            active={assetBrowserKind !== null || uploadingKind !== null}
+            open={activeMenu === "insert"}
             label="Insert"
             icon={<InsertIcon />}
             onToggle={() => toggleMenu("insert")}
           >
-            <MenuOptionButton
-              active={false}
-              onMouseDown={(event) => {
+            <MenuActionRow
+              label={uploadingKind === "image" ? "Uploading image..." : "Image"}
+              icon={<ImageIcon />}
+              onPrimaryMouseDown={(event) => {
                 event.preventDefault();
                 imageInputRef.current?.click();
               }}
-            >
-              <MenuRow icon={<ImageIcon />} label={uploading === "image" ? "Uploading image..." : "Image"} />
-            </MenuOptionButton>
-            <MenuOptionButton
-              active={false}
-              onMouseDown={(event) => {
+              onSecondaryMouseDown={(event) => {
+                event.preventDefault();
+                openAssetBrowser("image");
+              }}
+            />
+            <MenuActionRow
+              label={uploadingKind === "video" ? "Uploading video..." : "Video"}
+              icon={<VideoIcon />}
+              onPrimaryMouseDown={(event) => {
                 event.preventDefault();
                 videoInputRef.current?.click();
               }}
-            >
-              <MenuRow icon={<VideoIcon />} label={uploading === "video" ? "Uploading video..." : "Video"} />
-            </MenuOptionButton>
-            <MenuOptionButton
-              active={false}
-              onMouseDown={(event) => {
+              onSecondaryMouseDown={(event) => {
+                event.preventDefault();
+                openAssetBrowser("video");
+              }}
+            />
+            <MenuActionRow
+              label={uploadingKind === "file" ? "Uploading attachment..." : "Attachment"}
+              icon={<AttachmentIcon />}
+              onPrimaryMouseDown={(event) => {
                 event.preventDefault();
                 fileInputRef.current?.click();
               }}
-            >
-              <MenuRow icon={<AttachmentIcon />} label={uploading === "file" ? "Uploading file..." : "Attachment"} />
-            </MenuOptionButton>
+              onSecondaryMouseDown={(event) => {
+                event.preventDefault();
+                openAssetBrowser("file");
+              }}
+            />
             <MenuOptionButton
               active={false}
               onMouseDown={(event) => {
                 event.preventDefault();
-                insertCustomHtml();
+                insertCustomHtml(activeEditor);
+                closeMenu();
               }}
             >
               <MenuRow icon={<SourceIcon />} label="Custom HTML" />
@@ -432,7 +370,8 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
           </ToolbarMenu>
 
           <ToolbarMenu
-            active={activeMenu === "emoji"}
+            active={false}
+            open={activeMenu === "emoji"}
             label="Emoji"
             icon={<EmojiIcon />}
             onToggle={() => toggleMenu("emoji")}
@@ -446,8 +385,8 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
                   title={emoji}
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    editorInstance.chain().focus().insertContent(emoji).run();
-                    setActiveMenu(null);
+                    insertEmoji(activeEditor, emoji);
+                    closeMenu();
                   }}
                   style={{
                     border: "1px solid rgba(148, 163, 184, 0.22)",
@@ -465,7 +404,8 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
           </ToolbarMenu>
 
           <ToolbarMenu
-            active={activeMenu === "align" || currentAlignment !== "left"}
+            active={toolbarState.alignment !== "left"}
+            open={activeMenu === "align"}
             label={currentAlignLabel}
             icon={<AlignIcon />}
             onToggle={() => toggleMenu("align")}
@@ -473,10 +413,11 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
             {ALIGN_OPTIONS.map((option) => (
               <MenuOptionButton
                 key={option.value}
-                active={currentAlignment === option.value}
+                active={toolbarState.alignment === option.value}
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  applyAlign(option.value);
+                  setTextAlignment(activeEditor, option.value as AlignmentValue);
+                  closeMenu();
                 }}
               >
                 <MenuRow icon={<AlignIcon />} label={option.label} />
@@ -486,9 +427,9 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
         </ToolbarGroup>
       </div>
 
-      <input ref={imageInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(event) => void handleAssetSelection("image", event.target.files?.[0] ?? null)} />
-      <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(event) => void handleAssetSelection("video", event.target.files?.[0] ?? null)} />
-      <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={(event) => void handleAssetSelection("file", event.target.files?.[0] ?? null)} />
+      <input ref={imageInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(event) => void handleAssetUpload("image", event.target.files?.[0] ?? null)} />
+      <input ref={videoInputRef} type="file" accept="video/*" style={{ display: "none" }} onChange={(event) => void handleAssetUpload("video", event.target.files?.[0] ?? null)} />
+      <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={(event) => void handleAssetUpload("file", event.target.files?.[0] ?? null)} />
 
       {error && (
         <div style={{ padding: "8px 12px", color: "var(--danger)", fontSize: "0.78rem", borderBottom: "1px solid var(--border)" }}>
@@ -507,15 +448,23 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
           />
         ) : (
           <div style={{ position: "relative" }}>
-            {editor.isEmpty && placeholder && (
+            {showPlaceholder && (
               <span style={{ position: "absolute", top: 10, left: 12, color: "var(--text-muted, #9ca3af)", fontSize: "0.9rem", pointerEvents: "none", userSelect: "none" }}>
                 {placeholder}
               </span>
             )}
-            <EditorContent editor={editorInstance} style={{ minHeight, padding: "12px", outline: "none", fontSize: "0.9rem" }} />
+            <EditorContent editor={activeEditor} style={{ minHeight, padding: "12px", outline: "none", fontSize: "0.9rem" }} />
           </div>
         )}
       </div>
+
+      {assetBrowserKind && (
+        <MediaLibraryModal
+          filter={assetBrowserKind}
+          onSelect={handleAssetLibrarySelect}
+          onClose={() => setAssetBrowserKind(null)}
+        />
+      )}
     </div>
   );
 }
@@ -557,6 +506,7 @@ function ToolbarButton({
 
 function ToolbarMenu({
   active,
+  open,
   children,
   label,
   icon,
@@ -564,6 +514,7 @@ function ToolbarMenu({
   panelStyle,
 }: {
   active: boolean;
+  open: boolean;
   children: ReactNode;
   label: string;
   icon?: ReactNode;
@@ -576,7 +527,7 @@ function ToolbarMenu({
         type="button"
         title={label}
         aria-label={label}
-        aria-expanded={active}
+        aria-expanded={open}
         style={menuButtonStyle(active)}
         onMouseDown={(event) => {
           event.preventDefault();
@@ -587,7 +538,7 @@ function ToolbarMenu({
         <span>{label}</span>
         <span style={{ fontSize: "0.72rem", opacity: 0.72 }}>v</span>
       </button>
-      {active && (
+      {open && (
         <div style={{ ...menuPanelStyle, ...panelStyle }}>
           {children}
         </div>
@@ -618,6 +569,45 @@ function MenuRow({ icon, label }: { icon: ReactNode; label: string }) {
       <span style={{ display: "inline-flex", color: "currentColor" }}>{icon}</span>
       <span>{label}</span>
     </span>
+  );
+}
+
+function MenuActionRow({
+  icon,
+  label,
+  onPrimaryMouseDown,
+  onSecondaryMouseDown,
+}: {
+  icon: ReactNode;
+  label: string;
+  onPrimaryMouseDown: (event: MouseEvent<HTMLButtonElement>) => void;
+  onSecondaryMouseDown: (event: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 40px", gap: 6 }}>
+      <MenuOptionButton active={false} onMouseDown={onPrimaryMouseDown}>
+        <MenuRow icon={icon} label={label} />
+      </MenuOptionButton>
+      <button
+        type="button"
+        title="Browse media"
+        aria-label="Browse media"
+        onMouseDown={onSecondaryMouseDown}
+        style={{
+          height: 40,
+          border: "1px solid rgba(148, 163, 184, 0.2)",
+          borderRadius: 9,
+          background: "#fff",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--text)",
+        }}
+      >
+        <BrowseMediaIcon />
+      </button>
+    </div>
   );
 }
 
@@ -689,14 +679,6 @@ function menuOptionStyle(active: boolean): CSSProperties {
   };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 function IconBase({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -747,6 +729,10 @@ function SourceIcon() {
 
 function InsertIcon() {
   return <IconBase><path d="M10 4v12" /><path d="M4 10h12" /></IconBase>;
+}
+
+function BrowseMediaIcon() {
+  return <IconBase><rect x="3.5" y="4.5" width="13" height="11" rx="2" /><path d="m6 12 2.5-2.5L11 12l2-2 1.5 1.5" /><circle cx="8" cy="8" r="1.2" /></IconBase>;
 }
 
 function ImageIcon() {

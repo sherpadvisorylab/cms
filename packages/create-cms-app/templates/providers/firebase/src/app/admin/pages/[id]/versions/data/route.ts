@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
-import { createClient } from "@/lib/supabase/server";
 
 type PageVersionRecord = {
   id: string;
@@ -12,10 +11,6 @@ type PageVersionRecord = {
 };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id } = await params;
 
   const [allPages, latestPublished] = await Promise.all([
