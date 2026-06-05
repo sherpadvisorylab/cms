@@ -11,15 +11,17 @@ import {
   SettingsRepository,
   UserRepository,
   FormRepository,
-  LayoutTemplateRepository,
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
 } from "@sherpacms/infrastructure";
-import type {
+import {
+  normalizeVariableAliases,
   CmsArea,
+  CmsNavigationItem,
   CmsPage,
   CmsSettings,
+  CmsVariableDefinition,
   ComponentSchemaField,
   IPageRepository,
   IComponentRepository,
@@ -31,7 +33,6 @@ import type {
   ISettingsRepository,
   IUserRepository,
   IFormRepository,
-  ILayoutTemplateRepository,
   IRenderEngine,
 } from "@sherpacms/domain";
 import { FormRenderer } from "@sherpacms/form-generator";
@@ -65,20 +66,19 @@ export interface RenderContentResult {
   ogImageUrl: string | null;
 }
 
-/** Built-in system variable defaults (style tokens) */
-const BUILT_IN_SYSTEM_VARS: Record<string, string> = {
-  "bg-primary": "bg-primary",
-  "bg-secondary": "bg-secondary",
-  "bg-accent": "bg-accent",
-  "bg-surface": "bg-surface",
-  "text-primary": "text-primary",
-  "text-secondary": "text-secondary",
-  "text-muted": "text-muted",
-  "text-accent": "text-accent",
-  "border-primary": "border-primary",
-  "border-secondary": "border-secondary",
-  "border-muted": "border-muted",
-};
+const DEFAULT_STYLE_VARIABLES: CmsVariableDefinition[] = [
+  { namespace: "styles", key: "bgPrimary", label: "Background Primary", type: "text", value: "bg-primary" },
+  { namespace: "styles", key: "bgSecondary", label: "Background Secondary", type: "text", value: "bg-secondary" },
+  { namespace: "styles", key: "bgAccent", label: "Background Accent", type: "text", value: "bg-accent" },
+  { namespace: "styles", key: "bgSurface", label: "Background Surface", type: "text", value: "bg-surface" },
+  { namespace: "styles", key: "textPrimary", label: "Text Primary", type: "text", value: "text-primary" },
+  { namespace: "styles", key: "textSecondary", label: "Text Secondary", type: "text", value: "text-secondary" },
+  { namespace: "styles", key: "textMuted", label: "Text Muted", type: "text", value: "text-muted" },
+  { namespace: "styles", key: "textAccent", label: "Text Accent", type: "text", value: "text-accent" },
+  { namespace: "styles", key: "borderPrimary", label: "Border Primary", type: "text", value: "border-primary" },
+  { namespace: "styles", key: "borderSecondary", label: "Border Secondary", type: "text", value: "border-secondary" },
+  { namespace: "styles", key: "borderMuted", label: "Border Muted", type: "text", value: "border-muted" },
+];
 
 /** Options passed to the CMS constructor. */
 export interface CMSOptions {
@@ -106,7 +106,6 @@ export class CMS {
   readonly settings: ISettingsRepository;
   readonly users: IUserRepository;
   readonly forms: IFormRepository;
-  readonly layoutTemplates: ILayoutTemplateRepository;
 
   // Render engine
   readonly render: IRenderEngine;
@@ -128,7 +127,6 @@ export class CMS {
     this.settings = new SettingsRepository(storage);
     this.users = new UserRepository(storage);
     this.forms = new FormRepository(storage);
-    this.layoutTemplates = new LayoutTemplateRepository(storage);
     this.render = new LiquidRenderEngine();
   }
 
@@ -276,16 +274,16 @@ export class CMS {
             "<head>",
             '  <meta charset="UTF-8">',
             '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-            "  <title>{{pageTitle}} | {{siteName}}</title>",
-            "  {{metaTags}}",
-            "  {{styles}}",
+            "  <title>{{page.metaTitle}} | {{site.name}}</title>",
+            "  {{site.metaTags}}",
+            "  {{site.styles}}",
             "</head>",
           ].join("\n"),
           bodyTemplate: [
             "<body>",
-            "  {{content}}",
-            "  {{trackingScripts}}",
-            "  {{scripts}}",
+            "  {{page.content}}",
+            "  {{site.trackingScripts}}",
+            "  {{site.scripts}}",
             "</body>",
           ].join("\n"),
         },
@@ -301,7 +299,7 @@ export class CMS {
         branding: { projectName: "My Project" },
         authentication: { ssoEnabled: false },
         emailDefaults: { senderName: "No Reply", senderEmail: "no-reply@example.com" },
-        systemVariableDefaults: { ...BUILT_IN_SYSTEM_VARS },
+        variables: DEFAULT_STYLE_VARIABLES.map((variable) => ({ ...variable })),
       });
     }
   }
@@ -317,7 +315,7 @@ export class CMS {
    * 4. Collect component CSS/JS
    * 5. Concatenate → content HTML
    * 6. Resolve {{navigation:id}} and {{form:variable}} in content
-   * 7. Fill {{content}} in area body template
+   * 7. Fill {{page.content}} in the area body template
    * 8. Resolve design bodyElements (custom variables) in body
    * 9. Resolve navigation/form in body template too
    * 10. Build head from area head template
@@ -346,8 +344,9 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
 
-    // 3. Resolve system variables (Page > Area > Settings)
-    const systemVars = this.resolveSystemVariables(area, settingsObj, page);
+    const basePage = this.buildPageContext(page);
+    const baseSite = this.buildSiteContext(area, settingsObj);
+    const baseStyles = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
     let contentHtml = "";
@@ -362,20 +361,20 @@ export class CMS {
       const componentVersion = await this.componentVersions.getLatest(instance.componentId);
       if (!componentVersion) continue;
 
-      // Protect {{form:...}} and {{navigation:...}} from Liquid parsing
-      const safeTemplate = resolveSystemVarPlaceholders(
-        protectCmsPlaceholders(componentVersion.templateLiquid),
-        systemVars,
-      );
+      const safeTemplate = protectCmsPlaceholders(normalizeVariableAliases(componentVersion.templateLiquid));
 
       const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
-        data: { ...expandedProps, ...systemVars },
+        data: expandedProps,
         globals: {
-          page: { title: page.title, slug: page.slug },
-          site: { name: area?.siteName ?? areaKey },
-          area: area ?? {},
+          page: basePage,
+          site: baseSite,
+          styles: baseStyles,
+          component: {
+            name: component.name,
+            namespace: component.namespace ?? "",
+          },
           ...instance.globals,
         },
       }).then(restoreCmsPlaceholders);
@@ -389,16 +388,49 @@ export class CMS {
       }
     }
 
-    // 5. Resolve navigation and form embeds in content
-    const navCtx = { systemVars, site: { name: area?.siteName ?? areaKey }, page: { title: page.title, slug: page.slug } };
-    contentHtml = await this.resolveNavigations(contentHtml, navCtx);
+    const metaTags = this.buildMetaTags(page as CmsPage);
+    const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
+
+    // Build CSS/JS tags early so they can be injected into site.* globals
+    const areaCss = area?.design?.areaCss ?? "";
+    const areaJs = area?.design?.areaJs ?? "";
+    const allCss = [areaCss, componentCss].filter(Boolean).join("\n");
+    const allJs = [areaJs, componentJs].filter(Boolean).join("\n");
+    const stylesTag = allCss ? `<style>${allCss}</style>` : "";
+    const scriptsTag = allJs ? `<script>${allJs}</script>` : "";
+    const headTrackingScripts = this.buildTrackingScripts(area, "head");
+
+    const contentContext = {
+      page: basePage,
+      site: this.buildSiteContext(area, settingsObj),
+      styles: baseStyles,
+    };
+    contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
+    contentHtml = await this.resolveNavigations(contentHtml, contentContext);
     contentHtml = await this.resolveForms(contentHtml);
 
-    // 6. Fill body template
-    let bodyHtml = area?.design?.bodyTemplate ?? "{{content}}";
-    bodyHtml = bodyHtml.replace(/\{\{content\}\}/g, contentHtml);
+    const pageContext = this.buildPageContext(page, contentHtml);
+    const siteContext = this.buildSiteContext(
+      area,
+      settingsObj,
+      metaTags,
+      stylesTag + headTrackingScripts,
+      scriptsTag,
+      trackingScripts,
+    );
 
-    // 8. Resolve design bodyElements (custom variables)
+    // 6. Render body template with the same globals contract used by component Liquid
+    const bodyTemplate = protectCmsPlaceholders(normalizeVariableAliases(area?.design?.bodyTemplate ?? "{{page.content}}"));
+    let bodyHtml = await this.render.render({
+      template: bodyTemplate,
+      data: {},
+      globals: {
+        page: pageContext,
+        site: siteContext,
+        styles: baseStyles,
+      },
+    }).then(restoreCmsPlaceholders);
+
     if (area?.design?.bodyElements) {
       for (const el of area.design.bodyElements) {
         const pattern = new RegExp(escapeRegex(el.variable), "g");
@@ -406,49 +438,23 @@ export class CMS {
       }
     }
 
-    // 9. Resolve navigation and form in body template
-    bodyHtml = await this.resolveNavigations(bodyHtml, navCtx);
+    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
+    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
     bodyHtml = await this.resolveForms(bodyHtml);
 
-    // Replace remaining system variables in body
-    for (const [key, value] of Object.entries(systemVars)) {
-      bodyHtml = bodyHtml.replace(new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "g"), String(value));
-    }
-
-    // 10. Build tracking scripts and replace page-level placeholders in body
-    const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
-    bodyHtml = bodyHtml.replace(/\{\{trackingScripts\}\}/g, trackingScripts);
-
-    // Build CSS/JS tags early so they can be replaced in both head and body
-    const areaCss = area?.design?.areaCss ?? "";
-    const areaJs = area?.design?.areaJs ?? "";
-    const allCss = [areaCss, componentCss].filter(Boolean).join("\n");
-    const allJs = [areaJs, componentJs].filter(Boolean).join("\n");
-    const stylesTag = allCss ? `<style>${allCss}</style>` : "";
-    const scriptsTag = allJs ? `<script>${allJs}</script>` : "";
-
-    // Replace {{styles}} and {{scripts}} in body too
-    bodyHtml = bodyHtml.replace(/\{\{styles\}\}/g, stylesTag);
-    bodyHtml = bodyHtml.replace(/\{\{scripts\}\}/g, scriptsTag);
-
-    // 11. Build head
-    let headHtml = area?.design?.headTemplate ?? "<head><title>{{pageTitle}}</title></head>";
-    const pageTitle = page.seo?.metaTitle ?? page.seoTitle ?? page.title;
-    const siteName = area?.siteName ?? "";
-    const metaTags = this.buildMetaTags(page as CmsPage);
-    const headTrackingScripts = this.buildTrackingScripts(area, "head");
-
-    headHtml = headHtml
-      .replace(/\{\{pageTitle\}\}/g, pageTitle)
-      .replace(/\{\{siteName\}\}/g, siteName)
-      .replace(/\{\{metaTags\}\}/g, metaTags)
-      .replace(/\{\{styles\}\}/g, stylesTag + headTrackingScripts)
-      .replace(/\{\{scripts\}\}/g, scriptsTag);
-
-    // Replace system variables in head too
-    for (const [key, value] of Object.entries(systemVars)) {
-      headHtml = headHtml.replace(new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "g"), String(value));
-    }
+    // 11. Render head template with namespaced globals
+    const headTemplate = protectCmsPlaceholders(
+      normalizeVariableAliases(area?.design?.headTemplate ?? "<head><title>{{page.metaTitle}}</title></head>"),
+    );
+    const headHtml = await this.render.render({
+      template: headTemplate,
+      data: {},
+      globals: {
+        page: pageContext,
+        site: siteContext,
+        styles: baseStyles,
+      },
+    }).then(restoreCmsPlaceholders);
 
     // 12. Assemble full HTML
     const bodyTopTracking = this.buildTrackingScripts(area, "body-top");
@@ -496,46 +502,90 @@ export class CMS {
     return expanded;
   }
 
-  private resolveSystemVariables(
+  private getMergedSettingVariables(settings: CmsSettings | null): CmsVariableDefinition[] {
+    const merged = new Map<string, CmsVariableDefinition>();
+
+    for (const variable of DEFAULT_STYLE_VARIABLES) {
+      merged.set(`${variable.namespace}.${variable.key}`, { ...variable });
+    }
+
+    for (const variable of settings?.variables ?? []) {
+      merged.set(`${variable.namespace}.${variable.key}`, { ...variable });
+    }
+
+    return [...merged.values()];
+  }
+
+  private resolveVariableValue(variable: CmsVariableDefinition): string {
+    if (variable.type === "select") {
+      return variable.value ?? variable.options?.[0]?.value ?? "";
+    }
+    return variable.value ?? "";
+  }
+
+  private buildStylesContext(area: CmsArea | null, settings: CmsSettings | null): Record<string, string> {
+    const styles = Object.fromEntries(
+      this.getMergedSettingVariables(settings)
+        .filter((variable) => variable.namespace === "styles")
+        .map((variable) => [variable.key, this.resolveVariableValue(variable)]),
+    );
+
+    const defaultSchema = area?.style?.colorSchemas?.find((schema) => schema.isDefault) ?? area?.style?.colorSchemas?.[0];
+    const colors = defaultSchema?.colors ?? {};
+
+    if (colors.primary) styles.bgPrimary = colors.primary;
+    if (colors.secondary) styles.bgSecondary = colors.secondary;
+    if (colors.accent) styles.bgAccent = colors.accent;
+    if (colors.surface ?? colors.background) styles.bgSurface = colors.surface ?? colors.background ?? styles.bgSurface;
+    if (colors.text) styles.textPrimary = colors.text;
+    if (colors["text-muted"]) styles.textMuted = colors["text-muted"];
+    if (colors.border) styles.borderPrimary = colors.border;
+
+    return styles;
+  }
+
+  private buildSiteContext(
     area: CmsArea | null,
     settings: CmsSettings | null,
-    page: CmsPage
+    metaTags = "",
+    stylesMarkup = "",
+    scriptsMarkup = "",
+    trackingScripts = "",
   ): Record<string, string> {
-    const vars: Record<string, string> = {};
+    const site = Object.fromEntries(
+      this.getMergedSettingVariables(settings)
+        .filter((variable) => variable.namespace === "site")
+        .map((variable) => [variable.key, this.resolveVariableValue(variable)]),
+    );
 
-    // Start from Settings defaults (lowest priority)
-    if (settings?.systemVariableDefaults) {
-      Object.assign(vars, settings.systemVariableDefaults);
-    }
+    site.name = area?.siteName || site.name || settings?.branding?.projectName || area?.displayName || area?.name || "";
+    site.logo = area?.style?.logoLight || site.logo || settings?.branding?.logoLight || "";
+    site.logoDark = area?.style?.logoDark || site.logoDark || settings?.branding?.logoDark || "";
+    site.favicon = area?.style?.favicon || site.favicon || settings?.branding?.favicon || "";
+    site.metaTags = metaTags;
+    site.styles = stylesMarkup;
+    site.scripts = scriptsMarkup;
+    site.trackingScripts = trackingScripts;
 
-    // Area color schema overrides (extract colors as style variables)
-    if (area?.style?.colorSchemas) {
-      const defaultSchema = area.style.colorSchemas.find((s) => s.isDefault) ?? area.style.colorSchemas[0];
-      if (defaultSchema?.colors) {
-        for (const [colorKey, colorValue] of Object.entries(defaultSchema.colors)) {
-          vars[`bg-${colorKey}`] = colorValue;
-          vars[`text-${colorKey}`] = colorValue;
-          vars[`border-${colorKey}`] = colorValue;
-          // Also store the raw color key
-          vars[colorKey] = colorValue;
-        }
-      }
-    }
+    return site;
+  }
 
-    // Page-level overrides would go here (highest priority)
-    // Currently page.style only has colorPalette/layoutMode, not per-variable overrides
-
-    return vars;
+  private buildPageContext(page: CmsPage, content = ""): Record<string, string> {
+    return {
+      title: page.title,
+      slug: page.slug,
+      metaTitle: page.seo?.metaTitle ?? page.seoTitle ?? page.title,
+      metaDescription: page.seo?.metaDescription ?? page.seoDescription ?? "",
+      content,
+    };
   }
 
   /**
    * Resolve {{navigation:id}} or {{navigation:name}} placeholders in HTML.
-   * ctx is forwarded to the nav's Liquid template so {{ siteName }}, {{ site.name }},
-   * {{ page.title }}, etc. are available inside nav display templates.
    */
   private async resolveNavigations(
     html: string,
-    ctx?: { systemVars?: Record<string, string>; site?: { name: string }; page?: { title: string; slug: string } }
+    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
   ): Promise<string> {
     const navPattern = /\{\{navigation:([^}]+)\}\}/g;
     let match;
@@ -555,12 +605,13 @@ export class CMS {
       const nav = await this.navigations.findById(m.id)
         ?? allNavs.find((n) => n.name.toLowerCase().replace(/\s+/g, "-") === m.id.toLowerCase())
         ?? null;
-      if (nav && nav.template) {
-        const rendered = await this.render.render({
-          template: nav.template,
-          data:    { menu: nav.items, items: nav.items, ...(ctx?.systemVars ?? {}) },
-          globals: { site: ctx?.site ?? {}, page: ctx?.page ?? {} },
-        });
+        if (nav && nav.template) {
+          const menuData = buildNavigationTemplateData(nav.items ?? []);
+          const rendered = await this.render.render({
+            template: normalizeVariableAliases(nav.template),
+            data:    { menu: menuData },
+            globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
+          });
         let navHtml = rendered;
         if (nav.additionalCss) {
           navHtml = `<style>${nav.additionalCss}</style>` + navHtml;
@@ -571,6 +622,59 @@ export class CMS {
         result = result.replace(m.full, navHtml);
       } else {
         result = result.replace(m.full, "");
+      }
+    }
+
+    return result;
+  }
+
+  private async resolveComponentEmbeds(
+    html: string,
+    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+  ): Promise<string> {
+    let result = html;
+    const allComponents = await this.components.findAll().catch(() => []);
+
+    for (let depth = 0; depth < 5; depth++) {
+      const matches = [...result.matchAll(/\{\{component:([^}]+)\}\}/g)];
+      if (matches.length === 0) break;
+
+      for (const match of matches) {
+        const full = match[0];
+        const ref = match[1];
+        const component =
+          await this.components.findById(ref)
+          ?? allComponents.find((entry) => normalizeComponentReference(entry.name) === ref.toLowerCase())
+          ?? null;
+
+        if (!component) {
+          result = result.replace(full, "");
+          continue;
+        }
+
+        const version = await this.componentVersions.getLatest(component.id);
+        if (!version) {
+          result = result.replace(full, "");
+          continue;
+        }
+
+        const rendered = await this.render.render({
+          template: protectCmsPlaceholders(normalizeVariableAliases(version.templateLiquid)),
+          data: {},
+          globals: {
+            site: ctx.site,
+            page: ctx.page,
+            styles: ctx.styles,
+            component: {
+              name: component.name,
+              namespace: component.namespace ?? "",
+            },
+          },
+        }).then(restoreCmsPlaceholders);
+
+        const css = version.css ? `<style>${version.css}</style>` : "";
+        const js = version.js ? `<script>${version.js}</script>` : "";
+        result = result.replace(full, `${css}${rendered}${js}`);
       }
     }
 
@@ -682,8 +786,9 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
 
-    // 3. Resolve system variables
-    const systemVars = this.resolveSystemVariables(area, settingsObj, page);
+    const pageContext = this.buildPageContext(page);
+    const siteContext = this.buildSiteContext(area, settingsObj);
+    const stylesContext = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
     let contentHtml = "";
@@ -698,19 +803,20 @@ export class CMS {
       const componentVersion = await this.componentVersions.getLatest(instance.componentId);
       if (!componentVersion) continue;
 
-      const safeTemplate = resolveSystemVarPlaceholders(
-        protectCmsPlaceholders(componentVersion.templateLiquid),
-        systemVars,
-      );
+      const safeTemplate = protectCmsPlaceholders(normalizeVariableAliases(componentVersion.templateLiquid));
 
       const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
-        data: { ...expandedProps, ...systemVars },
+        data: expandedProps,
         globals: {
-          page: { title: page.title, slug: page.slug },
-          site: { name: area?.siteName ?? areaKey },
-          area: area ?? {},
+          page: pageContext,
+          site: siteContext,
+          styles: stylesContext,
+          component: {
+            name: component.name,
+            namespace: component.namespace ?? "",
+          },
           ...instance.globals,
         },
       }).then(restoreCmsPlaceholders);
@@ -724,9 +830,9 @@ export class CMS {
       }
     }
 
-    // 5. Resolve navigation and form embeds
-    const navCtx2 = { systemVars, site: { name: area?.siteName ?? areaKey }, page: { title: page.title, slug: page.slug } };
-    contentHtml = await this.resolveNavigations(contentHtml, navCtx2);
+    // 5. Resolve component, navigation and form embeds
+    contentHtml = await this.resolveComponentEmbeds(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
+    contentHtml = await this.resolveNavigations(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Append area-level CSS/JS
@@ -817,6 +923,119 @@ export class CMS {
   }
 }
 
+type NavigationTemplateNode = {
+  key: string;
+  type: "page" | "custom";
+  label: string;
+  url: string;
+  target: "_self" | "_blank";
+  description: string;
+  items: NavigationTemplateNode[];
+  [key: string]: unknown;
+};
+
+function buildNavigationTemplateData(items: CmsNavigationItem[]) {
+  const normalizedItems = normalizeNavigationItems(items);
+  const root = createNavigationTemplateContainer(normalizedItems);
+  return root;
+}
+
+function normalizeNavigationItems(items: CmsNavigationItem[]) {
+  const usedKeys = new Set<string>();
+  return items.map((item, index) => normalizeNavigationItemNode(item, usedKeys, `item-${index + 1}`));
+}
+
+function normalizeNavigationItemNode(
+  item: CmsNavigationItem,
+  usedSiblingKeys: Set<string>,
+  fallbackKey: string,
+): CmsNavigationItem {
+  const nextItems = normalizeNavigationItemChildren(item);
+  const key = ensureUniqueNavigationKey(item.key ?? deriveNavigationKey(item), usedSiblingKeys, fallbackKey);
+  const usedChildKeys = new Set<string>();
+
+  return {
+    ...item,
+    key,
+    items: nextItems.map((child, index) => normalizeNavigationItemNode(child, usedChildKeys, `${key}-item-${index + 1}`)),
+  };
+}
+
+function normalizeNavigationItemChildren(item: CmsNavigationItem) {
+  const legacyChildren = Array.isArray((item as CmsNavigationItem & { children?: CmsNavigationItem[] }).children)
+    ? ((item as CmsNavigationItem & { children?: CmsNavigationItem[] }).children ?? [])
+    : [];
+  const nextItems = Array.isArray(item.items) ? item.items : legacyChildren;
+  return nextItems;
+}
+
+function deriveNavigationKey(item: CmsNavigationItem) {
+  const labelCandidate = slugifyNavigationSegment(item.label);
+  return labelCandidate || "";
+}
+
+function slugifyNavigationSegment(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function ensureUniqueNavigationKey(
+  requestedKey: string,
+  usedKeys: Set<string>,
+  fallbackKey: string,
+) {
+  const base = slugifyNavigationSegment(requestedKey) || slugifyNavigationSegment(fallbackKey) || "item";
+  let candidate = base;
+  let suffix = 2;
+  while (usedKeys.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  usedKeys.add(candidate);
+  return candidate;
+}
+
+function createNavigationTemplateContainer(items: CmsNavigationItem[]) {
+  const root: Record<string, unknown> = {
+    items: items.map((item) => createNavigationTemplateNode(item)),
+  };
+
+  for (const item of root.items as NavigationTemplateNode[]) {
+    root[item.key] = item;
+  }
+
+  return root;
+}
+
+function createNavigationTemplateNode(item: CmsNavigationItem): NavigationTemplateNode {
+  const nodeItems = (item.items ?? []).map((child) => createNavigationTemplateNode(child));
+  const node: NavigationTemplateNode = {
+    key: item.key,
+    type: item.type,
+    label: item.label,
+    url: item.url,
+    target: item.target === "_blank" ? "_blank" : "_self",
+    description: typeof item.description === "string" ? item.description : "",
+    items: nodeItems,
+  };
+
+  for (const [key, value] of Object.entries(item)) {
+    if (key === "items" || key === "children") continue;
+    if (key in node) continue;
+    node[key] = value;
+  }
+
+  for (const child of nodeItems) {
+    node[child.key] = child;
+  }
+
+  return node;
+}
+
 /** Escape a string for use in a RegExp */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -840,29 +1059,19 @@ function protectCmsPlaceholders(template: string): string {
   return template
     .replace(/\{\{form:([^}]+)\}\}/g, "__CMS_FORM_$1__")
     .replace(/\{\{navigation:([^}]+)\}\}/g, "__CMS_NAV_$1__")
-    .replace(/\{\{system:([^}]+)\}\}/g, "__CMS_SYS_$1__");
-}
-
-/**
- * Pre-resolve {{system:key}} placeholders by substituting the actual
- * value from systemVars BEFORE passing the template to LiquidJS.
- * Called on the protected template (after protectCmsPlaceholders).
- * LiquidJS never sees {{system:*}} — the colon is not valid in Liquid identifiers.
- */
-function resolveSystemVarPlaceholders(
-  template: string,
-  systemVars: Record<string, string>,
-): string {
-  return template.replace(/__CMS_SYS_([^_][^_]*)__/g, (_, key) => {
-    return systemVars[key.trim()] ?? "";
-  });
+    .replace(/\{\{component:([^}]+)\}\}/g, "__CMS_COMPONENT_$1__");
 }
 
 /** Restore CMS placeholders after Liquid rendering */
 function restoreCmsPlaceholders(html: string): string {
   return html
     .replace(/__CMS_FORM_([^_]+)__/g, "{{form:$1}}")
-    .replace(/__CMS_NAV_([^_]+)__/g, "{{navigation:$1}}");
+    .replace(/__CMS_NAV_([^_]+)__/g, "{{navigation:$1}}")
+    .replace(/__CMS_COMPONENT_([^_]+)__/g, "{{component:$1}}");
+}
+
+function normalizeComponentReference(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 /**

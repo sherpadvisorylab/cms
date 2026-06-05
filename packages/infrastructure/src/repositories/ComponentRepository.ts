@@ -29,12 +29,24 @@ export class ComponentRepository implements IComponentRepository {
   }
 
   async delete(id: string): Promise<void> {
+    const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", {
+      componentId: id,
+    });
+
+    for (const version of versions) {
+      await this.adapter.delete("componentVersions", version.id);
+    }
+
     return this.adapter.delete("components", id);
   }
 }
 
 export class ComponentVersionRepository implements IComponentVersionRepository {
   constructor(private adapter: StorageAdapter) {}
+
+  async findByComponentId(componentId: string): Promise<ComponentVersion[]> {
+    return this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
+  }
 
   async createVersion(
     componentId: string,
@@ -47,7 +59,7 @@ export class ComponentVersionRepository implements IComponentVersionRepository {
       createdBy?:        string;
     },
   ): Promise<ComponentVersion> {
-    const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
+    const versions = await this.findByComponentId(componentId);
     const nextVersion = (Math.max(0, ...versions.map((v) => v.version)) || 0) + 1;
 
     const version: ComponentVersion = {
@@ -67,7 +79,21 @@ export class ComponentVersionRepository implements IComponentVersionRepository {
   }
 
   async getLatest(componentId: string): Promise<ComponentVersion | null> {
-    const versions = await this.adapter.getAll<ComponentVersion>("componentVersions", { componentId });
+    const versions = await this.findByComponentId(componentId);
     return versions.sort((a, b) => b.version - a.version)[0] ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.adapter.delete("componentVersions", id);
+  }
+
+  async deleteByComponentId(componentId: string): Promise<number> {
+    const versions = await this.findByComponentId(componentId);
+
+    for (const version of versions) {
+      await this.delete(version.id);
+    }
+
+    return versions.length;
   }
 }

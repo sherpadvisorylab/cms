@@ -1,6 +1,8 @@
 {
   "name": "Head - Standard",
   "description": "Standard HTML head: meta, title, styles, scripts.",
-  "type": "head",
-  "html": "<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{{pageTitle}} | {{siteName}}</title>\n  {{metaTags}}\n  {{styles}}\n  {{scripts}}\n</head>"
+  "type": "area_head",
+  "html": "<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{{page.metaTitle}} | {{site.name}}</title>\n  {{site.metaTags}}\n  {{site.styles}}\n  {{site.scripts}}\n</head>",
+  "css": null,
+  "js": null
 }

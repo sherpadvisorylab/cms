@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS cms_components (
   name              TEXT        NOT NULL,
   namespace         TEXT,
   type              TEXT        NOT NULL DEFAULT 'page'
-                                CHECK (type IN ('page', 'ui', 'navigation')),
+                                CHECK (type IN ('page', 'ui')),
   category          TEXT,
   description       TEXT,
   status            TEXT        NOT NULL DEFAULT 'draft'

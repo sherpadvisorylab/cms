@@ -75,7 +75,7 @@ export default function StructurePage() {
   const params = useParams();
   const pageId = params.id as string;
 
-  const [pageTitle, setPageTitle] = useState("");
+  const [title, setTitle] = useState("");
   const [pageSlug, setPageSlug] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
@@ -96,7 +96,7 @@ export default function StructurePage() {
       .then((response) => response.json())
       .then((data) => {
         const nextStructure = data.structure ?? [];
-        setPageTitle(data.pageTitle ?? "Page");
+        setTitle(data.title ?? "Page");
         setPageSlug(data.pageSlug ?? "");
         setIsPublished(!!data.isPublished);
         setLatestVersionId(data.latestVersionId ?? null);
@@ -169,7 +169,7 @@ export default function StructurePage() {
       <style>{`@keyframes cms-spin{to{transform:rotate(360deg)}}`}</style>
       <PageEditorHeader
         id={pageId}
-        title={pageTitle}
+        title={title}
         isPublished={isPublished}
         badge={<VersionBadge versionNumber={editingVersionNumber} />}
         actions={

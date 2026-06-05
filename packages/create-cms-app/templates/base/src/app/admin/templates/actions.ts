@@ -3,28 +3,32 @@
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
 
-export async function createLayoutTemplate(data: {
+export async function createTemplate(data: {
   name: string;
   description?: string;
-  type: "head" | "body";
+  type: "area_head" | "area_body" | "navigation";
   html: string;
+  css?: string | null;
+  js?: string | null;
 }) {
-  const t = await cms.layoutTemplates.create(data);
+  const t = await cms.templates.create(data);
   revalidatePath("/admin/templates");
   return t;
 }
 
-export async function updateLayoutTemplate(id: string, data: {
+export async function updateTemplate(id: string, data: {
   name?: string;
   description?: string;
   html?: string;
+  css?: string | null;
+  js?: string | null;
 }) {
-  const t = await cms.layoutTemplates.update(id, data);
+  const t = await cms.templates.update(id, data);
   revalidatePath("/admin/templates");
   return t;
 }
 
-export async function deleteLayoutTemplate(id: string) {
-  await cms.layoutTemplates.delete(id);
+export async function deleteTemplate(id: string) {
+  await cms.templates.delete(id);
   revalidatePath("/admin/templates");
 }

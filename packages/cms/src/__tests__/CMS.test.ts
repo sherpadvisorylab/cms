@@ -50,8 +50,8 @@ describe("CMS", () => {
       const settings = await cms.settings.get();
       expect(settings).not.toBeNull();
       expect(settings!.branding!.projectName).toBe("My Project");
-      expect(settings!.systemVariableDefaults).toBeDefined();
-      expect(settings!.systemVariableDefaults!["bg-primary"]).toBe("bg-primary");
+      expect(settings!.variables).toBeDefined();
+      expect(settings!.variables!.some((variable) => variable.namespace === "styles" && variable.key === "bgPrimary" && variable.value === "bg-primary")).toBe(true);
     });
 
     it("does not duplicate on second call", async () => {
@@ -72,8 +72,8 @@ describe("CMS", () => {
         rootPath: "/",
         status: "active",
         design: {
-          headTemplate: "<head><title>{{pageTitle}} | {{siteName}}</title>{{metaTags}}{{styles}}</head>",
-          bodyTemplate: "<body>{{content}}{{trackingScripts}}{{scripts}}</body>",
+          headTemplate: "<head><title>{{page.metaTitle}} | {{site.name}}</title>{{site.metaTags}}{{site.styles}}</head>",
+          bodyTemplate: "<body>{{page.content}}{{site.trackingScripts}}{{site.scripts}}</body>",
         },
       });
 
@@ -157,8 +157,8 @@ describe("CMS", () => {
       const nav = await cms.navigations.create({
         name: "Main Header",
         items: [
-          { type: "page", label: "Home", url: "/" },
-          { type: "page", label: "About", url: "/about" },
+          { key: "home", type: "page", label: "Home", url: "/" },
+          { key: "about", type: "page", label: "About", url: "/about" },
         ],
         template: '<nav>{% for item in items %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}</nav>',
       });
@@ -169,8 +169,8 @@ describe("CMS", () => {
         siteName: "Test",
         status: "active",
         design: {
-          headTemplate: "<head><title>{{pageTitle}}</title></head>",
-          bodyTemplate: `<body>{{navigation:${nav.id}}}{{content}}</body>`,
+          headTemplate: "<head><title>{{page.metaTitle}}</title></head>",
+          bodyTemplate: `<body>{{navigation:${nav.id}}}{{page.content}}</body>`,
         },
       });
 
@@ -208,8 +208,8 @@ describe("CMS", () => {
         name: "public",
         status: "active",
         design: {
-          headTemplate: "<head><title>{{pageTitle}}</title></head>",
-          bodyTemplate: "<body>{{content}}</body>",
+          headTemplate: "<head><title>{{page.metaTitle}}</title></head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
         },
       });
 
@@ -273,8 +273,8 @@ describe("CMS", () => {
         name: "public",
         status: "active",
         design: {
-          headTemplate: "<head><title>{{pageTitle}}</title></head>",
-          bodyTemplate: "<body>{{header}}{{content}}{{footer}}</body>",
+          headTemplate: "<head><title>{{page.metaTitle}}</title></head>",
+          bodyTemplate: "<body>{{header}}{{page.content}}{{footer}}</body>",
           bodyElements: [
             { variable: "{{header}}", content: "<header>Site Header</header>" },
             { variable: "{{footer}}", content: "<footer>Site Footer</footer>" },
@@ -311,8 +311,8 @@ describe("CMS", () => {
         name: "public",
         status: "active",
         design: {
-          headTemplate: "<head><title>{{pageTitle}}</title>{{styles}}</head>",
-          bodyTemplate: "<body>{{content}}{{scripts}}</body>",
+          headTemplate: "<head><title>{{page.metaTitle}}</title>{{site.styles}}</head>",
+          bodyTemplate: "<body>{{page.content}}{{site.scripts}}</body>",
         },
       });
 
@@ -339,6 +339,87 @@ describe("CMS", () => {
       expect(result).not.toBeNull();
       expect(result).toContain(".styled { color: red; }");
       expect(result).toContain("console.log('hello');");
+    });
+
+    it("resolves legacy variable aliases in area and component templates", async () => {
+      await cms.areas.create({
+        name: "public",
+        siteName: "Legacy Site",
+        status: "active",
+        design: {
+          headTemplate: "<head><title>{{pageTitle}} | {{siteName}}</title>{{metaTags}}{{styles}}</head>",
+          bodyTemplate: "<body>{{content}}{{trackingScripts}}{{scripts}}</body>",
+        },
+      });
+
+      const comp = await cms.components.create({ name: "legacy-block", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, {
+        templateLiquid: "<section><h1>{{pageTitle}}</h1><p>{{siteName}}</p><div>{{content}}</div></section>",
+      });
+
+      const page = await cms.pages.create({
+        area: "public",
+        slug: "legacy",
+        title: "Legacy Page",
+        status: "published",
+        structure: [],
+        seo: {
+          metaTitle: "Legacy Meta Title",
+          metaDescription: "Legacy description",
+        },
+      });
+
+      await cms.pageVersions.createVersion(page.id, {
+        structure: [{ componentId: comp.id, props: {} }],
+        publish: true,
+      });
+
+      const result = await cms.renderPage("public", "legacy");
+      expect(result).not.toBeNull();
+      expect(result).toContain("<title>Legacy Meta Title | Legacy Site</title>");
+      expect(result).toContain("<h1>Legacy Meta Title</h1>");
+      expect(result).toContain("<p>Legacy Site</p>");
+    });
+
+    it("resolves legacy aliases inside navigation templates", async () => {
+      const nav = await cms.navigations.create({
+        name: "Legacy Nav",
+        items: [{ key: "home", type: "page", label: "Home", url: "/" }],
+        template: "<nav aria-label='{{siteName}}'>{% for item in items %}<a href='{{ item.url }}'>{{ item.label }}</a>{% endfor %}</nav>",
+      });
+
+      await cms.areas.create({
+        name: "public",
+        siteName: "Legacy Site",
+        status: "active",
+        design: {
+          headTemplate: "<head><title>{{page.metaTitle}}</title></head>",
+          bodyTemplate: `<body>{{navigation:${nav.id}}}{{page.content}}</body>`,
+        },
+      });
+
+      const comp = await cms.components.create({ name: "block", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, {
+        templateLiquid: "<main>Legacy nav content</main>",
+      });
+
+      const page = await cms.pages.create({
+        area: "public",
+        slug: "legacy-nav",
+        title: "Legacy Nav Page",
+        status: "published",
+        structure: [],
+      });
+
+      await cms.pageVersions.createVersion(page.id, {
+        structure: [{ componentId: comp.id, props: {} }],
+        publish: true,
+      });
+
+      const result = await cms.renderPage("public", "legacy-nav");
+      expect(result).not.toBeNull();
+      expect(result).toContain("<nav aria-label='Legacy Site'>");
+      expect(result).toContain("Legacy nav content");
     });
   });
 });

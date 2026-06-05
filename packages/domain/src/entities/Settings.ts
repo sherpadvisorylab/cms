@@ -14,11 +14,26 @@ export interface CmsSettings {
   /** Email defaults (sender) */
   emailDefaults?: CmsSettingsEmailDefaults;
 
-  /** System variable default values (built-in + custom) */
-  systemVariableDefaults?: Record<string, string>;
+  /** Global site/style variables available in Liquid editors */
+  variables?: CmsVariableDefinition[];
+}
 
-  /** Custom variable keys (user-added beyond built-in) */
-  customVariableKeys?: string[];
+export type CmsVariableNamespace = "site" | "styles";
+export type CmsVariableType = "text" | "url" | "image" | "select";
+
+export interface CmsVariableOption {
+  label: string;
+  value: string;
+}
+
+export interface CmsVariableDefinition {
+  namespace: CmsVariableNamespace;
+  key: string;
+  label: string;
+  description?: string;
+  type: CmsVariableType;
+  value?: string;
+  options?: CmsVariableOption[];
 }
 
 export interface CmsSettingsBranding {

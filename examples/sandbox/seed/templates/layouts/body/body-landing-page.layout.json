@@ -1,6 +1,8 @@
 {
   "name": "Body - Landing Page",
   "description": "Full-viewport landing page. No topbar - navigation is part of the hero component. Sections fill the viewport.",
-  "type": "body",
-  "html": "<body style=\"margin:0;padding:0;font-family:inherit;overflow-x:hidden;\">\n\n  {{content}}\n\n  {{navigation:footer}}\n\n  {{trackingScripts}}\n</body>"
+  "type": "area_body",
+  "html": "<body style=\"margin:0;padding:0;font-family:inherit;overflow-x:hidden;\">\n\n  {{page.content}}\n\n  {{navigation:footer}}\n\n  {{site.trackingScripts}}\n</body>",
+  "css": "",
+  "js": ""
 }

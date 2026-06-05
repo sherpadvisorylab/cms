@@ -6,12 +6,19 @@ config({ path: ".env.local" });
 type SeedLayoutDefinition = {
   name: string;
   description: string;
-  type: "head" | "body";
+  type: "area_head" | "area_body" | "navigation";
   html: string;
+  css?: string | null;
+  js?: string | null;
 };
 
 async function readSeedLayouts() {
-  return readSeedEntries<SeedLayoutDefinition>("templates/layouts", ".layout.json");
+  const [layoutTemplates, navigationTemplates] = await Promise.all([
+    readSeedEntries<SeedLayoutDefinition>("templates/layouts", ".layout.json"),
+    readSeedEntries<SeedLayoutDefinition>("templates/navigation", ".layout.json"),
+  ]);
+
+  return [...layoutTemplates, ...navigationTemplates];
 }
 
 function normalizeLayoutName(value: string) {
@@ -25,7 +32,7 @@ function normalizeLayoutName(value: string) {
 export async function seedLayoutTemplates(cms: any) {
   const [seedLayouts, existingLayouts] = await Promise.all([
     readSeedLayouts(),
-    cms.layoutTemplates.findAll().catch(() => []),
+    cms.templates.findAll().catch(() => []),
   ]);
 
   const existingNames = new Set(
@@ -38,11 +45,13 @@ export async function seedLayoutTemplates(cms: any) {
       continue;
     }
 
-    await cms.layoutTemplates.create({
+    await cms.templates.create({
       name: layout.name,
       description: layout.description,
       type: layout.type,
       html: layout.html,
+      css: layout.css ?? null,
+      js: layout.js ?? null,
     });
 
     console.log(`  + created layout: ${layout.name}`);

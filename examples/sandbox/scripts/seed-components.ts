@@ -11,7 +11,7 @@ type SeedComponentVersionDefinition = {
 type SeedComponentDefinition = {
   name: string;
   namespace?: string;
-  type: "page" | "ui" | "navigation";
+  type: "page" | "ui";
   category?: string;
   description?: string;
   status?: "draft" | "published";

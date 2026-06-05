@@ -3,11 +3,13 @@
  * Flat object with reserved keys + any custom properties.
  */
 export interface CmsNavigationItem {
+  key: string;
   type: "page" | "custom";
   label: string;
   url: string;
-  image?: string;
+  target?: "_self" | "_blank";
   description?: string;
+  items?: CmsNavigationItem[];
   /** Custom properties (icon, badge, subtitle, etc.) */
   [key: string]: unknown;
 }

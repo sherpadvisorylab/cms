@@ -1,8 +1,15 @@
-import type { CmsTemplate } from "../entities/Template";
+import type {
+  CmsTemplate,
+  CreateCmsTemplateInput,
+  TemplateType,
+  UpdateCmsTemplateInput,
+} from "../entities/Template";
 
 export interface ITemplateRepository {
   findAll(): Promise<CmsTemplate[]>;
   findById(id: string): Promise<CmsTemplate | null>;
-  create(template: Omit<CmsTemplate, "id" | "createdAt">): Promise<CmsTemplate>;
+  findByType(type: TemplateType): Promise<CmsTemplate[]>;
+  create(template: CreateCmsTemplateInput): Promise<CmsTemplate>;
+  update(id: string, data: UpdateCmsTemplateInput): Promise<CmsTemplate>;
   delete(id: string): Promise<void>;
 }

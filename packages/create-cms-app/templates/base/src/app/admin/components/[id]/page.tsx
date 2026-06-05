@@ -7,13 +7,14 @@ import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
 import { FloatInput, FloatTextarea, FloatSelect } from "@/components/admin/FloatField";
 import { PREDEFINED_VALIDATORS } from "@/components/admin/validators";
 import { createComponent, updateComponent, deleteComponent, createVersion } from "../actions";
-import { CodeEditor, type FormEmbed, type AutocompleteVar, type ComponentEmbed, type LocalVar } from "@/components/admin/CodeEditor";
+import { CodeEditor, type FormEmbed, type ComponentEmbed, type LocalVar } from "@/components/admin/CodeEditor";
 import {
   COMPONENT_CATEGORIES_BY_TYPE,
   SCHEMA_FIELD_TYPES,
   type ComponentSchemaField,
   type SchemaFieldType,
   type ComponentType,
+  type CmsSettings,
 } from "@sherpacms/domain";
 
 type Tab = "template" | "css" | "js" | "schema" | "settings";
@@ -135,7 +136,7 @@ function htmlToLiquidVariables(htmlString: string): {
  * Extract user-defined variable names from a Liquid template string.
  *
  * Naming convention enforced here:
- *   system:key   → system/settings variables (e.g. {{system:bg-primary}})  → excluded
+ *   site.name    → namespaced global variables (e.g. {{site.name}})       → excluded
  *   form:key     → CMS form embeds                                          → excluded
  *   navigation:id → navigation block embeds                                 → excluded
  *   page.title   → page/site context vars                                   → excluded
@@ -596,7 +597,7 @@ export default function ComponentEditorPage() {
   const [js,              setJs]              = useState("");
   const [currentVersion,  setCurrentVersion]  = useState(0);
   const [formEmbeds,        setFormEmbeds]        = useState<FormEmbed[]>([]);
-  const [styleVars,         setStyleVars]         = useState<AutocompleteVar[]>([]);
+  const [settings,          setSettings]          = useState<CmsSettings | null>(null);
   const [componentEmbeds,   setComponentEmbeds]   = useState<ComponentEmbed[]>([]);
   const [schemaOrgTemplate, setSchemaOrgTemplate] = useState("");
 
@@ -643,7 +644,7 @@ export default function ComponentEditorPage() {
       setJs(data.js ?? "");
       setCurrentVersion(data.version ?? 0);
       setFormEmbeds(data.forms ?? []);
-      setStyleVars(data.styleVars ?? []);
+      setSettings(data.settings ?? null);
       setComponentEmbeds(data.components ?? []);
       setSchemaOrgTemplate(data.schemaOrgTemplate ?? "");
       setLoading(false);
@@ -761,7 +762,6 @@ export default function ComponentEditorPage() {
                 <select name="componentType" className="form-control" value={newType} onChange={(e) => setNewType(e.target.value)}>
                   <option value="page">Page component — editable variables</option>
                   <option value="ui">UI component — layout only</option>
-                  <option value="navigation">Navigation component — nav items</option>
                 </select>
               </div>
             </div>
@@ -865,7 +865,8 @@ export default function ComponentEditorPage() {
               value={templateLiquid}
               onChange={setTemplateLiquid}
               language="liquid"
-              styleVars={styleVars}
+              pickerContext="component_template"
+              settings={settings}
               formEmbeds={formEmbeds}
               componentEmbeds={componentEmbeds}
               localVars={fields.map((f) => ({ key: f.key, label: f.label, type: f.type }))}
@@ -968,7 +969,7 @@ export default function ComponentEditorPage() {
       {tab === "css" && (
         <div className="card">
           <label className="form-label" style={{ display: "block", marginBottom: 8 }}>Component CSS</label>
-          <CodeEditor value={css} onChange={setCss} language="css" minHeight={320} />
+          <CodeEditor value={css} onChange={setCss} language="css" pickerContext="component_template" settings={settings} minHeight={320} />
         </div>
       )}
 
@@ -976,7 +977,7 @@ export default function ComponentEditorPage() {
       {tab === "js" && (
         <div className="card">
           <label className="form-label" style={{ display: "block", marginBottom: 8 }}>Component JavaScript</label>
-          <CodeEditor value={js} onChange={setJs} language="js" minHeight={320} />
+          <CodeEditor value={js} onChange={setJs} language="js" pickerContext="component_template" settings={settings} minHeight={320} />
         </div>
       )}
 
@@ -986,7 +987,7 @@ export default function ComponentEditorPage() {
           value={schemaOrgTemplate}
           onChange={setSchemaOrgTemplate}
           localVars={fields.map((f) => ({ key: f.key, label: f.label, type: f.type }))}
-          styleVars={styleVars}
+          settings={settings}
           onSave={handleSaveVersion}
           saving={saving}
         />
@@ -1007,7 +1008,6 @@ export default function ComponentEditorPage() {
                   onChange={(e) => { setComponentType(e.target.value); setCategory(""); }}>
                   <option value="page">Page component — has custom variables</option>
                   <option value="ui">UI component — layout only</option>
-                  <option value="navigation">Navigation component — nav items</option>
                 </select>
               </div>
             </div>
@@ -1180,14 +1180,14 @@ function ComponentSchemaOrgTab({
   value,
   onChange,
   localVars,
-  styleVars,
+  settings,
   onSave,
   saving,
 }: {
   value:     string;
   onChange:  (v: string) => void;
   localVars: LocalVar[];
-  styleVars: AutocompleteVar[];
+  settings:  CmsSettings | null;
   onSave:    () => void;
   saving:    boolean;
 }) {
@@ -1267,12 +1267,13 @@ function ComponentSchemaOrgTab({
           value={value}
           onChange={onChange}
           language="liquid"
+          pickerContext="component_schema"
+          settings={settings}
           localVars={localVars}
-          styleVars={styleVars}
-          hideComponentEmbeds
           minHeight={320}
         />
       </div>
     </>
   );
 }
+

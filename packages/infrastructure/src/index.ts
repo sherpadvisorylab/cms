@@ -15,7 +15,6 @@ export { NavigationRepository } from "./repositories/NavigationRepository";
 export { SettingsRepository } from "./repositories/SettingsRepository";
 export { UserRepository } from "./repositories/UserRepository";
 export { FormRepository } from "./repositories/FormRepository";
-export { LayoutTemplateRepository } from "./repositories/LayoutTemplateRepository";
 
 // Email system
 export type { IEmailSender, EmailMessage, EmailAttachment } from "./email/IEmailSender";

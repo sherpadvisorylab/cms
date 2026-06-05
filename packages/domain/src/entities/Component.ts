@@ -1,13 +1,12 @@
 export type ComponentStatus = "draft" | "published";
 export const COMPONENT_STATUSES = ["draft", "published"] as const;
 
-export type ComponentType = "page" | "ui" | "navigation";
-export const COMPONENT_TYPES = ["page", "ui", "navigation"] as const;
+export type ComponentType = "page" | "ui";
+export const COMPONENT_TYPES = ["page", "ui"] as const;
 
 export const COMPONENT_TYPE_LABELS: Record<ComponentType, string> = {
   page: "Page components",
   ui: "UI components",
-  navigation: "Navigation components",
 };
 
 export const COMPONENT_CATEGORIES_BY_TYPE: Record<ComponentType, string[]> = {
@@ -19,10 +18,6 @@ export const COMPONENT_CATEGORIES_BY_TYPE: Record<ComponentType, string[]> = {
   ui: [
     "Container", "Wrapper", "Grid", "Columns", "Spacer",
     "Divider", "Layout block", "Fixed block", "Decorative",
-  ],
-  navigation: [
-    "Header", "Navbar", "Breadcrumb", "Sidebar", "Footer",
-    "Tabs", "Pagination", "Menu", "Mega menu", "Mobile menu",
   ],
 };
 

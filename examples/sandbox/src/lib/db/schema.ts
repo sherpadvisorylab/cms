@@ -113,8 +113,13 @@ export const cmsTemplates = pgTable("cms_templates", {
   id:          text("id").primaryKey(),
   name:        text("name").notNull(),
   description: text("description"),
+  type:        text("type").notNull().$type<"page" | "area_head" | "area_body" | "navigation">(),
+  html:        text("html").notNull().default(""),
+  css:         text("css"),
+  js:          text("js"),
   structure:   jsonb("structure").default([]),
   createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // ── Email Templates ───────────────────────────────────────────────────────────
@@ -131,17 +136,6 @@ export const cmsEmailTemplates = pgTable("cms_email_templates", {
   updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-// ── Layout Templates (head/body HTML shells for areas) ────────────────────────
-export const cmsLayoutTemplates = pgTable("cms_layout_templates", {
-  id:          text("id").primaryKey(),
-  name:        text("name").notNull(),
-  description: text("description").default(""),
-  type:        text("type").notNull().$type<"head" | "body">(),
-  html:        text("html").notNull().default(""),
-  createdAt:   timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
-
 // ── Forms ─────────────────────────────────────────────────────────────────────
 export const cmsForms = pgTable("cms_forms", {
   id:       text("id").primaryKey(),
@@ -152,12 +146,11 @@ export const cmsForms = pgTable("cms_forms", {
 
 // ── Settings (singleton, id = 'global') ──────────────────────────────────────
 export const cmsSettings = pgTable("cms_settings", {
-  id:                     text("id").primaryKey().default("global"),
-  branding:               jsonb("branding").default({}),
-  authentication:         jsonb("authentication").default({}),
-  emailDefaults:          jsonb("email_defaults").default({}),
-  systemVariableDefaults: jsonb("system_variable_defaults").default({}),
-  customVariableKeys:     jsonb("custom_variable_keys").default([]),
+  id:             text("id").primaryKey().default("global"),
+  branding:       jsonb("branding").default({}),
+  authentication: jsonb("authentication").default({}),
+  emailDefaults:  jsonb("email_defaults").default({}),
+  variables:      jsonb("variables").default([]),
 });
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -169,14 +162,6 @@ export const cmsUsers = pgTable("cms_users", {
   status:    text("status").notNull().default("active"),
   company:   text("company"),
   lastLogin: timestamp("last_login", { withTimezone: true }),
-});
-
-// ── Page Structure Templates ──────────────────────────────────────────────────
-export const cmsPageTemplates = pgTable("cms_page_templates", {
-  id:        text("id").primaryKey(),
-  name:      text("name").notNull(),
-  structure: jsonb("structure").default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 // ── Collection → Table map (used by DrizzleAdapter) ──────────────────────────
@@ -191,7 +176,6 @@ export const COLLECTION_MAP = {
   templates:         cmsTemplates,
   emailTemplates:    cmsEmailTemplates,
   forms:             cmsForms,
-  layoutTemplates:   cmsLayoutTemplates,
   settings:          cmsSettings,
   users:             cmsUsers,
 } as const;

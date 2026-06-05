@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import {
-  COMPONENT_TYPES,
   COMPONENT_STATUSES,
   COMPONENT_TYPE_LABELS,
   COMPONENT_CATEGORIES_BY_TYPE,
@@ -14,6 +13,8 @@ import {
 } from "@sherpacms/domain";
 import { quickUpdateComponent, importComponent } from "./actions";
 import { useRouter } from "next/navigation";
+
+const VISIBLE_COMPONENT_TYPES: ComponentType[] = ["page", "ui"];
 
 const CATEGORY_ICONS: Record<string, string> = {
   Hero: "▶",
@@ -64,7 +65,7 @@ export type ComponentRow = {
 type SeedImportPayload = {
   name: string;
   namespace?: string;
-  type?: "page" | "ui" | "navigation";
+  type?: "page" | "ui";
   category?: string;
   description?: string;
   status?: "draft" | "published";
@@ -227,7 +228,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
             </Link>
           </div>
         }
-        tabs={COMPONENT_TYPES.map((type) => (
+        tabs={VISIBLE_COMPONENT_TYPES.map((type) => (
           <button
             key={type}
             className={`tab ${activeType === type ? "active" : ""}`}
@@ -333,7 +334,7 @@ export function ComponentsBrowser({ components }: { components: ComponentRow[] }
                     setEditCategory("");
                   }}
                 >
-                  {COMPONENT_TYPES.map((type) => (
+                  {VISIBLE_COMPONENT_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>

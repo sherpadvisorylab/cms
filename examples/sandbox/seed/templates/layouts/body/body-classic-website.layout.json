@@ -1,6 +1,8 @@
 {
   "name": "Body - Classic Website",
   "description": "Topbar navigation + max-width content area + footer. The standard public website layout.",
-  "type": "body",
-  "html": "<body style=\"margin:0;padding:0;font-family:inherit;display:flex;flex-direction:column;min-height:100vh;\">\n\n  {{navigation:navbar}}\n\n  <main style=\"flex:1;width:100%;max-width:1200px;margin:0 auto;padding:2rem 1.5rem;\">\n    {{content}}\n  </main>\n\n  {{navigation:footer}}\n\n  {{trackingScripts}}\n</body>"
+  "type": "area_body",
+  "html": "<body style=\"margin:0;padding:0;font-family:inherit;display:flex;flex-direction:column;min-height:100vh;\">\n\n  {{navigation:navbar}}\n\n  <main style=\"flex:1;width:100%;max-width:1200px;margin:0 auto;padding:2rem 1.5rem;\">\n    {{page.content}}\n  </main>\n\n  {{navigation:footer}}\n\n  {{site.trackingScripts}}\n</body>",
+  "css": "",
+  "js": ""
 }

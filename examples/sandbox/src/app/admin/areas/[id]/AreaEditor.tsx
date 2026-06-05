@@ -7,28 +7,13 @@ import { ImageUploadField, type ImageValue } from "@/components/admin/ImageUploa
 import { saveAreaFull } from "../actions";
 import type {
   CmsArea, CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking,
-  CmsAreaAccessPolicy, CmsColorSchema, CmsLegalPage, CmsTrackingScript,
+  CmsAreaAccessPolicy, CmsColorSchema, CmsLegalPage, CmsSettings, CmsTrackingScript,
 } from "@sherpacms/domain";
-import type { AutocompleteVar, ComponentEmbed } from "@/components/admin/CodeEditor";
+import type { ComponentEmbed } from "@/components/admin/CodeEditor";
 
 // ── Page-level variables for Design tab editors ───────────────────────────────
 // Keys match the actual {{variable}} resolved by renderPage().
 // Labels use "page:" prefix to visually group them in the picker.
-const HEAD_VARS = [
-  { key: "pageTitle",  label: "page: title — SEO page title",        type: "text" },
-  { key: "siteName",   label: "page: siteName — area site name",     type: "text" },
-  { key: "metaTags",   label: "page: metaTags — SEO meta block",     type: "text" },
-  { key: "styles",     label: "page: styles — component + area CSS", type: "text" },
-  { key: "scripts",    label: "page: scripts — component + area JS", type: "text" },
-];
-
-const BODY_VARS = [
-  { key: "content",          label: "page: content — rendered components", type: "text" },
-  { key: "trackingScripts",  label: "page: trackingScripts — GA/GTM",      type: "text" },
-  { key: "styles",           label: "page: styles — component + area CSS", type: "text" },
-  { key: "scripts",          label: "page: scripts — component + area JS", type: "text" },
-];
-
 // ── Standard color keys ───────────────────────────────────────────────────────
 const COLOR_KEYS = [
   { key: "primary",     label: "Primary" },
@@ -46,13 +31,13 @@ const COLOR_KEYS = [
 ];
 
 // ── Props ─────────────────────────────────────────────────────────────────────
-type AreaHtmlTemplate = { id: string; name: string; html: string };
+type AreaHtmlTemplate = { id: string; name: string; html: string; css: string; js: string };
 
 interface Props {
   area:           CmsArea;
+  settings:       CmsSettings | null;
   navigations:    { id: string; name: string }[];
   forms:          { variable: string; name: string }[];
-  styleVars:      AutocompleteVar[];
   uiComponents?:  ComponentEmbed[];
   headTemplates?: AreaHtmlTemplate[];
   bodyTemplates?: AreaHtmlTemplate[];
@@ -70,7 +55,7 @@ const TAB_LABELS: Record<Tab, string> = {
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function AreaEditor({ area, navigations, forms, styleVars, uiComponents = [], headTemplates: headTemplatesProp = [], bodyTemplates: bodyTemplatesProp = [] }: Props) {
+export function AreaEditor({ area, settings, navigations, forms, uiComponents = [], headTemplates: headTemplatesProp = [], bodyTemplates: bodyTemplatesProp = [] }: Props) {
   const [tab,     setTab]     = useState<Tab>("basic");
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
@@ -232,7 +217,7 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
               <input className="form-control" value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
                 placeholder="My Site" />
-              <span className="form-hint">{"Used in page title templates: {{siteName}}"}</span>
+              <span className="form-hint">{"Used in templates as {{site.name}}"}</span>
             </div>
           </div>
 
@@ -429,7 +414,10 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
                             background:"none", border:"none", cursor:"pointer", fontSize:"0.85rem" }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                          onClick={() => { setHeadTemplate(t.html); setHeadDropdown(false); }}
+                          onClick={() => {
+                            setHeadTemplate(t.html);
+                            setHeadDropdown(false);
+                          }}
                         >{t.name}</button>
                       ))}
                     </div>
@@ -443,11 +431,9 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
                 value={headTemplate}
                 onChange={setHeadTemplate}
                 language="html"
+                pickerContext="area_head"
+                settings={settings}
                 minHeight={200}
-                styleVars={styleVars}
-                localVars={HEAD_VARS}
-                localVarsLabel="Page Variables"
-                componentEmbeds={uiComponents}
               />
             </div>
 
@@ -484,7 +470,12 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
                             background:"none", border:"none", cursor:"pointer", fontSize:"0.85rem" }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                          onClick={() => { setBodyTemplate(t.html); setBodyDropdown(false); }}
+                          onClick={() => {
+                            setBodyTemplate(t.html);
+                            setAreaCss(t.css ?? "");
+                            setAreaJs(t.js ?? "");
+                            setBodyDropdown(false);
+                          }}
                         >{t.name}</button>
                       ))}
                     </div>
@@ -492,18 +483,17 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
                 </div>
               </div>
               <span className="form-hint" style={{ display:"block", marginBottom:8, fontSize:"0.78rem" }}>
-                {"HTML <body> wrapper. Use {{content}}, {{navigation:id}}, {{form:variable}}."}
+                {"HTML <body> wrapper. Use {{page.content}}, {{navigation:navbar}}, {{form:contact}}."}
               </span>
               <CodeEditor
                 value={bodyTemplate}
                 onChange={setBodyTemplate}
                 language="html"
+                pickerContext="area_body"
+                settings={settings}
                 minHeight={200}
-                styleVars={styleVars}
                 formEmbeds={forms}
                 navEmbeds={navigations}
-                localVars={BODY_VARS}
-                localVarsLabel="Page Variables"
                 componentEmbeds={uiComponents}
               />
             </div>
@@ -512,14 +502,14 @@ export function AreaEditor({ area, navigations, forms, styleVars, uiComponents =
               <span className="form-hint" style={{ display:"block", marginBottom:8 }}>
                 Injected in every page of this area.
               </span>
-              <CodeEditor value={areaCss} onChange={setAreaCss} language="css" minHeight={180} hideComponentEmbeds />
+              <CodeEditor value={areaCss} onChange={setAreaCss} language="css" pickerContext="area_body" settings={settings} minHeight={180} />
             </div>
             <div className="card">
               <label className="form-label" style={{ marginBottom:4 }}>Additional JavaScript</label>
               <span className="form-hint" style={{ display:"block", marginBottom:8 }}>
                 Runs on every page of this area.
               </span>
-              <CodeEditor value={areaJs} onChange={setAreaJs} language="js" minHeight={180} hideComponentEmbeds />
+              <CodeEditor value={areaJs} onChange={setAreaJs} language="js" pickerContext="area_body" settings={settings} minHeight={180} />
             </div>
           </div>
 

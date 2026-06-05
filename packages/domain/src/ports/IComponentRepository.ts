@@ -9,6 +9,7 @@ export interface IComponentRepository {
 }
 
 export interface IComponentVersionRepository {
+  findByComponentId(componentId: string): Promise<ComponentVersion[]>;
   createVersion(
     componentId: string,
     data: {
@@ -21,4 +22,6 @@ export interface IComponentVersionRepository {
     }
   ): Promise<ComponentVersion>;
   getLatest(componentId: string): Promise<ComponentVersion | null>;
+  delete(id: string): Promise<void>;
+  deleteByComponentId(componentId: string): Promise<number>;
 }

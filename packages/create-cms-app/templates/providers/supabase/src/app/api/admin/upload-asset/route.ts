@@ -11,7 +11,8 @@ function slugifyFilename(name: string): string {
   const ext = dotIdx >= 0 ? name.slice(dotIdx + 1).toLowerCase() : "";
   const base = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
   const slug = base
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "file";
@@ -23,16 +24,21 @@ export async function POST(req: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let file: File;
   let requestedName: string | null = null;
+
   try {
     const form = await req.formData();
     const candidate = form.get("file");
     if (!(candidate instanceof File)) {
       return Response.json({ error: "No file provided" }, { status: 400 });
     }
+
     file = candidate;
     const filename = form.get("filename");
     if (typeof filename === "string" && filename.trim()) {
@@ -45,6 +51,7 @@ export async function POST(req: Request) {
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
   const maxSize = isVideo ? MAX_VIDEO_SIZE : isImage ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+
   if (file.size > maxSize) {
     return Response.json(
       { error: `File too large (max ${isVideo ? "100" : isImage ? "10" : "25"} MB)` },
@@ -65,7 +72,9 @@ export async function POST(req: Request) {
       upsert: true,
     });
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
   const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
   return Response.json({ url: data.publicUrl });

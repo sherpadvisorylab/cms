@@ -2,6 +2,7 @@
 
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
+import type { CmsVariableDefinition } from "@sherpacms/domain";
 
 export async function saveBranding(formData: FormData) {
   const existing = await cms.settings.get();
@@ -40,15 +41,13 @@ export async function saveAuthentication(formData: FormData) {
 }
 
 export async function saveSystemVars(data: {
-  defaults: Record<string, string>;
-  customKeys: string[];
+  variables: CmsVariableDefinition[];
 }) {
   const existing = await cms.settings.get();
   await cms.settings.save({
     id: "global",
     ...(existing ?? {}),
-    systemVariableDefaults: data.defaults,
-    customVariableKeys: data.customKeys,
+    variables: data.variables,
   });
   revalidatePath("/admin/settings");
 }

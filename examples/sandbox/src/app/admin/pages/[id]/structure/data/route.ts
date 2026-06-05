@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!page) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({
-    pageTitle:   page.title,
+    title:       page.title,
     pageSlug:    page.slug,
     isPublished: page.status === "published" && !!publishedVersion,
     latestVersionId: version?.id ?? null,

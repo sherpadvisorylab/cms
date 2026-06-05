@@ -9,6 +9,8 @@
     "seed": "tsx scripts/seed.ts && tsx scripts/seed-pages-runner.ts",
     "seed:data": "tsx scripts/seed-pages-runner.ts",
     "seed:pages": "tsx scripts/seed-pages-runner.ts",
+    "migrate:navigation-templates": "tsx scripts/migrate-navigation-components-to-layout-templates.ts",
+    "migrate:templates": "tsx scripts/migrate-unified-templates.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate"
   },

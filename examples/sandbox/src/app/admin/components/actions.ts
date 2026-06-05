@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 export async function createComponent(formData: FormData) {
   const name = formData.get("name") as string;
   const category = (formData.get("category") as string) || undefined;
-  const type = ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation";
+  const type = ((formData.get("componentType") as string) || "page") as "page" | "ui";
 
   const component = await cms.components.create({ name, category, type, status: "draft" });
 
@@ -27,7 +27,7 @@ export async function updateComponent(id: string, formData: FormData) {
     name: formData.get("name") as string,
     category: (formData.get("category") as string) || undefined,
     status: ((formData.get("status") as string) || "published") as "draft" | "published",
-    type: ((formData.get("componentType") as string) || "page") as "page" | "ui" | "navigation",
+    type: ((formData.get("componentType") as string) || "page") as "page" | "ui",
   });
   revalidatePath("/admin/components");
   revalidatePath(`/admin/components/${id}`);
@@ -44,7 +44,7 @@ export async function quickUpdateComponent(id: string, data: {
     name: data.name,
     category: data.category ?? undefined,
     status: data.status as "draft" | "published",
-    type: data.type as "page" | "ui" | "navigation",
+    type: data.type as "page" | "ui",
   });
   revalidatePath("/admin/components");
   revalidatePath(`/admin/components/${id}`);
@@ -59,7 +59,7 @@ export async function deleteComponent(id: string) {
 export async function importComponent(payload: {
   name:              string;
   namespace?:        string;
-  type:              "page" | "ui" | "navigation";
+  type:              "page" | "ui";
   category?:         string;
   description?:      string;
   status?:           "draft" | "published";

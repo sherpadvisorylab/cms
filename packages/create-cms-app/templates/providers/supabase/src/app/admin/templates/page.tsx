@@ -1,29 +1,5 @@
 import { cms } from "@/lib/cms";
 import { TemplatesClient } from "./TemplatesClient";
-import { db } from "@/lib/db";
-import { cmsPageTemplates } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
-
-async function fetchPageTemplates() {
-  try {
-    const rows = await db
-      .select({
-        id: cmsPageTemplates.id,
-        name: cmsPageTemplates.name,
-        structure: cmsPageTemplates.structure,
-      })
-      .from(cmsPageTemplates)
-      .orderBy(desc(cmsPageTemplates.createdAt));
-
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      componentCount: Array.isArray(row.structure) ? row.structure.length : 0,
-    }));
-  } catch {
-    return [];
-  }
-}
 
 export default async function TemplatesPage({
   searchParams,
@@ -32,18 +8,18 @@ export default async function TemplatesPage({
 }) {
   const { tab = "layouts" } = await searchParams;
 
-  const [layoutTemplates, emailTemplates, pageTemplates] = await Promise.all([
-    cms.layoutTemplates.findAll().catch(() => []),
+  const [templates, emailTemplates, settings] = await Promise.all([
+    cms.templates.findAll().catch(() => []),
     cms.emailTemplates.findAll().catch(() => []),
-    fetchPageTemplates(),
+    cms.settings.get().catch(() => null),
   ]);
 
   return (
     <TemplatesClient
-      initialTab={(tab as "layouts" | "email" | "page") ?? "layouts"}
-      layoutTemplates={layoutTemplates}
+      initialTab={(tab as "layouts" | "navigation" | "email" | "page") ?? "layouts"}
+      templates={templates}
       emailTemplates={emailTemplates}
-      pageTemplates={pageTemplates}
+      settings={settings}
     />
   );
 }

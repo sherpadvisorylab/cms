@@ -2,17 +2,17 @@
   "branding": { "projectName": "My Project" },
   "authentication": { "ssoEnabled": false },
   "emailDefaults": { "senderName": "No Reply", "senderEmail": "no-reply@example.com" },
-  "systemVariableDefaults": {
-    "bg-primary": "bg-primary",
-    "bg-secondary": "bg-secondary",
-    "bg-accent": "bg-accent",
-    "bg-surface": "bg-surface",
-    "text-primary": "text-primary",
-    "text-secondary": "text-secondary",
-    "text-muted": "text-muted",
-    "text-accent": "text-accent",
-    "border-primary": "border-primary",
-    "border-secondary": "border-secondary",
-    "border-muted": "border-muted"
-  }
+  "variables": [
+    { "namespace": "styles", "key": "bgPrimary", "label": "Background Primary", "type": "text", "value": "bg-primary" },
+    { "namespace": "styles", "key": "bgSecondary", "label": "Background Secondary", "type": "text", "value": "bg-secondary" },
+    { "namespace": "styles", "key": "bgAccent", "label": "Background Accent", "type": "text", "value": "bg-accent" },
+    { "namespace": "styles", "key": "bgSurface", "label": "Background Surface", "type": "text", "value": "bg-surface" },
+    { "namespace": "styles", "key": "textPrimary", "label": "Text Primary", "type": "text", "value": "text-primary" },
+    { "namespace": "styles", "key": "textSecondary", "label": "Text Secondary", "type": "text", "value": "text-secondary" },
+    { "namespace": "styles", "key": "textMuted", "label": "Text Muted", "type": "text", "value": "text-muted" },
+    { "namespace": "styles", "key": "textAccent", "label": "Text Accent", "type": "text", "value": "text-accent" },
+    { "namespace": "styles", "key": "borderPrimary", "label": "Border Primary", "type": "text", "value": "border-primary" },
+    { "namespace": "styles", "key": "borderSecondary", "label": "Border Secondary", "type": "text", "value": "border-secondary" },
+    { "namespace": "styles", "key": "borderMuted", "label": "Border Muted", "type": "text", "value": "border-muted" }
+  ]
 }

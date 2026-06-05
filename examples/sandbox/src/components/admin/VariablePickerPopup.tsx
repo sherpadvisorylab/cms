@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface PickerItem {
-  label:  string;   // displayed in the list (e.g. "{{system:bg-primary}}")
+  label:  string;   // displayed in the list (e.g. "{{styles.bgPrimary}}")
   apply:  string;   // inserted into the editor
   detail: string;   // description
 }

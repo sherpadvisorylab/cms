@@ -11,10 +11,11 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 function slugifyFilename(name: string): string {
   const dotIdx = name.lastIndexOf(".");
-  const ext    = dotIdx >= 0 ? name.slice(dotIdx + 1).toLowerCase() : "";
-  const base   = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
-  const slug   = base
-    .normalize("NFD").replace(/[Ì€-Í¯]/g, "")
+  const ext = dotIdx >= 0 ? name.slice(dotIdx + 1).toLowerCase() : "";
+  const base = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
+  const slug = base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "file";
@@ -22,21 +23,32 @@ function slugifyFilename(name: string): string {
 }
 
 export async function POST(req: Request) {
-  // Auth check
   const session = req.headers.get("cookie")?.match(/__session=([^;]+)/)?.[1];
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  try { await getAuth().verifySessionCookie(session, true); }
-  catch { return NextResponse.json({ error: "Unauthorized" }, { status: 401 }); }
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await getAuth().verifySessionCookie(session, true);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let file: File;
   let requestedName: string | null = null;
+
   try {
     const form = await req.formData();
-    const f = form.get("file");
-    if (!f || !(f instanceof File)) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    file = f;
-    const fn = form.get("filename");
-    if (typeof fn === "string" && fn.trim()) requestedName = fn.trim();
+    const candidate = form.get("file");
+    if (!(candidate instanceof File)) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    file = candidate;
+    const filename = form.get("filename");
+    if (typeof filename === "string" && filename.trim()) {
+      requestedName = filename.trim();
+    }
   } catch {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
@@ -44,20 +56,28 @@ export async function POST(req: Request) {
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
   const maxSize = isVideo ? MAX_VIDEO_SIZE : isImage ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+
   if (file.size > maxSize) {
-    return NextResponse.json({ error: `File too large (max ${isVideo ? "100" : isImage ? "10" : "25"} MB)` }, { status: 400 });
+    return NextResponse.json(
+      { error: `File too large (max ${isVideo ? "100" : isImage ? "10" : "25"} MB)` },
+      { status: 400 },
+    );
   }
 
-  const SAFE_NAME = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9]+)?$/;
-  const name = (requestedName && SAFE_NAME.test(requestedName))
+  const safeName = /^[a-z0-9][a-z0-9-]*(\.[a-z0-9]+)?$/;
+  const name = requestedName && safeName.test(requestedName)
     ? requestedName
     : slugifyFilename(file.name);
 
   const bucket = getStorage().bucket();
-  const blob   = bucket.file(`cms-assets/${name}`);
+  const blob = bucket.file(`cms-assets/${name}`);
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  await blob.save(buffer, { metadata: { contentType: file.type || "application/octet-stream" } });
+  await blob.save(buffer, {
+    metadata: {
+      contentType: file.type || "application/octet-stream",
+    },
+  });
   await blob.makePublic();
 
   const url = `https://storage.googleapis.com/${bucket.name}/cms-assets/${name}`;

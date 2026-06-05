@@ -34,7 +34,7 @@ export function ComponentPickerModal({ components, onSelect, onClose }: Props) {
     if (!grouped[t]) grouped[t] = [];
     grouped[t].push(c);
   }
-  const typeOrder: ComponentType[] = ["page", "ui", "navigation"];
+  const typeOrder: ComponentType[] = ["page", "ui"];
 
   return (
     <div

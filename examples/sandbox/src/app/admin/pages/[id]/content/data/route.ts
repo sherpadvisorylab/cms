@@ -34,7 +34,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   );
 
   return NextResponse.json({
-    pageTitle:      page.title,
+    title:          page.title,
     pageSlug:       page.slug,
     pageArea:       page.area,
     systemPageType:  systemPageType,

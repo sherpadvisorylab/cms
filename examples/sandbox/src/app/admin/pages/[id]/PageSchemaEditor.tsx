@@ -84,7 +84,8 @@ export function PageSchemaEditor({ pageId, components, savedConfig }: Props) {
     { key: "page.title", label: "Page title",       type: "text" },
     { key: "page.slug",  label: "Page slug",         type: "text" },
     { key: "site.name",  label: "Site name",         type: "text" },
-    { key: "area.name",  label: "Area name",         type: "text" },
+    { key: "page.metaTitle", label: "Page meta title", type: "text" },
+    { key: "page.metaDescription", label: "Page meta description", type: "text" },
   ];
 
   const selectedComp  = selected !== "manual" ? (components[selected] ?? null) : null;
@@ -251,8 +252,9 @@ export function PageSchemaEditor({ pageId, components, savedConfig }: Props) {
                 value={manualTemplate}
                 onChange={setManualTemplate}
                 language="html"
+                pickerContext="page_schema_manual"
+                settings={null}
                 localVars={editorVars}
-                hideComponentEmbeds
                 minHeight={420}
               />
             ) : (
@@ -263,8 +265,9 @@ export function PageSchemaEditor({ pageId, components, savedConfig }: Props) {
                     value={selectedComp.schemaOrgTemplate}
                     onChange={() => {}}
                     language="html"
+                    pickerContext="page_schema_manual"
+                    settings={null}
                     localVars={editorVars}
-                    hideComponentEmbeds
                     minHeight={420}
                   />
                 ) : (
