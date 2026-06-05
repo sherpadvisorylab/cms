@@ -27,7 +27,7 @@ export async function scaffold(
 ): Promise<void> {
   const targetDir = resolve(process.cwd(), projectDir);
   const projectName = options.name ?? basename(targetDir);
-  const cmsDep = options.workspace ? "*" : "^0.1.0";
+  const cmsDep = options.workspace ? "*" : "^0.3.1";
 
   console.log(`\nCreating CMS project "${projectName}" [provider: ${options.provider}]...`);
   console.log(`Target: ${targetDir}\n`);
