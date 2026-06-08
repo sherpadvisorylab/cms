@@ -360,6 +360,8 @@ export class CMS {
     const seenComponentIds = new Set<string>();
 
     for (const instance of version.structure) {
+      if (instance.disabled) continue;
+
       const component = await this.components.findById(instance.componentId);
       if (!component) continue;
 
@@ -842,6 +844,8 @@ export class CMS {
     const seenComponentIds = new Set<string>();
 
     for (const instance of version.structure) {
+      if (instance.disabled) continue;
+
       const component = await this.components.findById(instance.componentId);
       if (!component) continue;
 

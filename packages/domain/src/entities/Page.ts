@@ -58,6 +58,8 @@ export interface ComponentInstance {
     pageId: string;
     instanceId: string;
   };
+  /** When true, the component is hidden from the public render but remains editable in the admin. */
+  disabled?: boolean;
 }
 
 export interface PageVersion {
