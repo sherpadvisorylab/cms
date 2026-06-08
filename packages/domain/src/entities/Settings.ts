@@ -38,6 +38,7 @@ export interface CmsVariableDefinition {
 
 export interface CmsSettingsBranding {
   projectName?: string;
+  siteUrl?: string;
   defaultLanguage?: string;
   defaultTimezone?: string;
   logoLight?: string;

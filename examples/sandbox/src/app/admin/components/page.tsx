@@ -1,5 +1,11 @@
 import { cms } from "@/lib/cms";
 import { ComponentsBrowser, type ComponentRow } from "./ComponentsBrowser";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Components",
+  "Manage reusable page and UI components available to content editors.",
+);
 
 export default async function ComponentsPage() {
   const components = await cms.components.findAll();

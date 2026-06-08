@@ -1,5 +1,11 @@
 import { BackLink, FormCard, Field, TextareaField, SubmitRow } from "@/components/admin/ui";
 import { createNavigation } from "../actions";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "New Navigation",
+  "Create a new navigation block and define its render template and assets.",
+);
 
 export default function NewNavigationPage() {
   return (

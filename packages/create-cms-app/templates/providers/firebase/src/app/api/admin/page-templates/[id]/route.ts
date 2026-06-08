@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
-import { isPageTemplate } from "@sherpacms/domain";
+import { sanitizePageTemplateStructure } from "@/lib/pageTemplates";
+import type { CmsPageTemplate } from "@sherpacms/domain";
 import { initAdmin } from "@/lib/firebase/admin";
 import { getAuth } from "firebase-admin/auth";
 
@@ -21,18 +22,19 @@ export async function GET(
 
   const { id } = await params;
   const template = await cms.templates.findById(id);
-  if (!template || !isPageTemplate(template)) {
+  if (!template || template.type !== "page") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const pageTemplate = template as CmsPageTemplate;
 
   return NextResponse.json({
-    id: template.id,
-    name: template.name,
-    description: template.description,
-    structure: template.structure,
-    createdAt: template.createdAt,
-    updatedAt: template.updatedAt,
-    type: template.type,
+    id: pageTemplate.id,
+    name: pageTemplate.name,
+    description: pageTemplate.description,
+    structure: sanitizePageTemplateStructure(pageTemplate.structure),
+    createdAt: pageTemplate.createdAt,
+    updatedAt: pageTemplate.updatedAt,
+    type: pageTemplate.type,
   });
 }
 

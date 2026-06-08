@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS cms_pages (
   id              TEXT        PRIMARY KEY,
   area            TEXT        NOT NULL,
   slug            TEXT        NOT NULL,
+  permalink       TEXT        NOT NULL DEFAULT '/',
+  has_custom_permalink BOOLEAN NOT NULL DEFAULT FALSE,
   title           TEXT        NOT NULL,
   parent_id       TEXT,
   status          TEXT        NOT NULL DEFAULT 'draft'
@@ -45,7 +47,7 @@ CREATE TABLE IF NOT EXISTS cms_pages (
   og_image_url    TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (area, slug)
+  UNIQUE (area, permalink)
 );
 
 -- ── Page Versions ─────────────────────────────────────────────────────────────
@@ -165,7 +167,7 @@ CREATE TABLE IF NOT EXISTS cms_users (
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_cms_pages_area        ON cms_pages (area);
-CREATE INDEX IF NOT EXISTS idx_cms_pages_area_slug   ON cms_pages (area, slug);
+CREATE INDEX IF NOT EXISTS idx_cms_pages_area_permalink ON cms_pages (area, permalink);
 CREATE INDEX IF NOT EXISTS idx_cms_pages_status      ON cms_pages (status);
 CREATE INDEX IF NOT EXISTS idx_cms_page_versions_pid ON cms_page_versions (page_id);
 CREATE INDEX IF NOT EXISTS idx_cms_comp_ver_cid      ON cms_component_versions (component_id);

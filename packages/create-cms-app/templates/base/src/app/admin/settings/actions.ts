@@ -12,6 +12,7 @@ export async function saveBranding(formData: FormData) {
     branding: {
       ...(existing?.branding ?? {}),
       projectName:      formData.get("projectName") as string || undefined,
+      siteUrl:          formData.get("siteUrl") as string || undefined,
       defaultLanguage:  formData.get("defaultLanguage") as string || undefined,
       defaultTimezone:  formData.get("defaultTimezone") as string || undefined,
       logoLight:        formData.get("logoLight") as string || undefined,

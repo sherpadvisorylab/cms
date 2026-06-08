@@ -1,5 +1,5 @@
 {
-  "branding": { "projectName": "My Project" },
+  "branding": { "projectName": "My Project", "siteUrl": "https://example.com" },
   "authentication": { "ssoEnabled": false },
   "emailDefaults": { "senderName": "No Reply", "senderEmail": "no-reply@example.com" },
   "variables": [

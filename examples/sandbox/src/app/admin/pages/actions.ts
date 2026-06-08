@@ -1,9 +1,11 @@
 "use server";
 
 import { cms } from "@/lib/cms";
+import { buildPermalinkMap, normalizePermalink } from "@/lib/pagePermalinks";
+import { sanitizePageTemplateStructure } from "@/lib/pageTemplates";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ComponentInstance, CmsPageSeo } from "@sherpacms/domain";
+import type { ComponentInstance, CmsPage, CmsPageSeo } from "@sherpacms/domain";
 import { SYSTEM_PAGE_RULES, getSystemPageType } from "@/lib/systemPageRules";
 
 type PageVersionRecord = {
@@ -14,6 +16,11 @@ type PageVersionRecord = {
   publishedAt: Date | string | null;
   createdAt: Date | string;
 };
+
+type PageDraftInput = Pick<
+  CmsPage,
+  "id" | "area" | "slug" | "parentId" | "permalink" | "hasCustomPermalink" | "status"
+>;
 
 function getPageVersionAdapter() {
   const adapter = (cms.pageVersions as unknown as {
@@ -37,27 +44,138 @@ async function markVersionAsPublished(pageId: string, versionId: string) {
   });
 }
 
-// ── Create ────────────────────────────────────────────────────────────────────
+function applyPageDraft(pages: CmsPage[], draft: PageDraftInput) {
+  const existing = pages.find((page) => page.id === draft.id);
+  if (existing) {
+    return pages.map((page) => (page.id === draft.id ? { ...page, ...draft } : page));
+  }
+  return [...pages, draft as CmsPage];
+}
+
+function resolveDraftPermalink(pages: CmsPage[], draft: PageDraftInput) {
+  const nextPages = applyPageDraft(pages, draft);
+  return buildPermalinkMap(nextPages)[draft.id] ?? normalizePermalink(draft.permalink ?? draft.slug);
+}
+
+function collectDescendantIds(pages: CmsPage[], pageId: string) {
+  const descendants = new Set<string>();
+  const queue = [pageId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    for (const page of pages) {
+      if (page.parentId === currentId && !descendants.has(page.id)) {
+        descendants.add(page.id);
+        queue.push(page.id);
+      }
+    }
+  }
+
+  return descendants;
+}
+
+async function syncDescendantPermalinks(
+  pages: CmsPage[],
+  rootPageId: string,
+  changedPermalinks: Set<string>,
+) {
+  const permalinkMap = buildPermalinkMap(pages);
+  const descendantIds = collectDescendantIds(pages, rootPageId);
+
+  for (const page of pages) {
+    if (!descendantIds.has(page.id) || page.hasCustomPermalink) continue;
+    const nextPermalink = permalinkMap[page.id] ?? normalizePermalink(page.permalink ?? page.slug);
+    const previousPermalink = normalizePermalink(page.permalink ?? page.slug);
+    if (previousPermalink !== nextPermalink) {
+      await cms.pages.update(page.id, { permalink: nextPermalink });
+      changedPermalinks.add(previousPermalink);
+      changedPermalinks.add(nextPermalink);
+    }
+  }
+}
+
+function assertPermalinkAvailable(
+  pages: CmsPage[],
+  area: string,
+  permalink: string,
+  excludedPageId?: string,
+) {
+  const normalizedPermalink = normalizePermalink(permalink);
+  const duplicate = pages.find(
+    (page) =>
+      page.id !== excludedPageId &&
+      page.area === area &&
+      normalizePermalink(page.permalink ?? page.slug) === normalizedPermalink,
+  );
+
+  if (duplicate) {
+    throw new Error("A page with this permalink already exists in the selected area");
+  }
+}
+
+function readCustomPermalinkFlag(formData: FormData) {
+  return ["1", "true", "on"].includes(String(formData.get("hasCustomPermalink") ?? ""));
+}
+
+function revalidatePublicPermalinks(permalinks: Iterable<string>) {
+  const unique = [...new Set([...permalinks].map((value) => normalizePermalink(value)).filter(Boolean))];
+  for (const permalink of unique) {
+    revalidatePath(permalink);
+  }
+  return cms.revalidatePage(unique);
+}
+
 export async function createPage(formData: FormData) {
   const structureRaw = formData.get("structure") as string | null;
-  const structure    = structureRaw ? JSON.parse(structureRaw) : [];
+  const structure = sanitizePageTemplateStructure(
+    structureRaw ? JSON.parse(structureRaw) : [],
+  );
+  const allPages = await cms.pages.findAll();
+
+  const area = String(formData.get("area") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "").trim();
+  const seoTitle = String(formData.get("seoTitle") ?? "").trim();
+  const parentId = String(formData.get("parentId") ?? "").trim() || null;
+  const hasCustomPermalink = readCustomPermalinkFlag(formData);
+  const requestedPermalink = (formData.get("permalink") as string) || null;
+
+  if (!area || !title || !slug || !parentId || !seoTitle) {
+    throw new Error("Area, parent page, title, slug, and meta title are required");
+  }
+
+  const draftPage: PageDraftInput = {
+    id: `draft-${Date.now()}`,
+    area,
+    slug,
+    parentId,
+    permalink: hasCustomPermalink ? requestedPermalink : null,
+    hasCustomPermalink,
+    status: "draft",
+  };
+  const permalink = resolveDraftPermalink(allPages, draftPage);
+  assertPermalinkAvailable(allPages, area, permalink);
 
   const page = await cms.pages.create({
-    area:   formData.get("area") as string,
-    slug:   formData.get("slug") as string,
-    title:  formData.get("title") as string,
+    area,
+    slug,
+    permalink,
+    hasCustomPermalink,
+    title,
+    parentId,
     status: "draft",
     structure,
     seo: {
-      metaTitle:       (formData.get("seoTitle") as string)       || undefined,
+      metaTitle: seoTitle || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
+      keywords: (formData.get("keywords") as string) || undefined,
     },
+    ogImageUrl: (formData.get("ogImageUrl") as string) || undefined,
   });
   await cms.pageVersions.createVersion(page.id, { structure, publish: false });
   redirect(`/admin/pages/${page.id}`);
 }
 
-// —— Clone page (copies metadata + latest version structure/content into a new draft page) ——
 export async function clonePage(data: {
   sourcePageId: string;
   title: string;
@@ -75,19 +193,23 @@ export async function clonePage(data: {
     throw new Error("Source page not found");
   }
 
-  const duplicate = allPages.find(
-    (page) =>
-      page.id !== data.sourcePageId
-      && page.area === data.area
-      && page.slug === data.slug
-  );
-  if (duplicate) {
-    throw new Error("A page with this permalink already exists in the selected area");
-  }
+  const draftPage: PageDraftInput = {
+    id: `draft-${Date.now()}`,
+    area: data.area,
+    slug: data.slug,
+    parentId: data.parentId || null,
+    permalink: null,
+    hasCustomPermalink: false,
+    status: "draft",
+  };
+  const permalink = resolveDraftPermalink(allPages, draftPage);
+  assertPermalinkAvailable(allPages, data.area, permalink, data.sourcePageId);
 
   const clonedPage = await cms.pages.create({
     area: data.area,
     slug: data.slug,
+    permalink,
+    hasCustomPermalink: false,
     title: data.title,
     parentId: data.parentId || null,
     status: "draft",
@@ -111,66 +233,140 @@ export async function clonePage(data: {
   return { pageId: clonedPage.id };
 }
 
-// ── Update settings ───────────────────────────────────────────────────────────
 export async function updatePage(id: string, formData: FormData) {
-  const parentId = formData.get("parentId") as string;
-  const slug     = formData.get("slug") as string;
-  const status   = (formData.get("status") as "draft" | "published" | "archived") || "draft";
-  await cms.pages.update(id, {
-    title:    formData.get("title") as string,
+  const allPages = await cms.pages.findAll();
+  const currentPage = allPages.find((page) => page.id === id);
+  if (!currentPage) {
+    throw new Error("Page not found");
+  }
+
+  const parentId = (formData.get("parentId") as string) || null;
+  const slug = formData.get("slug") as string;
+  const status = (formData.get("status") as "draft" | "published" | "archived") || "draft";
+  const hasCustomPermalink = readCustomPermalinkFlag(formData);
+  const requestedPermalink = (formData.get("permalink") as string) || null;
+
+  const draftPage: PageDraftInput = {
+    id,
+    area: formData.get("area") as string,
     slug,
-    area:     formData.get("area") as string,
+    parentId,
+    permalink: hasCustomPermalink ? requestedPermalink : null,
+    hasCustomPermalink,
     status,
-    parentId: parentId || null,
+  };
+  const permalink = resolveDraftPermalink(allPages, draftPage);
+  assertPermalinkAvailable(allPages, draftPage.area, permalink, id);
+
+  const changedPermalinks = new Set<string>([
+    normalizePermalink(currentPage.permalink ?? currentPage.slug),
+    permalink,
+  ]);
+
+  await cms.pages.update(id, {
+    title: formData.get("title") as string,
+    slug,
+    permalink,
+    hasCustomPermalink,
+    area: draftPage.area,
+    status,
+    parentId,
     seo: {
-      metaTitle:       (formData.get("seoTitle") as string)       || undefined,
+      metaTitle: (formData.get("seoTitle") as string) || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
-      keywords:        (formData.get("keywords") as string)       || undefined,
+      keywords: (formData.get("keywords") as string) || undefined,
     },
     ogImageUrl: (formData.get("ogImageUrl") as string) || undefined,
   });
-  // When publishing via settings form, also stamp the latest version as published
+
+  const nextPages = applyPageDraft(allPages, {
+    ...currentPage,
+    ...draftPage,
+    permalink,
+  });
+  await syncDescendantPermalinks(nextPages, id, changedPermalinks);
+
   if (status === "published") {
     const latest = await cms.pageVersions.getLatest(id);
     if (latest) {
       await markVersionAsPublished(id, latest.id);
     }
   }
+
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${id}`);
-  await cms.revalidatePage(slug);
+  await revalidatePublicPermalinks(changedPermalinks);
 }
 
-// ── Quick update from list drawer ─────────────────────────────────────────────
-export async function quickUpdatePage(id: string, data: {
-  title: string; slug: string; area: string; parentId?: string | null; status: string;
-}) {
-  await cms.pages.update(id, {
-    title:    data.title,
-    slug:     data.slug,
-    area:     data.area,
+export async function quickUpdatePage(
+  id: string,
+  data: {
+    title: string;
+    slug: string;
+    area: string;
+    parentId?: string | null;
+    status: string;
+  },
+) {
+  const allPages = await cms.pages.findAll();
+  const currentPage = allPages.find((page) => page.id === id);
+  if (!currentPage) {
+    throw new Error("Page not found");
+  }
+
+  const draftPage: PageDraftInput = {
+    id,
+    area: data.area,
+    slug: data.slug,
     parentId: data.parentId || null,
-    status:   data.status as "draft" | "published" | "archived",
+    permalink: currentPage.hasCustomPermalink ? currentPage.permalink : null,
+    hasCustomPermalink: currentPage.hasCustomPermalink ?? false,
+    status: data.status as "draft" | "published" | "archived",
+  };
+  const permalink = resolveDraftPermalink(allPages, draftPage);
+  assertPermalinkAvailable(allPages, data.area, permalink, id);
+
+  const changedPermalinks = new Set<string>([
+    normalizePermalink(currentPage.permalink ?? currentPage.slug),
+    permalink,
+  ]);
+
+  await cms.pages.update(id, {
+    title: data.title,
+    slug: data.slug,
+    permalink,
+    hasCustomPermalink: currentPage.hasCustomPermalink ?? false,
+    area: data.area,
+    parentId: data.parentId || null,
+    status: data.status as "draft" | "published" | "archived",
   });
-  // When publishing, also stamp the latest version as published so renderContent can find it
+
+  const nextPages = applyPageDraft(allPages, {
+    ...currentPage,
+    ...draftPage,
+    permalink,
+  });
+  await syncDescendantPermalinks(nextPages, id, changedPermalinks);
+
   if (data.status === "published") {
     const latest = await cms.pageVersions.getLatest(id);
     if (latest) {
       await markVersionAsPublished(id, latest.id);
     }
   }
+
   revalidatePath("/admin/pages");
-  revalidatePath(`/${data.slug}`);
+  await revalidatePublicPermalinks(changedPermalinks);
 }
 
-// ── Delete ────────────────────────────────────────────────────────────────────
 export async function deletePage(id: string) {
   if (!SYSTEM_PAGE_RULES.canDelete) {
-    const page = (await cms.pages.findAll()).find((p) => p.id === id);
+    const page = (await cms.pages.findAll()).find((entry) => entry.id === id);
     if (page) {
       const area = await cms.areas.findByKey(page.area).catch(() => null);
-      if (getSystemPageType(area?.systemPages, id))
+      if (getSystemPageType(area?.systemPages, id)) {
         throw new Error("System pages cannot be deleted. Unassign the system page role first.");
+      }
     }
   }
   await cms.pages.delete(id);
@@ -178,7 +374,6 @@ export async function deletePage(id: string) {
   redirect("/admin/pages");
 }
 
-// ── Update structure (creates a new draft version) ────────────────────────────
 export async function updateStructure(pageId: string, structureJson: string) {
   const structure = JSON.parse(structureJson) as ComponentInstance[];
   const version = await cms.pageVersions.createVersion(pageId, { structure, publish: false });
@@ -187,7 +382,6 @@ export async function updateStructure(pageId: string, structureJson: string) {
   return { versionId: version.id, versionNumber: version.version };
 }
 
-// ── Publish (creates a published version snapshot + sets status) ──────────────
 export async function publishPage(pageId: string) {
   const [latest, allPages] = await Promise.all([
     cms.pageVersions.getLatest(pageId),
@@ -196,10 +390,11 @@ export async function publishPage(pageId: string) {
   if (!latest) throw new Error("No version to publish");
   const version = await markVersionAsPublished(pageId, latest.id);
   await cms.pages.update(pageId, { status: "published" });
-  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
+  const permalink =
+    normalizePermalink(allPages.find((page) => page.id === pageId)?.permalink ?? "");
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
-  await cms.revalidatePage(slug);
+  await revalidatePublicPermalinks([permalink]);
   return { versionId: version.id, versionNumber: version.version };
 }
 
@@ -215,21 +410,24 @@ export async function publishVersion(pageId: string, versionId: string) {
 
   const version = await markVersionAsPublished(pageId, sourceVersion.id);
   await cms.pages.update(pageId, { status: "published" });
-  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
+  const permalink =
+    normalizePermalink(allPages.find((page) => page.id === pageId)?.permalink ?? "");
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
-  await cms.revalidatePage(slug);
+  await revalidatePublicPermalinks([permalink]);
   return { versionId: version.id, versionNumber: version.version };
 }
 
-// ── Save page-level schema config (stored in seo.schemaConfig) ───────────────
-export async function savePageSchemaConfig(pageId: string, config: {
-  enabledIndices: number[];
-  manualEnabled:  boolean;
-  manualTemplate: string;
-}) {
+export async function savePageSchemaConfig(
+  pageId: string,
+  config: {
+    enabledIndices: number[];
+    manualEnabled: boolean;
+    manualTemplate: string;
+  },
+) {
   const pages = await cms.pages.findAll();
-  const page  = pages.find((p) => p.id === pageId);
+  const page = pages.find((entry) => entry.id === pageId);
   if (!page) throw new Error("Page not found");
   await cms.pages.update(pageId, {
     seo: { ...(page.seo ?? {}), schemaConfig: config } as CmsPageSeo,
@@ -237,13 +435,11 @@ export async function savePageSchemaConfig(pageId: string, config: {
   revalidatePath(`/admin/pages/${pageId}`);
 }
 
-// ── System page assignment ────────────────────────────────────────────────────
 export async function assignSystemPage(areaName: string, type: string, pageId: string) {
   await cms.assignSystemPage(areaName, type, pageId);
 
-  // SYSTEM_PAGE_RULES.autoPublishOnAssign — system pages must always be published
   if (SYSTEM_PAGE_RULES.autoPublishOnAssign) {
-    const page = (await cms.pages.findAll()).find((p) => p.id === pageId);
+    const page = (await cms.pages.findAll()).find((entry) => entry.id === pageId);
     if (page && page.status !== "published") {
       const latest = await cms.pageVersions.getLatest(pageId).catch(() => null);
       if (latest) await markVersionAsPublished(pageId, latest.id);
@@ -264,20 +460,21 @@ export async function removeSystemPage(areaName: string, type: string) {
   revalidatePath(`/${type}`);
 }
 
-// ── Unpublish (sets status back to draft, keeps version history intact) ───────
 export async function unpublishPage(pageId: string) {
   if (!SYSTEM_PAGE_RULES.canUnpublish) {
-    const page = (await cms.pages.findAll()).find((p) => p.id === pageId);
+    const page = (await cms.pages.findAll()).find((entry) => entry.id === pageId);
     if (page) {
       const area = await cms.areas.findByKey(page.area).catch(() => null);
-      if (getSystemPageType(area?.systemPages, pageId))
+      if (getSystemPageType(area?.systemPages, pageId)) {
         throw new Error("System pages cannot be unpublished.");
+      }
     }
   }
   const allPages = await cms.pages.findAll();
-  const slug = allPages.find((p) => p.id === pageId)?.slug ?? "";
+  const permalink =
+    normalizePermalink(allPages.find((page) => page.id === pageId)?.permalink ?? "");
   await cms.pages.update(pageId, { status: "draft" });
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
-  await cms.revalidatePage(slug);
+  await revalidatePublicPermalinks([permalink]);
 }

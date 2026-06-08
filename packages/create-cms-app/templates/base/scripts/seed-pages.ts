@@ -1,4 +1,5 @@
 import { readSeedEntries } from "./seed-helpers";
+import { joinParentPermalink, normalizePermalink } from "../src/lib/pagePermalinks";
 
 type SeedPageDefinition = {
   title: string;
@@ -40,6 +41,7 @@ export async function seedPages(cms: any) {
     cms.components.findAll().catch(() => []),
     cms.areas.findAll().catch(() => []),
   ]);
+  const knownPages = [...existingPages];
 
   for (const pageDef of seedPageDefs) {
     const area = pageDef.area || defaultAreaName;
@@ -54,7 +56,7 @@ export async function seedPages(cms: any) {
       }
     }
 
-    const existing = existingPages.find((page: any) => page.area === area && page.slug === slug);
+    const existing = knownPages.find((page: any) => page.area === area && page.slug === slug);
     if (existing && !pageDef.systemPageType) {
       console.log(`  -> skip (exists): ${pageDef.title} [${area}] /${slug}`);
       continue;
@@ -71,9 +73,20 @@ export async function seedPages(cms: any) {
       }
     }
 
+    const parentPermalink = pageDef.parentId
+      ? normalizePermalink(
+          knownPages.find((page: any) => page.id === pageDef.parentId)?.permalink
+          ?? knownPages.find((page: any) => page.id === pageDef.parentId)?.slug
+          ?? "/",
+        )
+      : "/";
+    const permalink = joinParentPermalink(parentPermalink, slug);
+
     const page = existing ?? await cms.pages.create({
       area,
       slug,
+      permalink,
+      hasCustomPermalink: false,
       title:    pageDef.title,
       status:   pageDef.status ?? "draft",
       parentId: pageDef.parentId ?? null,
@@ -81,6 +94,9 @@ export async function seedPages(cms: any) {
       content:  pageDef.content ?? {},
       seo:      pageDef.seo ?? {},
     });
+    if (!existing) {
+      knownPages.push(page);
+    }
 
     await cms.pageVersions.createVersion(page.id, {
       structure,

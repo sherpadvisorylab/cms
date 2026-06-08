@@ -1,6 +1,12 @@
 import { cms } from "@/lib/cms";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Emails",
+  "Manage reusable email templates and default messaging content.",
+);
 
 export default async function EmailsPage() {
   const templates = await cms.emailTemplates.findAll();

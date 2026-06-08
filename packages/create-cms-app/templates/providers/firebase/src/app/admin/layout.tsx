@@ -6,8 +6,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { TopLoadingBar } from "@/components/admin/TopLoadingBar";
+import { AdminFaviconManager } from "@/components/admin/AdminFaviconManager";
+import { adminLayoutMetadata } from "@/lib/adminMetadata";
 
 initAdmin();
+
+export const metadata = adminLayoutMetadata;
 
 type NavItem = { href: string; label: string; icon: string };
 type NavGroup = { group: string; items: NavItem[] };
@@ -65,6 +69,7 @@ export default async function AdminLayout({
   return (
     <div className="flex h-screen bg-gray-100">
       <TopLoadingBar />
+      <AdminFaviconManager />
       <aside className="w-56 bg-gray-900 text-white flex flex-col">
         <div className="border-b border-gray-700" style={{ height: "var(--header-h)", padding: "0 16px", display: "flex", alignItems: "center", flexShrink: 0 }}>
           <span className="font-bold text-lg">CMS Admin</span>

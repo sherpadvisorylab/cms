@@ -2,9 +2,36 @@ import BulletList from "@tiptap/extension-bullet-list";
 import Image from "@tiptap/extension-image";
 import OrderedList from "@tiptap/extension-ordered-list";
 import Link from "@tiptap/extension-link";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import { Node } from "@tiptap/core";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
+
+function commonHtmlAttributes() {
+  return {
+    class: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute("class"),
+      renderHTML: (attributes: { class?: string | null }) =>
+        attributes.class ? { class: attributes.class } : {},
+    },
+    style: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute("style"),
+      renderHTML: (attributes: { style?: string | null }) =>
+        attributes.style ? { style: attributes.style } : {},
+    },
+    id: {
+      default: null,
+      parseHTML: (element: HTMLElement) => element.getAttribute("id"),
+      renderHTML: (attributes: { id?: string | null }) =>
+        attributes.id ? { id: attributes.id } : {},
+    },
+  };
+}
 
 export const StyledBulletList = BulletList.extend({
   addAttributes() {
@@ -62,6 +89,42 @@ export const VideoNode = Node.create({
   },
 });
 
+export const RichTable = Table.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...commonHtmlAttributes(),
+    };
+  },
+});
+
+export const RichTableRow = TableRow.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...commonHtmlAttributes(),
+    };
+  },
+});
+
+export const RichTableCell = TableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...commonHtmlAttributes(),
+    };
+  },
+});
+
+export const RichTableHeader = TableHeader.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      ...commonHtmlAttributes(),
+    };
+  },
+});
+
 export const richTextExtensions = [
   StarterKit.configure({
     bulletList: false,
@@ -71,6 +134,12 @@ export const richTextExtensions = [
   StyledOrderedList,
   Image,
   VideoNode,
+  RichTable.configure({
+    resizable: true,
+  }),
+  RichTableRow,
+  RichTableHeader,
+  RichTableCell,
   Link.configure({
     openOnClick: false,
     HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },

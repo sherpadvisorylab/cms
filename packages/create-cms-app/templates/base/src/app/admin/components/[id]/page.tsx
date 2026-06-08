@@ -7,6 +7,7 @@ import { AdminEditorHeader } from "@/components/admin/AdminEditorHeader";
 import { FloatInput, FloatTextarea, FloatSelect } from "@/components/admin/FloatField";
 import { PREDEFINED_VALIDATORS } from "@/components/admin/validators";
 import { createComponent, updateComponent, deleteComponent, createVersion } from "../actions";
+import { buildAdminDocumentTitle, setAdminFavicon } from "@/lib/adminMetadata";
 import { CodeEditor, type FormEmbed, type ComponentEmbed, type LocalVar } from "@/components/admin/CodeEditor";
 import {
   COMPONENT_CATEGORIES_BY_TYPE,
@@ -297,6 +298,46 @@ function extractTemplateSchema(template: string): SchemaField[] {
   return result;
 }
 
+function reconcileFieldOrder(prev: SchemaField[], detected: SchemaField[]): SchemaField[] {
+  const detectedByKey = Object.fromEntries(detected.map((field) => [field.key, field]));
+  const next: SchemaField[] = [];
+  const used = new Set<string>();
+
+  for (const existing of prev) {
+    const match = detectedByKey[existing.key];
+    if (!match) continue;
+
+    used.add(existing.key);
+
+    if (match.type === "list" && existing.type !== "list") {
+      next.push({ ...match, label: existing.label });
+      continue;
+    }
+
+    if (match.type === "list" && existing.type === "list") {
+      next.push({
+        ...existing,
+        loopAlias: match.loopAlias ?? existing.loopAlias,
+        childSchema: reconcileFieldOrder(
+          (existing.childSchema ?? []) as SchemaField[],
+          (match.childSchema ?? []) as SchemaField[],
+        ),
+      });
+      continue;
+    }
+
+    next.push(existing);
+  }
+
+  for (const field of detected) {
+    if (!used.has(field.key)) {
+      next.push(field);
+    }
+  }
+
+  return next;
+}
+
 // ── Placement tab: recursive field rows with indentation ─────────────────────
 const VALIDATOR_OPTIONS = [
   { value: "", label: "None" },
@@ -305,11 +346,15 @@ const VALIDATOR_OPTIONS = [
 ];
 
 function PlacementFieldRow({
-  field, onUpdate, onUpdateChild, collapseSignal, expandSignal,
+  field, onUpdate, onUpdateChild, onMoveUp, onMoveDown, disableMoveUp, disableMoveDown, collapseSignal, expandSignal,
 }: {
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
   onUpdateChild?: (cIdx: number, patch: Partial<SchemaField>) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  disableMoveUp?: boolean;
+  disableMoveDown?: boolean;
   collapseSignal?: number;
   expandSignal?: number;
 }) {
@@ -335,6 +380,26 @@ function PlacementFieldRow({
         style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}
         onClick={() => setCollapsed((c) => !c)}
       >
+        <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
+          <button
+            className="btn-icon"
+            onClick={(e) => { e.stopPropagation(); onMoveUp?.(); }}
+            disabled={disableMoveUp}
+            title="Move up"
+            style={{ fontSize: "0.65rem" }}
+          >
+            â–²
+          </button>
+          <button
+            className="btn-icon"
+            onClick={(e) => { e.stopPropagation(); onMoveDown?.(); }}
+            disabled={disableMoveDown}
+            title="Move down"
+            style={{ fontSize: "0.65rem" }}
+          >
+            â–¼
+          </button>
+        </div>
         <span style={{ ...keyStyle, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {displayKey}
         </span>
@@ -390,6 +455,20 @@ function PlacementFieldRow({
                 field={child as SchemaField}
                 collapseSignal={collapseSignal}
                 expandSignal={expandSignal}
+                onMoveUp={() => {
+                  const ch = [...(field.childSchema ?? [])];
+                  if (cIdx === 0) return;
+                  [ch[cIdx - 1], ch[cIdx]] = [ch[cIdx], ch[cIdx - 1]];
+                  onUpdate({ childSchema: ch });
+                }}
+                onMoveDown={() => {
+                  const ch = [...(field.childSchema ?? [])];
+                  if (cIdx >= ch.length - 1) return;
+                  [ch[cIdx], ch[cIdx + 1]] = [ch[cIdx + 1], ch[cIdx]];
+                  onUpdate({ childSchema: ch });
+                }}
+                disableMoveUp={cIdx === 0}
+                disableMoveDown={cIdx >= (field.childSchema ?? []).length - 1}
                 onUpdate={(patch) => {
                   const ch = [...(field.childSchema ?? [])];
                   ch[cIdx] = { ...ch[cIdx], ...patch };
@@ -412,10 +491,12 @@ function PlacementFieldRow({
 }
 
 function PlacementRows({
-  fields, onUpdate, collapseSignal, expandSignal,
+  fields, onUpdate, onMoveUp, onMoveDown, collapseSignal, expandSignal,
 }: {
   fields: SchemaField[];
   onUpdate: (idx: number, patch: Partial<SchemaField>) => void;
+  onMoveUp: (idx: number) => void;
+  onMoveDown: (idx: number) => void;
   collapseSignal?: number;
   expandSignal?: number;
 }) {
@@ -429,6 +510,10 @@ function PlacementRows({
             field={field}
             collapseSignal={collapseSignal}
             expandSignal={expandSignal}
+            onMoveUp={() => onMoveUp(idx)}
+            onMoveDown={() => onMoveDown(idx)}
+            disableMoveUp={idx === 0}
+            disableMoveDown={idx >= fields.length - 1}
             onUpdate={(patch) => onUpdate(idx, patch)}
             onUpdateChild={(cIdx, patch) => {
               const ch = [...(field.childSchema ?? [])];
@@ -444,16 +529,12 @@ function PlacementRows({
 
 // ── Shared field editor row (self-contained, infinitely recursive) ────────────
 function SchemaFieldRow({
-  field, onUpdate, onRemove, onMoveUp, onMoveDown, disableMoveUp, disableMoveDown,
+  field, onUpdate, onRemove,
   collapseSignal, expandSignal,
 }: {
   field: SchemaField;
   onUpdate: (patch: Partial<SchemaField>) => void;
   onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  disableMoveUp: boolean;
-  disableMoveDown: boolean;
   collapseSignal?: number;
   expandSignal?: number;
 }) {
@@ -473,14 +554,6 @@ function SchemaFieldRow({
   function removeChild(cIdx: number) {
     onUpdate({ childSchema: (field.childSchema ?? []).filter((_, i) => i !== cIdx) });
   }
-  function moveChild(cIdx: number, dir: -1 | 1) {
-    const ch = [...(field.childSchema ?? [])];
-    const t = cIdx + dir;
-    if (t < 0 || t >= ch.length) return;
-    [ch[cIdx], ch[t]] = [ch[t], ch[cIdx]];
-    onUpdate({ childSchema: ch });
-  }
-
   return (
     <div style={{ padding: "9px 0" }}>
       {/* Row 1: KEY (full width) + icons + collapse */}
@@ -489,8 +562,6 @@ function SchemaFieldRow({
           title="Variable key — used in Liquid template as {{ key }}"
           style={{ flex: 1 }}
           onChange={(v) => onUpdate({ key: v.replace(/\s+/g, "_").toLowerCase() })} />
-        <button className="btn-icon" onClick={onMoveUp} disabled={disableMoveUp} title="Move up" style={{ fontSize: "0.65rem" }}>▲</button>
-        <button className="btn-icon" onClick={onMoveDown} disabled={disableMoveDown} title="Move down" style={{ fontSize: "0.65rem" }}>▼</button>
         <button className="btn-icon" onClick={onRemove} title="Remove field" style={{ color: "var(--danger)", fontSize: "0.65rem" }}>✕</button>
         <button className="btn-icon" onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Expand field" : "Collapse field"} style={{ fontSize: "0.65rem" }}>
           {collapsed ? "▶" : "▼"}
@@ -554,10 +625,6 @@ function SchemaFieldRow({
                     field={child as SchemaField}
                     onUpdate={(patch) => updateChild(cIdx, patch)}
                     onRemove={() => removeChild(cIdx)}
-                    onMoveUp={() => moveChild(cIdx, -1)}
-                    onMoveDown={() => moveChild(cIdx, 1)}
-                    disableMoveUp={cIdx === 0}
-                    disableMoveDown={cIdx >= (field.childSchema?.length ?? 0) - 1}
                   />
                 </Fragment>
               ))}
@@ -616,17 +683,7 @@ export default function ComponentEditorPage() {
     const detected = extractTemplateSchema(trimmed);
     if (detected.length === 0) return; // partial edit — don't wipe everything
     setFields((prev) => {
-      const byKey = Object.fromEntries(prev.map((f) => [f.key, f]));
-      const synced = detected.map((d) => {
-        const existing = byKey[d.key];
-        if (!existing) return d;
-        if (d.type === "list" && existing.type !== "list") return { ...d, label: existing.label };
-        if (d.type === "list" && existing.type === "list") {
-          const existingByKey = Object.fromEntries((existing.childSchema ?? []).map((c) => [c.key, c]));
-          return { ...existing, loopAlias: d.loopAlias ?? existing.loopAlias, childSchema: (d.childSchema ?? []).map((c) => existingByKey[c.key] ?? c) };
-        }
-        return existing;
-      });
+      const synced = reconcileFieldOrder(prev, detected);
       return JSON.stringify(synced) !== JSON.stringify(prev) ? synced : prev;
     });
   }, [templateLiquid]);
@@ -740,6 +797,35 @@ export default function ComponentEditorPage() {
     updateField(idx, { childSchema: child });
   }
 
+  const TAB_LABELS: Record<Tab, string> = {
+    template: "<> Template",
+    css:      "CSS",
+    js:       "⚡ JS",
+    schema:   "🔖 Schema",
+    settings: "⚙ Settings",
+  };
+
+  const TAB_ICONS: Record<Tab, string> = {
+    template: "🧾",
+    css: "🎨",
+    js: "⚡",
+    schema: "🔖",
+    settings: "⚙️",
+  };
+
+  const BACKEND_TAB_ICONS: Record<BackendTab, string> = {
+    variables: "🧾",
+    placement: "↔️",
+  };
+
+  useEffect(() => {
+    const entityName = isNew ? "New component" : name || "Component";
+    const sectionIcon =
+      tab === "template" ? BACKEND_TAB_ICONS[backendTab] : TAB_ICONS[tab];
+    document.title = buildAdminDocumentTitle(sectionIcon, entityName, "🧩");
+    setAdminFavicon("🧩");
+  }, [backendTab, isNew, name, tab]);
+
   if (loading) return <div className="empty-state"><p>Loading component…</p></div>;
 
   // ── New component form ────────────────────────────────────────────────────
@@ -783,14 +869,6 @@ export default function ComponentEditorPage() {
       </div>
     );
   }
-
-  const TAB_LABELS: Record<Tab, string> = {
-    template: "<> Template",
-    css:      "CSS",
-    js:       "⚡ JS",
-    schema:   "🔖 Schema",
-    settings: "⚙ Settings",
-  };
 
   // ── Export ────────────────────────────────────────────────────────────────
   function handleExport() {
@@ -919,10 +997,6 @@ export default function ComponentEditorPage() {
                               field={field}
                               onUpdate={(patch) => updateField(idx, patch)}
                               onRemove={() => removeField(idx)}
-                              onMoveUp={() => moveFieldUp(idx)}
-                              onMoveDown={() => moveFieldDown(idx)}
-                              disableMoveUp={idx === 0}
-                              disableMoveDown={idx >= fields.length - 1}
                               collapseSignal={varCollapseAll}
                               expandSignal={varExpandAll}
                             />
@@ -952,6 +1026,8 @@ export default function ComponentEditorPage() {
                         <PlacementRows
                           fields={fields}
                           onUpdate={(idx, patch) => updateField(idx, patch)}
+                          onMoveUp={moveFieldUp}
+                          onMoveDown={moveFieldDown}
                           collapseSignal={plcCollapseAll}
                           expandSignal={plcExpandAll}
                         />
@@ -1276,4 +1352,3 @@ function ComponentSchemaOrgTab({
     </>
   );
 }
-

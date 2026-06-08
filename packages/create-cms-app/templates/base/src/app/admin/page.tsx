@@ -1,4 +1,10 @@
 import { cms } from "@/lib/cms";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Dashboard",
+  "Overview of recent activity and high-level CMS statistics.",
+);
 
 export default async function AdminDashboard() {
   const [pages, areas, components] = await Promise.all([

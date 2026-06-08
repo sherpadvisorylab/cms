@@ -34,6 +34,8 @@ export const cmsPages = pgTable("cms_pages", {
   id:             text("id").primaryKey(),
   area:           text("area").notNull(),
   slug:           text("slug").notNull(),
+  permalink:      text("permalink").notNull().default("/"),
+  hasCustomPermalink: boolean("has_custom_permalink").notNull().default(false),
   title:          text("title").notNull(),
   parentId:       text("parent_id"),
   status:         text("status").notNull().default("draft"),

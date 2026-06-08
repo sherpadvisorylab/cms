@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
+import { sanitizePageTemplateStructure } from "@/lib/pageTemplates";
 import { isPageTemplate } from "@sherpacms/domain";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,7 +26,7 @@ export async function GET(
     id: template.id,
     name: template.name,
     description: template.description,
-    structure: template.structure,
+    structure: sanitizePageTemplateStructure(template.structure),
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
     type: template.type,

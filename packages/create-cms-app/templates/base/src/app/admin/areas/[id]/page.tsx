@@ -1,9 +1,26 @@
 import { cms } from "@/lib/cms";
+import { buildAdminEntityMetadata } from "@/lib/adminMetadata";
 import type { CmsRenderTemplate } from "@sherpacms/domain";
 import { notFound } from "next/navigation";
 import { AreaEditor } from "./AreaEditor";
 
 type RenderTemplateWithAssets = CmsRenderTemplate & { css?: string | null; js?: string | null };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const areas = await cms.areas.findAll();
+  const area = areas.find((entry) => entry.id === id);
+
+  return buildAdminEntityMetadata(
+    "Area Settings",
+    area?.displayName ?? area?.name ?? null,
+    "Configure area routing, design rules, legal pages, and tracking settings.",
+  );
+}
 
 export default async function EditAreaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

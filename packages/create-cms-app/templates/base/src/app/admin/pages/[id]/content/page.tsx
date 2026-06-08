@@ -38,29 +38,6 @@ const COL_SPAN: Record<string, string> = {
   third: "span 4",
 };
 
-const TOUR_STEPS = [
-  {
-    title: "Welcome to the Content Editor",
-    body: "Here you edit each component's content fields. Components are defined in the Components section.",
-  },
-  {
-    title: "Add Components",
-    body: "Click '+ Add component to end' to add a component to the page, or '+ Insert below' between existing ones.",
-  },
-  {
-    title: "Fill Fields",
-    body: "Each component shows its editable fields. Field layout follows the Placement tab from the component editor.",
-  },
-  {
-    title: "Live Preview",
-    body: "Toggle the preview pane to see the rendered page. Switch between Desktop, Tablet and Mobile viewports.",
-  },
-  {
-    title: "Save and Publish",
-    body: "Save Content creates a new draft version. Publish promotes the latest saved version to the live page.",
-  },
-] as const;
-
 // VersionBadge is now imported from @/components/admin/VersionBadge
 
 function ButtonSpinner({
@@ -410,7 +387,7 @@ export default function ContentPage() {
   const pageId = params.id as string;
 
   const [title,          setTitle]          = useState("");
-  const [pageSlug,       setPageSlug]       = useState("");
+  const [pagePermalink,  setPagePermalink]  = useState("");
   const [systemPageType, setSystemPageType] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(false);
   const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
@@ -442,16 +419,13 @@ export default function ContentPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingPublishedVersionId, setPendingPublishedVersionId] = useState<string | null>(null);
 
-  const tourKey = `cms.tour.content.v1.${pageId}`;
-  const [tourStep, setTourStep] = useState<number | null>(null);
-
   useEffect(() => {
     fetch(`/admin/pages/${pageId}/content/data`)
       .then((response) => response.json())
       .then((data) => {
         const nextStructure = data.structure ?? [];
         setTitle(data.title ?? "Page");
-        setPageSlug(data.pageSlug ?? "");
+        setPagePermalink(data.pagePermalink ?? "");
         setSystemPageType(data.systemPageType ?? null);
         setIsPublished(!!data.isPublished);
         setLatestVersionId(data.latestVersionId ?? null);
@@ -463,9 +437,8 @@ export default function ContentPage() {
         setSchemas(data.componentSchemas ?? {});
         setComponents(data.components ?? []);
         setLoading(false);
-        if (!localStorage.getItem(tourKey)) setTourStep(0);
       });
-  }, [pageId, tourKey]);
+  }, [pageId]);
 
   function getComponent(id: string) {
     return components.find((component) => component.id === id);
@@ -578,29 +551,10 @@ export default function ContentPage() {
     }
   }
 
-  function startTour() {
-    setTourStep(0);
-  }
-
-  function nextTourStep() {
-    if (tourStep === null) return;
-    if (tourStep >= TOUR_STEPS.length - 1) {
-      setTourStep(null);
-      localStorage.setItem(tourKey, "1");
-      return;
-    }
-    setTourStep(tourStep + 1);
-  }
-
-  function closeTour() {
-    setTourStep(null);
-    localStorage.setItem(tourKey, "1");
-  }
-
   // Compute canonical public URL — system pages use their type URL, not their slug
   const publicPath = systemPageType === "home"
     ? "/"
-    : (!pageSlug || pageSlug === "/" ? "/" : `/${pageSlug}`);
+    : (!pagePermalink || pagePermalink === "/" ? "/" : pagePermalink);
   const previewUrl = `${publicPath}?draft=1`;
   const hasUnsavedChanges = serializeStructure(structure) !== savedStructureJson;
   const canPublish = !hasUnsavedChanges && !!latestVersionId && (!isPublished || latestVersionId !== publishedVersionId);
@@ -617,21 +571,6 @@ export default function ContentPage() {
         badge={<VersionBadge versionNumber={editingVersionNumber} />}
         actions={
           <>
-            <button
-              type="button"
-              onClick={startTour}
-              title="Open editor tour"
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "var(--text-muted)",
-                padding: "6px 4px",
-                fontSize: "1rem",
-                cursor: "pointer",
-              }}
-            >
-              ?
-            </button>
             {/* Preview split button */}
             <div ref={previewBtnRef} style={{ position: "relative", display: "inline-flex" }}>
               <div style={{
@@ -749,7 +688,7 @@ export default function ContentPage() {
               initialIsPublished={isPublished}
               canPublish={canPublish}
               publishedVersionNumber={publishedVersionNumber}
-              pageSlug={pageSlug}
+              pageSlug={pagePermalink}
               isSystemPage={!!systemPageType}
               onOpenHistory={openHistory}
               onToggle={(published, info) => {
@@ -927,31 +866,6 @@ export default function ContentPage() {
         )}
       </SlideDrawer>
 
-      {tourStep !== null && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: "white", borderRadius: 12, maxWidth: 480, width: "100%", padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                Step {tourStep + 1} of {TOUR_STEPS.length}
-              </span>
-              <button className="btn-icon" style={{ marginLeft: "auto" }} onClick={closeTour}>{"\u00D7"}</button>
-            </div>
-            <h3 style={{ margin: "0 0 8px", fontSize: "1rem", fontWeight: 700 }}>{TOUR_STEPS[tourStep].title}</h3>
-            <p style={{ margin: "0 0 20px", fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.6 }}>{TOUR_STEPS[tourStep].body}</p>
-            <div style={{ display: "flex", gap: 6, marginBottom: 16, justifyContent: "center" }}>
-              {TOUR_STEPS.map((_, index) => (
-                <div key={index} style={{ width: 7, height: 7, borderRadius: "50%", background: index === tourStep ? "var(--primary)" : "var(--border)" }} />
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary" onClick={closeTour}>Skip tour</button>
-              <button className="btn btn-primary" onClick={nextTourStep}>
-                {tourStep >= TOUR_STEPS.length - 1 ? "Done" : "Next"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

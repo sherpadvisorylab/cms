@@ -1,0 +1,87 @@
+import { cms } from "@/lib/cms";
+import { createClient } from "@/lib/supabase/server";
+import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
+import { normalizePermalink } from "@/lib/pagePermalinks";
+import { unstable_cache } from "next/cache";
+
+function renderPageCached(areaName: string, permalink: string) {
+  const normalizedPermalink = normalizePermalink(permalink);
+  return unstable_cache(
+    () => cms.renderPage(areaName, normalizedPermalink, {}),
+    [`render:${areaName}:${normalizedPermalink}`],
+    { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
+  )();
+}
+
+function render404Cached(areaName: string) {
+  return unstable_cache(
+    () =>
+      cms.renderSystemPage(areaName, "404").then(
+        (html) => html ?? cms.renderPage(areaName, "/404", {}),
+      ),
+    [`render:${areaName}:404`],
+    { revalidate: false, tags: ["page:/404", "pages"] },
+  )();
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ permalink: string[] }> },
+) {
+  const { permalink } = await params;
+  const normalizedPermalink = normalizePermalink(`/${(permalink ?? []).join("/")}`);
+  const { searchParams } = new URL(request.url);
+  const isDraft = searchParams.get("draft") === "1";
+
+  if (isDraft) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
+
+  const areaName = await getPrimaryPublicAreaName();
+
+  if (!isDraft) {
+    const area = await cms.areas.findByKey(areaName).catch(() => null);
+    if (area?.systemPages) {
+      const allPages = await cms.pages.findAll(areaName).catch(() => []);
+      const isSystemPermalink = Object.values(area.systemPages).some((pageId) => {
+        const page = allPages.find((entry) => entry.id === pageId);
+        return normalizePermalink(page?.permalink ?? page?.slug) === normalizedPermalink;
+      });
+      if (isSystemPermalink) {
+        const notFound = await render404Cached(areaName).catch(() => null);
+        return new Response(
+          notFound ?? `<!DOCTYPE html><html><body><h2>404 - Not found</h2></body></html>`,
+          { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
+        );
+      }
+    }
+  }
+
+  const html = isDraft
+    ? await cms.renderPage(areaName, normalizedPermalink, { draft: true })
+    : await renderPageCached(areaName, normalizedPermalink);
+
+  if (!html) {
+    const notFound = isDraft
+      ? (await cms.renderSystemPage(areaName, "404") ?? await cms.renderPage(areaName, "/404", {}))
+      : await render404Cached(areaName);
+    return new Response(notFound ?? "<h1>404 Not Found</h1>", {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      ...(isDraft && { "Cache-Control": "no-store" }),
+    },
+  });
+}

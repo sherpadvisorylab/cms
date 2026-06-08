@@ -6,6 +6,15 @@ import { generateId } from "../utils/storage";
 export class PageRepository implements IPageRepository {
   constructor(private adapter: StorageAdapter) {}
 
+  async findByPermalink(area: string, permalink: string): Promise<CmsPage | null> {
+    const normalizedPermalink = normalizePermalink(permalink);
+    const pages = await this.adapter.getAll<CmsPage>("pages", { area, status: "published" });
+    return (
+      pages.find((page) => normalizePermalink(page.permalink ?? page.slug) === normalizedPermalink)
+      ?? null
+    );
+  }
+
   async findBySlug(area: string, slug: string): Promise<CmsPage | null> {
     const pages = await this.adapter.getAll<CmsPage>("pages", { area, slug, status: "published" });
     return pages[0] ?? null;
@@ -32,6 +41,16 @@ export class PageRepository implements IPageRepository {
   async delete(id: string): Promise<void> {
     return this.adapter.delete("pages", id);
   }
+}
+
+function normalizePermalink(value: string | null | undefined): string {
+  const raw = (value ?? "").trim();
+  if (!raw || raw === "/") return "/";
+  const collapsed = raw.replace(/\/+/g, "/");
+  const withLeadingSlash = collapsed.startsWith("/") ? collapsed : `/${collapsed}`;
+  return withLeadingSlash.length > 1
+    ? withLeadingSlash.replace(/\/+$/g, "")
+    : withLeadingSlash;
 }
 
 export class PageVersionRepository implements IPageVersionRepository {

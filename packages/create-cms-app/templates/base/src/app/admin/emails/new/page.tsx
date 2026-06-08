@@ -1,5 +1,11 @@
 import { BackLink, FormCard, Field, TextareaField, SubmitRow } from "@/components/admin/ui";
 import { createEmailTemplate } from "../actions";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "New Email Template",
+  "Create a reusable email template with subject, description, and HTML body.",
+);
 
 export default function NewEmailPage() {
   return (

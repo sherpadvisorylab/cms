@@ -134,6 +134,14 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
                 <input name="projectName" className="form-control" defaultValue={(settings?.branding as any)?.projectName ?? ""} placeholder="e.g. My Platform" />
               </div>
               <div className="form-group">
+                <label className="form-label">Site URL</label>
+                <input name="siteUrl" className="form-control" defaultValue={(settings?.branding as any)?.siteUrl ?? ""} placeholder="https://example.com" />
+                <span className="form-hint">Used to generate canonical URLs and site.permalink.</span>
+              </div>
+            </div>
+
+            <div className="form-row" style={{ marginBottom: 18 }}>
+              <div className="form-group">
                 <label className="form-label">Default language</label>
                 <select name="defaultLanguage" className="form-control" defaultValue={(settings?.branding as any)?.defaultLanguage ?? "en"}>
                   <option value="en">English</option>

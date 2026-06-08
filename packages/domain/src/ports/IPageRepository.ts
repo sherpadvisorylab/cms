@@ -1,6 +1,7 @@
 import type { CmsPage, PageVersion } from "../entities/Page";
 
 export interface IPageRepository {
+  findByPermalink(area: string, permalink: string): Promise<CmsPage | null>;
   findBySlug(area: string, slug: string): Promise<CmsPage | null>;
   findAll(area?: string): Promise<CmsPage[]>;
   create(page: Omit<CmsPage, "id" | "createdAt" | "updatedAt">): Promise<CmsPage>;

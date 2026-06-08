@@ -63,6 +63,7 @@ export const BUILT_IN_STYLE_VARIABLES: BuiltInStyleVariable[] = [
 
 const BUILT_IN_VARIABLES: BuiltInVariableDefinition[] = [
   { namespace: "site", key: "name", label: "Site Name", description: "Primary site name" },
+  { namespace: "site", key: "permalink", label: "Site Permalink", description: "Current page canonical URL" },
   { namespace: "site", key: "logo", label: "Site Logo", description: "Primary logo URL" },
   { namespace: "site", key: "logoDark", label: "Site Logo Dark", description: "Dark-mode logo URL" },
   { namespace: "site", key: "favicon", label: "Favicon", description: "Site favicon URL" },
@@ -72,6 +73,7 @@ const BUILT_IN_VARIABLES: BuiltInVariableDefinition[] = [
   { namespace: "site", key: "trackingScripts", label: "Tracking Scripts", description: "Tracking scripts injected in the body wrapper" },
   { namespace: "page", key: "title", label: "Page Title", description: "Current page title" },
   { namespace: "page", key: "slug", label: "Page Slug", description: "Current page slug" },
+  { namespace: "page", key: "permalink", label: "Page Permalink", description: "Current canonical page route" },
   { namespace: "page", key: "metaTitle", label: "Page Meta Title", description: "SEO meta title or page title" },
   { namespace: "page", key: "metaDescription", label: "Page Meta Description", description: "SEO meta description" },
   { namespace: "page", key: "content", label: "Rendered Content", description: "Rendered page component output" },

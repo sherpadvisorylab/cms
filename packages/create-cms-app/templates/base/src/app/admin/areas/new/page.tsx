@@ -1,5 +1,11 @@
 import { BackLink, FormCard, Field, SelectField, SubmitRow } from "@/components/admin/ui";
 import { createArea } from "../actions";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "New Area",
+  "Create a new site area with its own routing root, branding, and behavior.",
+);
 
 export default function NewAreaPage() {
   return (

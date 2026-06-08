@@ -1,6 +1,13 @@
 import { cms } from "@/lib/cms";
 import type { CmsRenderTemplate } from "@sherpacms/domain";
 import { NavigationManagerClient } from "./NavigationManagerClient";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+import { buildPermalinkMap, normalizePermalink } from "@/lib/pagePermalinks";
+
+export const metadata = buildAdminMetadata(
+  "Navigation",
+  "Manage menus, navigation trees, and reusable navigation templates.",
+);
 
 type RenderTemplateWithAssets = CmsRenderTemplate & { css?: string | null; js?: string | null };
 
@@ -15,6 +22,7 @@ export default async function NavigationPage() {
   const renderTemplates = templates.filter(
     (template): template is RenderTemplateWithAssets => template.type !== "page",
   ) as RenderTemplateWithAssets[];
+  const permalinkMap = buildPermalinkMap(allPages);
 
   return (
     <NavigationManagerClient
@@ -32,8 +40,15 @@ export default async function NavigationPage() {
       pages={allPages.map((p) => {
           const area = areas.find((a) => a.name === p.area || a.id === p.area);
           const rootPath = area?.rootPath ?? "/";
-          const url = p.slug ? `${rootPath}${rootPath.endsWith("/") ? "" : "/"}${p.slug}` : rootPath;
-          return { id: p.id, title: p.title, slug: p.slug, url, areaName: area?.displayName ?? p.area };
+          const normalizedRootPath =
+            rootPath === "/"
+              ? ""
+              : `/${String(rootPath).replace(/^\/+|\/+$/g, "")}`;
+          const permalink = permalinkMap[p.id] ?? normalizePermalink(p.permalink ?? p.slug);
+          const url = permalink === "/"
+            ? (normalizedRootPath || "/")
+            : `${normalizedRootPath}${permalink}`;
+          return { id: p.id, title: p.title, slug: permalink, url, areaName: area?.displayName ?? p.area };
         })}
     />
   );

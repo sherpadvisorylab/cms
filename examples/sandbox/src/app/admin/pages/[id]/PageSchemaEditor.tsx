@@ -83,7 +83,9 @@ export function PageSchemaEditor({ pageId, components, savedConfig }: Props) {
   const globalVars: LocalVar[] = [
     { key: "page.title", label: "Page title",       type: "text" },
     { key: "page.slug",  label: "Page slug",         type: "text" },
+    { key: "page.permalink", label: "Page permalink", type: "text" },
     { key: "site.name",  label: "Site name",         type: "text" },
+    { key: "site.permalink", label: "Site permalink", type: "text" },
     { key: "page.metaTitle", label: "Page meta title", type: "text" },
     { key: "page.metaDescription", label: "Page meta description", type: "text" },
   ];

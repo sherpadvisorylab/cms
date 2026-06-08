@@ -1,7 +1,24 @@
 import { cms } from "@/lib/cms";
+import { buildAdminEntityMetadata } from "@/lib/adminMetadata";
 import { notFound } from "next/navigation";
 import { BackLink, FormCard, Field, TextareaField, SubmitRow, DeleteButton } from "@/components/admin/ui";
 import { updateEmailTemplate, deleteEmailTemplate } from "../actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const templates = await cms.emailTemplates.findAll();
+  const template = templates.find((entry) => entry.id === id);
+
+  return buildAdminEntityMetadata(
+    "Email Template",
+    template?.name ?? null,
+    "Edit the selected email template, its subject, and HTML body content.",
+  );
+}
 
 export default async function EditEmailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

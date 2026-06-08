@@ -2,6 +2,12 @@ import React from "react";
 import { cms } from "@/lib/cms";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Areas",
+  "Configure site areas, routing roots, design settings, and access rules.",
+);
 
 export default async function AreasPage() {
   const areas = await cms.areas.findAll();

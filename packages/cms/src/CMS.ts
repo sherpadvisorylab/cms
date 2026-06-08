@@ -85,7 +85,7 @@ export interface CMSOptions {
   /**
    * Called after a page is published/updated so the hosting framework can
    * invalidate its page cache (e.g. Next.js revalidateTag / revalidatePath).
-   * Receives the list of public slugs that changed.
+   * Receives the list of public permalinks that changed.
    */
   onRevalidate?: (slugs: string[]) => void | Promise<void>;
 }
@@ -149,7 +149,7 @@ export class CMS {
     const allPages = await this.pages.findAll(areaKey);
     const page = allPages.find((p) => p.id === pageId) ?? null;
     if (!page) return null;
-    return this.renderPage(areaKey, page.slug, opts);
+    return this.renderPage(areaKey, page.permalink ?? page.slug, opts);
   }
 
   /**
@@ -168,7 +168,7 @@ export class CMS {
     const allPages = await this.pages.findAll(areaKey);
     const page = allPages.find((p) => p.id === pageId) ?? null;
     if (!page) return null;
-    return this.renderContent(areaKey, page.slug);
+    return this.renderContent(areaKey, page.permalink ?? page.slug);
   }
 
   /**
@@ -193,7 +193,11 @@ export class CMS {
       const prevPage = allPages.find((p) => p.id === prevPageId);
       if (prevPage) {
         await this.pages.update(prevPageId, {
-          slug:   `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
+          slug: `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
+          permalink: replacePermalinkLeaf(
+            prevPage.permalink ?? `/${prevPage.slug}`,
+            `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
+          ),
           status: "draft",
         });
       }
@@ -224,7 +228,7 @@ export class CMS {
    * The actual cache invalidation is performed by the `onRevalidate` callback
    * provided in the constructor options — typically `revalidateTag()` in Next.js.
    *
-   * @param slug - A single slug string or an array of slugs to invalidate.
+   * @param slug - A single public permalink string or an array of permalinks to invalidate.
    */
   async revalidatePage(slug: string | string[]): Promise<void> {
     if (!this.onRevalidate) return;
@@ -305,11 +309,11 @@ export class CMS {
   }
 
   /**
-   * Render a complete page by area key and slug.
+   * Render a complete page by area key and permalink.
    * Returns full HTML document or null if page not found / not published.
    *
    * Flow per docs/13_workflow.md:
-   * 1. Resolve page by area + slug
+   * 1. Resolve page by area + permalink
    * 2. Load area (head/body templates, style, design)
    * 3. Render each component in page structure with content + system vars
    * 4. Collect component CSS/JS
@@ -321,14 +325,15 @@ export class CMS {
    * 10. Build head from area head template
    * 11. Assemble full HTML document
    */
-  async renderPage(areaKey: string, slug: string, opts?: { draft?: boolean }): Promise<string | null> {
+  async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean }): Promise<string | null> {
     const draft = opts?.draft === true;
 
     // 1. Resolve page
-    let page = await this.pages.findBySlug(areaKey, slug);
+    let page = await this.pages.findByPermalink(areaKey, permalink);
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
-      page = all.find((p) => p.slug === slug) ?? null;
+      const normalizedPermalink = normalizePermalink(permalink);
+      page = all.find((p) => normalizePermalink(p.permalink ?? p.slug) === normalizedPermalink) ?? null;
     }
     if (!page) return null;
     if (!draft && page.status !== "published") return null;
@@ -345,7 +350,7 @@ export class CMS {
     const settingsObj = await this.settings.get();
 
     const basePage = this.buildPageContext(page);
-    const baseSite = this.buildSiteContext(area, settingsObj);
+    const baseSite = this.buildSiteContext(area, settingsObj, page);
     const baseStyles = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
@@ -388,7 +393,10 @@ export class CMS {
       }
     }
 
-    const metaTags = this.buildMetaTags(page as CmsPage);
+    const metaTags = this.buildMetaTags(
+      page as CmsPage,
+      this.buildPublicPageUrl(area, settingsObj, page),
+    );
     const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
 
     // Build CSS/JS tags early so they can be injected into site.* globals
@@ -402,7 +410,7 @@ export class CMS {
 
     const contentContext = {
       page: basePage,
-      site: this.buildSiteContext(area, settingsObj),
+        site: this.buildSiteContext(area, settingsObj, page),
       styles: baseStyles,
     };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
@@ -412,8 +420,9 @@ export class CMS {
     const pageContext = this.buildPageContext(page, contentHtml);
     const siteContext = this.buildSiteContext(
       area,
-      settingsObj,
-      metaTags,
+        settingsObj,
+        page,
+        metaTags,
       stylesTag + headTrackingScripts,
       scriptsTag,
       trackingScripts,
@@ -547,6 +556,7 @@ export class CMS {
   private buildSiteContext(
     area: CmsArea | null,
     settings: CmsSettings | null,
+    page: CmsPage | null = null,
     metaTags = "",
     stylesMarkup = "",
     scriptsMarkup = "",
@@ -559,6 +569,7 @@ export class CMS {
     );
 
     site.name = area?.siteName || site.name || settings?.branding?.projectName || area?.displayName || area?.name || "";
+    site.permalink = page ? this.buildPublicPageUrl(area, settings, page) : (site.permalink || "");
     site.logo = area?.style?.logoLight || site.logo || settings?.branding?.logoLight || "";
     site.logoDark = area?.style?.logoDark || site.logoDark || settings?.branding?.logoDark || "";
     site.favicon = area?.style?.favicon || site.favicon || settings?.branding?.favicon || "";
@@ -570,10 +581,21 @@ export class CMS {
     return site;
   }
 
+  private buildPublicPageUrl(area: CmsArea | null, settings: CmsSettings | null, page: CmsPage): string {
+    const pagePermalink = normalizePermalink(page.permalink ?? page.slug);
+    const rootPath = normalizeAreaRootPath(area?.rootPath);
+    const relativePath = pagePermalink === "/" ? (rootPath || "/") : `${rootPath}${pagePermalink}`;
+    const siteUrl = normalizeSiteUrl(settings?.branding?.siteUrl);
+
+    if (!siteUrl) return relativePath || "/";
+    return relativePath === "/" ? `${siteUrl}/` : `${siteUrl}${relativePath}`;
+  }
+
   private buildPageContext(page: CmsPage, content = ""): Record<string, string> {
     return {
       title: page.title,
       slug: page.slug,
+      permalink: page.permalink ?? normalizePermalink(page.slug),
       metaTitle: page.seo?.metaTitle ?? page.seoTitle ?? page.title,
       metaDescription: page.seo?.metaDescription ?? page.seoDescription ?? "",
       content,
@@ -711,10 +733,13 @@ export class CMS {
    * Build meta tags from page SEO data.
    * Supports both new nested seo object and legacy flat fields.
    */
-  private buildMetaTags(page: CmsPage): string {
+  private buildMetaTags(page: CmsPage, canonicalUrl: string): string {
     const tags: string[] = [];
     const desc = page.seo?.metaDescription ?? page.seoDescription;
     const keywords = page.seo?.keywords;
+    if (canonicalUrl) {
+      tags.push(`<link rel="canonical" href="${escapeAttr(canonicalUrl)}">`);
+    }
     if (desc) {
       tags.push(`<meta name="description" content="${escapeAttr(desc)}">`);
     }
@@ -762,17 +787,18 @@ export class CMS {
    */
   async renderContent(
     areaKey: string,
-    slug: string,
+    permalink: string,
     opts?: { draft?: boolean },
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
 
-    // 1. Resolve page — findBySlug only returns published rows, so for draft
-    //    preview we fall back to a full scan filtered by area + slug.
-    let page = await this.pages.findBySlug(areaKey, slug);
+    // 1. Resolve page — findByPermalink only returns published rows, so for draft
+    //    preview we fall back to a full scan filtered by area + permalink.
+    let page = await this.pages.findByPermalink(areaKey, permalink);
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
-      page = all.find((p) => p.slug === slug) ?? null;
+      const normalizedPermalink = normalizePermalink(permalink);
+      page = all.find((p) => normalizePermalink(p.permalink ?? p.slug) === normalizedPermalink) ?? null;
     }
     if (!page) return null;
     if (!draft && page.status !== "published") return null;
@@ -787,7 +813,7 @@ export class CMS {
     const settingsObj = await this.settings.get();
 
     const pageContext = this.buildPageContext(page);
-    const siteContext = this.buildSiteContext(area, settingsObj);
+    const siteContext = this.buildSiteContext(area, settingsObj, page);
     const stylesContext = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
@@ -870,11 +896,11 @@ export class CMS {
       for (const page of pages) {
         if (page.status !== "published") continue;
 
-        // Build URL: home page maps to rootPath, others append slug
-        const isHome = page.slug === "home" || page.slug === "";
+        const pagePermalink = normalizePermalink(page.permalink ?? page.slug);
+        const isHome = pagePermalink === "/";
         const loc = isHome
           ? `${baseUrl}${rootPath || "/"}`
-          : `${baseUrl}${rootPath}/${page.slug}`;
+          : `${baseUrl}${rootPath}${pagePermalink === "/" ? "" : pagePermalink}`;
 
         entries.push({
           loc,
@@ -1072,6 +1098,36 @@ function restoreCmsPlaceholders(html: string): string {
 
 function normalizeComponentReference(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function normalizePermalink(value: string | null | undefined): string {
+  const raw = (value ?? "").trim();
+  if (!raw || raw === "/") return "/";
+  const collapsed = raw.replace(/\/+/g, "/");
+  const withLeadingSlash = collapsed.startsWith("/") ? collapsed : `/${collapsed}`;
+  return withLeadingSlash.length > 1
+    ? withLeadingSlash.replace(/\/+$/g, "")
+    : withLeadingSlash;
+}
+
+function normalizeAreaRootPath(value: string | null | undefined): string {
+  const raw = (value ?? "").trim();
+  if (!raw || raw === "/") return "";
+  const normalized = normalizePermalink(raw);
+  return normalized === "/" ? "" : normalized;
+}
+
+function normalizeSiteUrl(value: string | null | undefined): string {
+  const raw = (value ?? "").trim();
+  if (!raw) return "";
+  return raw.replace(/\/+$/g, "");
+}
+
+function replacePermalinkLeaf(permalink: string, nextSlug: string): string {
+  const normalizedPermalink = normalizePermalink(permalink);
+  if (normalizedPermalink === "/") return `/${nextSlug}`;
+  const parentPath = normalizedPermalink.replace(/\/[^/]+$/, "") || "/";
+  return parentPath === "/" ? `/${nextSlug}` : `${parentPath}/${nextSlug}`;
 }
 
 /**

@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { SlideDrawer } from "@/components/admin/SlideDrawer";
 import { ComponentPickerModal } from "@/components/admin/ComponentPickerModal";
 import { clonePage, quickUpdatePage, updateStructure } from "./actions";
+import {
+  buildPermalinkMap,
+  joinParentPermalink,
+  normalizePermalink,
+} from "@/lib/pagePermalinks";
 import type { CmsPage, CmsArea, ComponentInstance } from "@sherpacms/domain";
 
 type PageRow = CmsPage & {
@@ -22,7 +27,6 @@ type Props = {
   areas: CmsArea[];
   search: string;
   areaFilter: string;
-  /** Maps pageId → system page type (e.g. "home", "404") */
   systemPageMap?: Record<string, string>;
 };
 
@@ -32,6 +36,12 @@ type DrawerComponentMeta = {
   namespace: string | null;
   type: string;
   status: string;
+};
+
+type TreeRow = {
+  page: PageRow;
+  depth: number;
+  hasChildren: boolean;
 };
 
 function serializeStructure(structure: ComponentInstance[]) {
@@ -50,10 +60,149 @@ function toSlug(text: string) {
     .replace(/^-|-$/g, "");
 }
 
+function comparePages(left: Pick<CmsPage, "title" | "slug">, right: Pick<CmsPage, "title" | "slug">) {
+  return (
+    left.title.localeCompare(right.title, undefined, { sensitivity: "base", numeric: true }) ||
+    left.slug.localeCompare(right.slug, undefined, { sensitivity: "base", numeric: true })
+  );
+}
+
+function buildHierarchyPermalinkMap(pages: CmsPage[]) {
+  const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const cache = new Map<string, string>();
+
+  function resolve(pageId: string, trail = new Set<string>()): string {
+    const cached = cache.get(pageId);
+    if (cached) return cached;
+
+    const page = pageMap.get(pageId);
+    if (!page) return "/";
+
+    if (trail.has(pageId)) {
+      return normalizePermalink(page.slug);
+    }
+
+    trail.add(pageId);
+    const parentPermalink =
+      page.parentId && pageMap.has(page.parentId)
+        ? resolve(page.parentId, trail)
+        : "/";
+    trail.delete(pageId);
+
+    const permalink = joinParentPermalink(parentPermalink, page.slug);
+    cache.set(pageId, permalink);
+    return permalink;
+  }
+
+  return Object.fromEntries(pages.map((page) => [page.id, resolve(page.id)]));
+}
+
+function collectVisiblePageIds(
+  pages: PageRow[],
+  query: string,
+  actualPermalinkMap: Record<string, string>,
+  hierarchyPermalinkMap: Record<string, string>,
+) {
+  if (!query) return new Set(pages.map((page) => page.id));
+
+  const matchedIds = new Set<string>();
+  const pageMap = new Map(pages.map((page) => [page.id, page]));
+
+  for (const page of pages) {
+    const haystack = [
+      page.title,
+      actualPermalinkMap[page.id] ?? "",
+      hierarchyPermalinkMap[page.id] ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    if (haystack.includes(query)) {
+      matchedIds.add(page.id);
+      let currentParentId = page.parentId ?? null;
+      while (currentParentId) {
+        matchedIds.add(currentParentId);
+        currentParentId = pageMap.get(currentParentId)?.parentId ?? null;
+      }
+    }
+  }
+
+  return matchedIds;
+}
+
+function buildTreeRows(
+  pages: PageRow[],
+  expandedMap: Record<string, boolean>,
+  forceExpandAll: boolean,
+) {
+  const visibleIds = new Set(pages.map((page) => page.id));
+  const childrenByParent = new Map<string | null, PageRow[]>();
+
+  for (const page of pages) {
+    const parentId = page.parentId && visibleIds.has(page.parentId) ? page.parentId : null;
+    const siblings = childrenByParent.get(parentId) ?? [];
+    siblings.push(page);
+    childrenByParent.set(parentId, siblings);
+  }
+
+  for (const siblings of childrenByParent.values()) {
+    siblings.sort(comparePages);
+  }
+
+  const rows: TreeRow[] = [];
+  const expandableIds = new Set<string>();
+
+  function append(parentId: string | null, depth: number) {
+    const siblings = childrenByParent.get(parentId) ?? [];
+    for (const page of siblings) {
+      const children = childrenByParent.get(page.id) ?? [];
+      const hasChildren = children.length > 0;
+      if (hasChildren) expandableIds.add(page.id);
+
+      rows.push({
+        page,
+        depth,
+        hasChildren,
+      });
+
+      const isExpanded = forceExpandAll ? true : (expandedMap[page.id] ?? true);
+      if (hasChildren && isExpanded) {
+        append(page.id, depth + 1);
+      }
+    }
+  }
+
+  append(null, 0);
+
+  return { rows, expandableIds };
+}
+
+function buildPageOptionRows(
+  pages: PageRow[],
+  hierarchyPermalinkMap: Record<string, string>,
+  excludedPageId?: string,
+) {
+  const filtered = pages.filter((page) => page.id !== excludedPageId);
+  const { rows } = buildTreeRows(
+    filtered,
+    Object.fromEntries(filtered.map((page) => [page.id, true])),
+    true,
+  );
+
+  return rows.map(({ page, depth }) => ({
+    id: page.id,
+    label: `${"— ".repeat(depth)}${page.title}`,
+    permalink: hierarchyPermalinkMap[page.id] ?? normalizePermalink(page.slug),
+  }));
+}
+
 export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {} }: Props) {
   const router = useRouter();
-  const areaMap = Object.fromEntries(areas.map((a) => [a.name, a.displayName || a.name]));
+  const areaMap = Object.fromEntries(areas.map((area) => [area.name, area.displayName || area.name]));
+  const actualPermalinkMap = buildPermalinkMap(pages);
+  const hierarchyPermalinkMap = buildHierarchyPermalinkMap(pages);
 
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [drawerPage, setDrawerPage] = useState<CmsPage | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editSlug, setEditSlug] = useState("");
@@ -77,14 +226,53 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
   const [availableComponents, setAvailableComponents] = useState<DrawerComponentMeta[]>([]);
   const [, startTransition] = useTransition();
 
-  const filtered = pages.filter((page) => {
-    if (areaFilter && page.area !== areaFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return page.title.toLowerCase().includes(q) || page.slug.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const query = search.trim().toLowerCase();
+  const pagesInArea = pages.filter((page) => !areaFilter || page.area === areaFilter);
+  const visibleIds = collectVisiblePageIds(
+    pagesInArea,
+    query,
+    actualPermalinkMap,
+    hierarchyPermalinkMap,
+  );
+  const visiblePages = pagesInArea.filter((page) => visibleIds.has(page.id));
+  const forceExpandAll = query.length > 0;
+  const { rows: treeRows, expandableIds } = buildTreeRows(
+    visiblePages,
+    expandedRows,
+    forceExpandAll,
+  );
+
+  useEffect(() => {
+    setExpandedRows((current) => {
+      const next: Record<string, boolean> = {};
+      for (const pageId of expandableIds) {
+        next[pageId] = current[pageId] ?? true;
+      }
+      return next;
+    });
+  }, [pages.length, areaFilter, query, treeRows.length]);
+
+  function getPagePermalink(page: Pick<CmsPage, "id" | "slug" | "permalink">) {
+    return actualPermalinkMap[page.id] ?? normalizePermalink(page.permalink ?? page.slug);
+  }
+
+  function getHierarchyPermalink(page: Pick<CmsPage, "id" | "slug">) {
+    return hierarchyPermalinkMap[page.id] ?? normalizePermalink(page.slug);
+  }
+
+  function getDraftPermalink(parentValue: string, slugValue: string) {
+    const parentPermalink = parentValue
+      ? (actualPermalinkMap[parentValue] ?? hierarchyPermalinkMap[parentValue] ?? "/")
+      : "/";
+    return joinParentPermalink(parentPermalink, slugValue);
+  }
+
+  function toggleRow(pageId: string) {
+    setExpandedRows((current) => ({
+      ...current,
+      [pageId]: !(current[pageId] ?? true),
+    }));
+  }
 
   async function openDrawer(page: CmsPage) {
     setDrawerPage(page);
@@ -245,6 +433,17 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
     });
   }
 
+  const parentOptions = buildPageOptionRows(
+    pages.filter((page) => page.area === editArea),
+    hierarchyPermalinkMap,
+    drawerPage?.id,
+  );
+  const cloneParentOptions = buildPageOptionRows(
+    pages.filter((page) => page.area === cloneArea),
+    hierarchyPermalinkMap,
+    cloneSourcePage?.id,
+  );
+
   const statusStyle: Record<string, React.CSSProperties> = {
     published: { background: "#dcfce7", color: "#15803d" },
     draft: { background: "#fef9c3", color: "#854d0e" },
@@ -259,15 +458,17 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
   );
   const hasStructureChanges = serializeStructure(structure) !== savedStructureJson;
   const hasUnsavedChanges = hasMetaChanges || hasStructureChanges;
+  const clonePermalink = getDraftPermalink(cloneParentId, cloneSlug.trim());
   const clonePermalinkExists = pages.some(
     (page) =>
       page.area === cloneArea
-      && page.slug === cloneSlug.trim()
+      && normalizePermalink(getPagePermalink(page)) === normalizePermalink(clonePermalink),
   );
   const canClone = !!cloneSourcePage && !!cloneTitle.trim() && !!cloneSlug.trim() && !clonePermalinkExists;
+
   return (
     <>
-      {filtered.length === 0 ? (
+      {treeRows.length === 0 ? (
         <div className="empty-state"><p>No pages found.</p></div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -275,7 +476,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Slug</th>
+                <th>Permalink</th>
                 <th>Area</th>
                 <th>Status</th>
                 <th>Updated</th>
@@ -283,92 +484,148 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((page) => (
-                <tr
-                  key={page.id}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => { window.location.href = `/admin/pages/${page.id}/content`; }}
-                >
-                  <td>
-                    <span style={{ color: "var(--primary)", fontWeight: 600, fontSize: "0.875rem" }}>
-                      {page.title}
-                    </span>
-                  </td>
-                  <td>
-                    {systemPageMap[page.id] ? (
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 5,
-                        background: "#dcfce7", color: "#15803d",
-                        border: "1px solid #bbf7d0",
-                        fontSize: "0.74rem", fontWeight: 700,
-                        padding: "2px 9px", borderRadius: 999,
-                      }}>
-                        {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.icon ?? "⚙️"}{" "}
-                        {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.label ?? systemPageMap[page.id]}
+              {treeRows.map(({ page, depth, hasChildren }) => {
+                const hierarchyPermalink = getHierarchyPermalink(page);
+                const actualPermalink = getPagePermalink(page);
+                const hasCustomDisplay =
+                  !systemPageMap[page.id] &&
+                  normalizePermalink(actualPermalink) !== normalizePermalink(hierarchyPermalink);
+                const isExpanded = forceExpandAll ? true : (expandedRows[page.id] ?? true);
+
+                return (
+                  <tr
+                    key={page.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => { window.location.href = `/admin/pages/${page.id}/content`; }}
+                  >
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          paddingLeft: `${depth * 22}px`,
+                          minHeight: 28,
+                        }}
+                      >
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleRow(page.id);
+                            }}
+                            title={isExpanded ? "Collapse children" : "Expand children"}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              fontSize: "0.72rem",
+                              color: "var(--text-muted)",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isExpanded ? "▾" : "▸"}
+                          </button>
+                        ) : (
+                          <span style={{ width: 22, flexShrink: 0 }} />
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ color: "var(--primary)", fontWeight: 600, fontSize: "0.875rem" }}>
+                            {page.title}
+                          </span>
+                          {depth > 0 && (
+                            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 2 }}>
+                              Child page
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {systemPageMap[page.id] ? (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          background: "#dcfce7", color: "#15803d",
+                          border: "1px solid #bbf7d0",
+                          fontSize: "0.74rem", fontWeight: 700,
+                          padding: "2px 9px", borderRadius: 999,
+                        }}>
+                          {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.icon ?? "⚙️"}{" "}
+                          {SYSTEM_PAGE_LABELS[systemPageMap[page.id]]?.label ?? systemPageMap[page.id]}
+                        </span>
+                      ) : (
+                        <div>
+                          <div style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            {hierarchyPermalink}
+                          </div>
+                          {hasCustomDisplay && (
+                            <div style={{ fontSize: "0.73rem", color: "var(--text-muted)", marginTop: 3 }}>
+                              Display in:{" "}
+                              <span style={{ fontFamily: "monospace" }}>{actualPermalink}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {areaMap[page.area] ?? page.area}
                       </span>
-                    ) : (
-                      <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        /{page.slug}
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          fontWeight: 600,
+                          ...(statusStyle[page.status] ?? {}),
+                        }}
+                      >
+                        {page.status === "published" && page.publishedVersionNumber
+                          ? `${page.status} v${page.publishedVersionNumber}`
+                          : page.status}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: "#e0f2fe",
-                        color: "#0369a1",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {areaMap[page.area] ?? page.area}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: "0.72rem",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontWeight: 600,
-                        ...(statusStyle[page.status] ?? {}),
-                      }}
-                    >
-                      {page.status === "published" && page.publishedVersionNumber
-                        ? `${page.status} v${page.publishedVersionNumber}`
-                        : page.status}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
-                    {page.updatedAt ? new Date(page.updatedAt).toLocaleDateString("en-CA") : "—"}
-                  </td>
-                  <td style={{ whiteSpace: "nowrap" }} onClick={(event) => event.stopPropagation()}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      title="Page settings"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void openDrawer(page);
-                      }}
-                      style={{ marginRight: 4 }}
-                    >
-                      ⚙
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      title="Clone page"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openCloneDrawer(page);
-                      }}
-                    >
-                      ⧉
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                      {page.updatedAt ? new Date(page.updatedAt).toLocaleDateString("en-CA") : "—"}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }} onClick={(event) => event.stopPropagation()}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        title="Page settings"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openDrawer(page);
+                        }}
+                        style={{ marginRight: 4 }}
+                      >
+                        ⚙
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        title="Clone page"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openCloneDrawer(page);
+                        }}
+                      >
+                        ⧉
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -397,7 +654,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                           event.target.value
                             .toLowerCase()
                             .replace(/[^a-z0-9-]/g, "-")
-                            .replace(/-+/g, "-")
+                            .replace(/-+/g, "-"),
                         );
                       }}
                     />
@@ -430,14 +687,15 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                   <label className="form-label">Parent page</label>
                   <select className="form-control" value={editParentId} onChange={(event) => setEditParentId(event.target.value)}>
                     <option value="">— None (top level) —</option>
-                    {pages
-                      .filter((page) => page.id !== drawerPage.id)
-                      .map((page) => (
-                        <option key={page.id} value={page.id}>
-                          {page.title} (/{page.slug})
-                        </option>
-                      ))}
+                    {parentOptions.map((page) => (
+                      <option key={page.id} value={page.id}>
+                        {page.label} ({page.permalink})
+                      </option>
+                    ))}
                   </select>
+                  <p className="form-hint" style={{ marginTop: 4 }}>
+                    Effective permalink: {getDraftPermalink(editParentId, editSlug)}
+                  </p>
                 </div>
               </div>
 
@@ -550,7 +808,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                       event.target.value
                         .toLowerCase()
                         .replace(/[^a-z0-9-]/g, "-")
-                        .replace(/-+/g, "-")
+                        .replace(/-+/g, "-"),
                     );
                   }}
                 />
@@ -593,14 +851,15 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
               <label className="form-label">Parent page</label>
               <select className="form-control" value={cloneParentId} onChange={(event) => setCloneParentId(event.target.value)}>
                 <option value="">— None (top level) —</option>
-                {pages
-                  .filter((page) => page.id !== cloneSourcePage.id)
-                  .map((page) => (
-                    <option key={page.id} value={page.id}>
-                      {page.title} (/{page.slug})
-                    </option>
-                  ))}
+                {cloneParentOptions.map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.label} ({page.permalink})
+                  </option>
+                ))}
               </select>
+              <p className="form-hint" style={{ marginTop: 4 }}>
+                Effective permalink: {clonePermalink}
+              </p>
             </div>
 
             {cloneError && (

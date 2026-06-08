@@ -1,5 +1,11 @@
 import { BackLink, FormCard, Field, SelectField, SubmitRow } from "@/components/admin/ui";
 import { createUser } from "../actions";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "New User",
+  "Create a new CMS user account and assign role and status.",
+);
 
 export default function NewUserPage() {
   return (

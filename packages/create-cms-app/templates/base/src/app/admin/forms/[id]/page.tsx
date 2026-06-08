@@ -1,7 +1,23 @@
 import { cms } from "@/lib/cms";
+import { buildAdminEntityMetadata } from "@/lib/adminMetadata";
 import { notFound } from "next/navigation";
 import { BackLink, FormCard, Field, SubmitRow, DeleteButton } from "@/components/admin/ui";
 import { updateForm, deleteForm } from "../actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const form = await cms.forms.findById(id);
+
+  return buildAdminEntityMetadata(
+    "Form",
+    form?.name ?? null,
+    "Edit the selected form, its variable key, and reusable embed details.",
+  );
+}
 
 export default async function EditFormPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

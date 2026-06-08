@@ -1,7 +1,23 @@
 import { cms } from "@/lib/cms";
+import { buildAdminEntityMetadata } from "@/lib/adminMetadata";
 import { notFound } from "next/navigation";
 import { BackLink, FormCard, Field, SelectField, SubmitRow, DeleteButton } from "@/components/admin/ui";
 import { updateUser, deleteUser } from "../actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const user = await cms.users.findById(id);
+
+  return buildAdminEntityMetadata(
+    "User",
+    user?.name ?? user?.email ?? null,
+    "Edit user profile information, role, and account status.",
+  );
+}
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

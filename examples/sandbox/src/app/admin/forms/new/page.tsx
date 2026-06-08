@@ -1,5 +1,11 @@
 import { BackLink, FormCard, Field, SubmitRow } from "@/components/admin/ui";
 import { createForm } from "../actions";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "New Form",
+  "Create a new reusable form and assign its embed variable.",
+);
 
 export default function NewFormPage() {
   return (

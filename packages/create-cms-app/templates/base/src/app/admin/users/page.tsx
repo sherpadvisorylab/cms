@@ -2,6 +2,12 @@ import React from "react";
 import { cms } from "@/lib/cms";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Users",
+  "Manage CMS users, roles, and account status.",
+);
 
 export default async function UsersPage() {
   const users = await cms.users.findAll();

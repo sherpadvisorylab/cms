@@ -3,6 +3,12 @@ import Link from "next/link";
 import { PagesTable } from "./PagesTable";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { NewPageButton } from "@/components/admin/NewPageButton";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Pages",
+  "Browse, filter, and manage the pages published through the CMS.",
+);
 
 interface SearchParams { area?: string; q?: string; }
 

@@ -1,6 +1,12 @@
 import { cms } from "@/lib/cms";
 import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { buildAdminMetadata } from "@/lib/adminMetadata";
+
+export const metadata = buildAdminMetadata(
+  "Forms",
+  "Create and manage reusable forms and their embed variables.",
+);
 
 export default async function FormsPage() {
   const forms = await cms.forms.findAll();

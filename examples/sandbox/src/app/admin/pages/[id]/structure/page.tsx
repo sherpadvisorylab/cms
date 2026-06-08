@@ -76,7 +76,7 @@ export default function StructurePage() {
   const pageId = params.id as string;
 
   const [title, setTitle] = useState("");
-  const [pageSlug, setPageSlug] = useState("");
+  const [pagePermalink, setPagePermalink] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [latestVersionId, setLatestVersionId] = useState<string | null>(null);
   const [publishedVersionId, setPublishedVersionId] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export default function StructurePage() {
       .then((data) => {
         const nextStructure = data.structure ?? [];
         setTitle(data.title ?? "Page");
-        setPageSlug(data.pageSlug ?? "");
+        setPagePermalink(data.pagePermalink ?? "");
         setIsPublished(!!data.isPublished);
         setLatestVersionId(data.latestVersionId ?? null);
         setPublishedVersionId(data.publishedVersionId ?? null);
@@ -186,7 +186,7 @@ export default function StructurePage() {
               initialIsPublished={isPublished}
               canPublish={canPublish}
               publishedVersionNumber={publishedVersionNumber}
-              pageSlug={pageSlug}
+              pageSlug={pagePermalink}
               onToggle={(published, info) => {
                 setIsPublished(published);
                 if (published && info?.versionId) {

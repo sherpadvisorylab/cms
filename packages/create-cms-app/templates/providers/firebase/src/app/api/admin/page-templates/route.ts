@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
-import { isPageTemplate } from "@sherpacms/domain";
+import { sanitizePageTemplateStructure, sortByRecentTimestamp } from "@/lib/pageTemplates";
+import type { CmsPageTemplate } from "@sherpacms/domain";
 import { initAdmin } from "@/lib/firebase/admin";
 import { getAuth } from "firebase-admin/auth";
 
@@ -16,14 +17,16 @@ async function requireAuth(req: Request) {
 export async function GET(req: Request) {
   if (!await requireAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const templates = (await cms.templates.findByType("page").catch(() => []))
-    .filter(isPageTemplate)
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .map((template) => ({
+  const pageTemplates = sortByRecentTimestamp(
+    (await cms.templates.findByType("page").catch(() => []))
+      .filter((template): template is CmsPageTemplate => template.type === "page"),
+  ) as CmsPageTemplate[];
+
+  const templates = pageTemplates.map((template) => ({
       id: template.id,
       name: template.name,
       description: template.description,
-      structure: template.structure,
+      structure: sanitizePageTemplateStructure(template.structure),
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
       type: template.type,
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
   const template = await cms.templates.create({
     type: "page",
     name: name.trim(),
-    structure: Array.isArray(structure) ? (structure as never[]) : [],
+    structure: sanitizePageTemplateStructure(structure),
   });
 
   return NextResponse.json({ id: template.id, name: template.name });

@@ -1,4 +1,5 @@
 import { cms } from "@/lib/cms";
+import { normalizePermalink } from "@/lib/pagePermalinks";
 
 type PublicArea = {
   name: string;
@@ -10,6 +11,7 @@ type PublicPage = {
   id: string;
   area: string;
   slug: string;
+  permalink?: string | null;
   status?: string | null;
   parentId?: string | null;
 };
@@ -31,7 +33,7 @@ export async function getPrimaryPublicAreaName() {
   );
 }
 
-export async function resolveHomePageSlug() {
+export async function resolveHomePagePermalink() {
   const [pages, areaName] = await Promise.all([
     cms.pages.findAll().catch(() => []),
     getPrimaryPublicAreaName(),
@@ -41,23 +43,33 @@ export async function resolveHomePageSlug() {
     (page) => page.area === areaName && page.status === "published",
   );
 
-  const candidate = ["", "/", "home", "index"]
-    .map((slug) => publishedPages.find((page) => page.slug === slug))
+  const candidate = ["/", "/home", "/index", "", "home", "index"]
+    .map((permalink) =>
+      publishedPages.find(
+        (page) => normalizePermalink(page.permalink ?? page.slug) === normalizePermalink(permalink),
+      ),
+    )
     .find(Boolean);
 
   if (candidate) {
-    return { areaName, slug: candidate.slug };
+    return { areaName, permalink: normalizePermalink(candidate.permalink ?? candidate.slug) };
   }
 
   const firstPublishedTopLevel = publishedPages.find((page) => !page.parentId);
   if (firstPublishedTopLevel) {
-    return { areaName, slug: firstPublishedTopLevel.slug };
+    return {
+      areaName,
+      permalink: normalizePermalink(firstPublishedTopLevel.permalink ?? firstPublishedTopLevel.slug),
+    };
   }
 
   const firstPublished = publishedPages[0];
   if (firstPublished) {
-    return { areaName, slug: firstPublished.slug };
+    return {
+      areaName,
+      permalink: normalizePermalink(firstPublished.permalink ?? firstPublished.slug),
+    };
   }
 
-  return { areaName, slug: "home" };
+  return { areaName, permalink: "/" };
 }

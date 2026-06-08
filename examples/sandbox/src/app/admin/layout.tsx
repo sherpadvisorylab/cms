@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { TopLoadingBar } from "@/components/admin/TopLoadingBar";
+import { AdminFaviconManager } from "@/components/admin/AdminFaviconManager";
+import { adminLayoutMetadata } from "@/lib/adminMetadata";
+
+export const metadata = adminLayoutMetadata;
 
 type NavItem = { href: string; label: string; icon: string };
 type NavGroup = { group: string; items: NavItem[] };
@@ -12,29 +16,29 @@ const NAV: NavGroup[] = [
   {
     group: "",
     items: [
-      { href: "/admin",  label: "Dashboard", icon: "⊞" },
+      { href: "/admin", label: "Dashboard", icon: "⊞" },
     ],
   },
   {
     group: "Content",
     items: [
-      { href: "/admin/pages",      label: "Pages",      icon: "📄" },
-      { href: "/admin/forms",      label: "Forms",      icon: "📋" },
+      { href: "/admin/pages", label: "Pages", icon: "📄" },
+      { href: "/admin/forms", label: "Forms", icon: "📋" },
     ],
   },
   {
     group: "Design",
     items: [
       { href: "/admin/components", label: "Components", icon: "🧩" },
-      { href: "/admin/templates",  label: "Templates",  icon: "📐" },
-      { href: "/admin/areas",      label: "Areas",      icon: "🗂️" },
+      { href: "/admin/templates", label: "Templates", icon: "📐" },
+      { href: "/admin/areas", label: "Areas", icon: "🗂️" },
       { href: "/admin/navigation", label: "Navigation", icon: "🧭" },
     ],
   },
   {
     group: "Platform",
     items: [
-      { href: "/admin/users",    label: "Users",    icon: "👥" },
+      { href: "/admin/users", label: "Users", icon: "👥" },
       { href: "/admin/settings", label: "Settings", icon: "⚙️" },
     ],
   },
@@ -55,7 +59,7 @@ export default async function AdminLayout({
   return (
     <div className="flex h-screen bg-gray-100">
       <TopLoadingBar />
-      {/* Sidebar */}
+      <AdminFaviconManager />
       <aside className="w-56 bg-gray-900 text-white flex flex-col">
         <div className="border-b border-gray-700" style={{ height: "var(--header-h)", padding: "0 16px", display: "flex", alignItems: "center", flexShrink: 0 }}>
           <span className="font-bold text-lg">CMS Admin</span>
@@ -94,8 +98,6 @@ export default async function AdminLayout({
           <LogoutButton />
         </div>
       </aside>
-
-      {/* Main content — no padding-top so sticky page headers sit flush at the top */}
       <main className="flex-1 overflow-auto" style={{ paddingLeft: "1.5rem", paddingRight: "1.5rem", paddingBottom: "1.5rem" }}>
         {children}
       </main>

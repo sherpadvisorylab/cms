@@ -16,6 +16,8 @@ export interface CmsPage {
   id: string;
   area: string;
   slug: string;
+  permalink?: string | null;
+  hasCustomPermalink?: boolean | null;
   title: string;
   parentId?: string | null;
   status: PageStatus;

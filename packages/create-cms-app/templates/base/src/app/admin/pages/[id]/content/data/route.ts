@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cms } from "@/lib/cms";
+import { normalizePermalink, resolvePagePermalink } from "@/lib/pagePermalinks";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,7 +36,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json({
     title:          page.title,
-    pageSlug:       page.slug,
+    pagePermalink:  normalizePermalink(resolvePagePermalink(page, allPages)),
     pageArea:       page.area,
     systemPageType:  systemPageType,
     isSystemPage:    !!systemPageType,

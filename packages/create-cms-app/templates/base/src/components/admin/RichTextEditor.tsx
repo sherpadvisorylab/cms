@@ -181,26 +181,115 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 160 }
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", position: "relative", background: "#fff" }}>
       <style>{`
-        .rich-editor .ProseMirror { min-height: ${minHeight}px; outline: none; }
-        .rich-editor .ProseMirror p { margin: 0 0 0.9rem; }
+        .rich-editor .ProseMirror {
+          min-height: ${minHeight}px;
+          outline: none;
+          color: #0f172a;
+          line-height: 1.65;
+          font-size: 1rem;
+          text-rendering: optimizeLegibility;
+        }
+        .rich-editor .ProseMirror > *:first-child { margin-top: 0; }
+        .rich-editor .ProseMirror > *:last-child { margin-bottom: 0; }
+        .rich-editor .ProseMirror p {
+          margin: 0 0 0.9rem;
+          font-size: 1rem;
+          line-height: 1.75;
+          font-weight: 400;
+        }
+        .rich-editor .ProseMirror h1,
         .rich-editor .ProseMirror h2,
         .rich-editor .ProseMirror h3,
         .rich-editor .ProseMirror h4,
-        .rich-editor .ProseMirror h5 { margin: 1.2rem 0 0.7rem; line-height: 1.2; }
+        .rich-editor .ProseMirror h5 { margin: 1.2rem 0 0.7rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; color: #0f172a; }
+        .rich-editor .ProseMirror h1 { font-size: 2.25rem; line-height: 1.05; margin-top: 1.8rem; }
+        .rich-editor .ProseMirror h2 { font-size: 1.875rem; line-height: 1.1; margin-top: 1.6rem; }
+        .rich-editor .ProseMirror h3 { font-size: 1.5rem; line-height: 1.2; margin-top: 1.4rem; }
+        .rich-editor .ProseMirror h4 { font-size: 1.25rem; line-height: 1.3; margin-top: 1.2rem; }
+        .rich-editor .ProseMirror h5 { font-size: 1.075rem; line-height: 1.4; margin-top: 1.05rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        .rich-editor .ProseMirror strong { font-weight: 700; color: #020617; }
+        .rich-editor .ProseMirror em { font-style: italic; }
+        .rich-editor .ProseMirror s { opacity: 0.8; }
         .rich-editor .ProseMirror ul,
-        .rich-editor .ProseMirror ol { padding-left: 1.5rem; margin: 0.7rem 0; }
-        .rich-editor .ProseMirror blockquote { border-left: 3px solid var(--border); margin: 1rem 0; padding-left: 1rem; color: var(--text-muted); }
-        .rich-editor .ProseMirror pre { background: #0f172a; color: #e2e8f0; padding: 0.85rem 1rem; border-radius: 8px; overflow-x: auto; }
+        .rich-editor .ProseMirror ol { padding-left: 1.65rem; margin: 0.8rem 0 1rem; }
+        .rich-editor .ProseMirror ul ul,
+        .rich-editor .ProseMirror ul ol,
+        .rich-editor .ProseMirror ol ul,
+        .rich-editor .ProseMirror ol ol { margin: 0.45rem 0 0.35rem; }
+        .rich-editor .ProseMirror li { margin: 0.3rem 0; padding-left: 0.15rem; }
+        .rich-editor .ProseMirror li > p { margin: 0.2rem 0 0.45rem; }
+        .rich-editor .ProseMirror blockquote {
+          border-left: 4px solid color-mix(in srgb, var(--primary, #2563eb) 45%, #cbd5e1 55%);
+          margin: 1.15rem 0;
+          padding: 0.1rem 0 0.1rem 1rem;
+          color: #475569;
+          background: linear-gradient(90deg, rgba(37, 99, 235, 0.06) 0%, rgba(255,255,255,0) 100%);
+        }
+        .rich-editor .ProseMirror code {
+          font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+          font-size: 0.9em;
+          background: #eff3f8;
+          color: #0f172a;
+          border: 1px solid #dbe4ee;
+          border-radius: 6px;
+          padding: 0.12rem 0.38rem;
+        }
+        .rich-editor .ProseMirror pre {
+          background: #0f172a;
+          color: #e2e8f0;
+          padding: 0.95rem 1.05rem;
+          border-radius: 10px;
+          overflow-x: auto;
+          margin: 1rem 0 1.15rem;
+          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
+        }
+        .rich-editor .ProseMirror pre code {
+          background: transparent;
+          color: inherit;
+          border: 0;
+          padding: 0;
+          font-size: 0.92rem;
+        }
         .rich-editor .ProseMirror hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
         .rich-editor .ProseMirror img,
-        .rich-editor .ProseMirror video { display: block; max-width: 100%; border-radius: 6px; margin: 0.8rem 0; }
+        .rich-editor .ProseMirror video {
+          display: block;
+          max-width: min(100%, 860px);
+          height: auto;
+          border-radius: 10px;
+          margin: 1rem 0 1.15rem;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(148, 163, 184, 0.18);
+          background: #f8fafc;
+        }
+        .rich-editor .ProseMirror .tableWrapper { margin: 0.9rem 0; overflow-x: auto; }
+        .rich-editor .ProseMirror table { width: 100%; border-collapse: collapse; }
+        .rich-editor .ProseMirror th,
+        .rich-editor .ProseMirror td { border: 1px solid var(--border); padding: 0.55rem 0.7rem; vertical-align: top; }
+        .rich-editor .ProseMirror th { background: #f8fafc; font-weight: 700; }
         .rich-editor .ProseMirror a[href]:not([data-attachment="true"]) {
-          color: var(--primary);
+          color: color-mix(in srgb, var(--primary, #2563eb) 86%, #0f172a 14%);
           text-decoration: underline;
           text-decoration-thickness: 1.5px;
-          text-underline-offset: 2px;
+          text-underline-offset: 0.16em;
+          text-decoration-color: color-mix(in srgb, var(--primary, #2563eb) 45%, transparent 55%);
+          font-weight: 500;
         }
-        .rich-editor .ProseMirror a[data-attachment="true"] { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--border); border-radius: 999px; text-decoration: none; }
+        .rich-editor .ProseMirror a[href]:not([data-attachment="true"]):hover {
+          color: color-mix(in srgb, var(--primary, #2563eb) 100%, #020617 0%);
+          text-decoration-thickness: 2px;
+        }
+        .rich-editor .ProseMirror a[data-attachment="true"] {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.55rem;
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          text-decoration: none;
+          background: #f8fafc;
+          color: #0f172a;
+          font-weight: 600;
+        }
       `}</style>
 
       <div

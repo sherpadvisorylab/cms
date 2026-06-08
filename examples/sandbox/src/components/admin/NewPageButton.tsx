@@ -26,10 +26,9 @@ export function NewPageButton() {
     e.stopPropagation();
     if (open) { setOpen(false); return; }
     setOpen(true);
-    if (templates !== null) return;
     setLoading(true);
     try {
-      const res  = await fetch("/api/admin/page-templates");
+      const res  = await fetch("/api/admin/page-templates", { cache: "no-store" });
       const data = await res.json() as { templates?: PageTemplate[] };
       setTemplates(data.templates ?? []);
     } catch {
