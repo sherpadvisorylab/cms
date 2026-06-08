@@ -460,6 +460,111 @@ export async function removeSystemPage(areaName: string, type: string) {
   revalidatePath(`/${type}`);
 }
 
+// ─── Component copy / move actions ──────────────────────────────────────────
+
+export async function fetchPagesForModal() {
+  const pages = await cms.pages.findAll();
+  return pages.map((p) => ({
+    id: p.id,
+    title: p.title,
+    permalink: p.permalink ?? p.slug ?? "",
+    area: p.area,
+    status: p.status,
+  }));
+}
+
+export async function fetchPageStructureForModal(pageId: string) {
+  const [latest, allComponents] = await Promise.all([
+    cms.pageVersions.getLatest(pageId),
+    cms.components.findAll(),
+  ]);
+  const structure = (latest?.structure ?? []) as ComponentInstance[];
+  const componentNames: Record<string, { name: string; namespace: string | null }> = {};
+  for (const c of allComponents) {
+    componentNames[c.id] = { name: c.name, namespace: c.namespace ?? null };
+  }
+  return { structure, componentNames };
+}
+
+export async function copyComponentToPage(
+  sourcePageId: string,
+  componentJson: string,
+  targetPageId: string,
+  targetIdx: number | null,
+  position: "above" | "below" | "start",
+) {
+  const component = JSON.parse(componentJson) as ComponentInstance;
+  const [latest, allPages] = await Promise.all([
+    cms.pageVersions.getLatest(targetPageId),
+    cms.pages.findAll(),
+  ]);
+  const targetPage = allPages.find((p) => p.id === targetPageId);
+  const targetStructure = [...((latest?.structure ?? targetPage?.structure ?? []) as ComponentInstance[])];
+  const insertAt =
+    position === "start" ? 0
+    : position === "above" ? (targetIdx ?? 0)
+    : (targetIdx ?? 0) + 1;
+  targetStructure.splice(Math.max(0, Math.min(insertAt, targetStructure.length)), 0, { ...component });
+  await cms.pageVersions.createVersion(targetPageId, { structure: targetStructure, publish: false });
+  revalidatePath(`/admin/pages/${targetPageId}/content`);
+  revalidatePath(`/admin/pages/${sourcePageId}/content`);
+}
+
+export async function moveComponentToPage(
+  sourcePageId: string,
+  sourceIdx: number,
+  componentJson: string,
+  targetPageId: string,
+  targetIdx: number | null,
+  position: "above" | "below" | "start",
+) {
+  const component = JSON.parse(componentJson) as ComponentInstance;
+
+  if (sourcePageId === targetPageId) {
+    const latest = await cms.pageVersions.getLatest(sourcePageId);
+    const allPages = await cms.pages.findAll();
+    const sourcePage = allPages.find((p) => p.id === sourcePageId);
+    const structure = [...((latest?.structure ?? sourcePage?.structure ?? []) as ComponentInstance[])];
+    structure.splice(sourceIdx, 1);
+    const rawInsertAt =
+      position === "start" ? 0
+      : position === "above" ? (targetIdx ?? 0)
+      : (targetIdx ?? 0) + 1;
+    const insertAt = rawInsertAt > sourceIdx ? rawInsertAt - 1 : rawInsertAt;
+    structure.splice(Math.max(0, Math.min(insertAt, structure.length)), 0, { ...component });
+    await cms.pageVersions.createVersion(sourcePageId, { structure, publish: false });
+    revalidatePath(`/admin/pages/${sourcePageId}/content`);
+    return;
+  }
+
+  const [sourceLatest, targetLatest, allPages] = await Promise.all([
+    cms.pageVersions.getLatest(sourcePageId),
+    cms.pageVersions.getLatest(targetPageId),
+    cms.pages.findAll(),
+  ]);
+  const sourcePage = allPages.find((p) => p.id === sourcePageId);
+  const targetPage = allPages.find((p) => p.id === targetPageId);
+  const sourceStructure = [...((sourceLatest?.structure ?? sourcePage?.structure ?? []) as ComponentInstance[])];
+  const targetStructure = [...((targetLatest?.structure ?? targetPage?.structure ?? []) as ComponentInstance[])];
+
+  sourceStructure.splice(sourceIdx, 1);
+
+  const insertAt =
+    position === "start" ? 0
+    : position === "above" ? (targetIdx ?? 0)
+    : (targetIdx ?? 0) + 1;
+  targetStructure.splice(Math.max(0, Math.min(insertAt, targetStructure.length)), 0, { ...component });
+
+  await Promise.all([
+    cms.pageVersions.createVersion(sourcePageId, { structure: sourceStructure, publish: false }),
+    cms.pageVersions.createVersion(targetPageId, { structure: targetStructure, publish: false }),
+  ]);
+  revalidatePath(`/admin/pages/${sourcePageId}/content`);
+  revalidatePath(`/admin/pages/${targetPageId}/content`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function unpublishPage(pageId: string) {
   if (!SYSTEM_PAGE_RULES.canUnpublish) {
     const page = (await cms.pages.findAll()).find((entry) => entry.id === pageId);
