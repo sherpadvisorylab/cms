@@ -1,6 +1,6 @@
 {
   "name": "@sherpacms/infrastructure",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

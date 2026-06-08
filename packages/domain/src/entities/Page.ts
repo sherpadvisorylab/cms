@@ -51,6 +51,13 @@ export interface ComponentInstance {
   globals?: Record<string, unknown>;
   /** Optional reveal-on-scroll animation applied to the component's rendered wrapper. */
   animation?: ComponentAnimation;
+  /** Stable identifier assigned when a component is linked or copied. Auto-generated on first link. */
+  instanceId?: string;
+  /** When set, this instance is a link to the origin component. Props are read from the origin. */
+  linkedFrom?: {
+    pageId: string;
+    instanceId: string;
+  };
 }
 
 export interface PageVersion {

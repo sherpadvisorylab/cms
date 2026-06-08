@@ -6,6 +6,7 @@ import {
   fetchPageStructureForModal,
   copyComponentToPage,
   moveComponentToPage,
+  linkComponentToPage,
 } from "@/app/admin/pages/actions";
 import type { ComponentInstance } from "@sherpacms/domain";
 
@@ -15,14 +16,14 @@ type Step = "page" | "component" | "save";
 type Position = "above" | "below" | "start";
 
 interface Props {
-  mode: "copy" | "move";
+  mode: "copy" | "move" | "link";
   sourcePageId: string;
   sourcePageTitle: string;
   sourceIndex: number;
   sourceInstance: ComponentInstance;
   sourceComponentName: string;
   onClose: () => void;
-  onSuccess: (mode: "copy" | "move", sourceIndex: number, targetPageId: string) => Promise<void>;
+  onSuccess: (mode: "copy" | "move" | "link", sourceIndex: number, targetPageId: string) => Promise<void>;
 }
 
 export function ComponentActionModal({
@@ -101,11 +102,19 @@ export function ComponentActionModal({
           selectedIdx,
           position,
         );
-      } else {
+      } else if (mode === "move") {
         await moveComponentToPage(
           sourcePageId,
           sourceIndex,
           JSON.stringify(sourceInstance),
+          targetPage.id,
+          selectedIdx,
+          position,
+        );
+      } else {
+        await linkComponentToPage(
+          sourcePageId,
+          sourceIndex,
           targetPage.id,
           selectedIdx,
           position,
@@ -125,7 +134,8 @@ export function ComponentActionModal({
       p.permalink.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const actionLabel = mode === "copy" ? "Copy" : "Move";
+  const actionLabel = mode === "copy" ? "Copy" : mode === "move" ? "Move" : "Link";
+  const actionIcon = mode === "copy" ? "📋" : mode === "move" ? "✂️" : "🔗";
 
   const positionLabel =
     position === "start"
@@ -153,7 +163,7 @@ export function ComponentActionModal({
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
             <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, flex: 1 }}>
-              {mode === "copy" ? "📋" : "✂️"} {actionLabel} component
+              {actionIcon} {actionLabel} component
             </h3>
             <button className="btn-icon" onClick={onClose} style={{ fontSize: "1.1rem" }}>✕</button>
           </div>
@@ -221,46 +231,59 @@ export function ComponentActionModal({
                 <div className="empty-state"><p>No pages found.</p></div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {filteredPages.map((page) => (
-                    <button
-                      key={page.id}
-                      onClick={() => selectPage(page)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 14px", borderRadius: 8,
-                        border: "1px solid var(--border)",
-                        background: "var(--bg-light)",
-                        cursor: "pointer", textAlign: "left",
-                        width: "100%",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "var(--primary)";
-                        e.currentTarget.style.background = "#eff6ff";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.background = "var(--bg-light)";
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>{page.title}</div>
-                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
-                          {page.permalink}
+                  {filteredPages.map((page) => {
+                    const isSelf = page.id === sourcePageId;
+                    const disabledForLink = mode === "link" && isSelf;
+                    return (
+                      <button
+                        key={page.id}
+                        onClick={() => !disabledForLink && selectPage(page)}
+                        disabled={disabledForLink}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 14px", borderRadius: 8,
+                          border: "1px solid var(--border)",
+                          background: disabledForLink ? "var(--bg-muted, #f9fafb)" : "var(--bg-light)",
+                          cursor: disabledForLink ? "not-allowed" : "pointer",
+                          textAlign: "left",
+                          width: "100%",
+                          opacity: disabledForLink ? 0.5 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!disabledForLink) {
+                            e.currentTarget.style.borderColor = "var(--primary)";
+                            e.currentTarget.style.background = "#eff6ff";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!disabledForLink) {
+                            e.currentTarget.style.borderColor = "var(--border)";
+                            e.currentTarget.style.background = "var(--bg-light)";
+                          }
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>{page.title}</div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
+                            {page.permalink}
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                        {page.id === sourcePageId && (
-                          <span style={{
-                            fontSize: "0.68rem", background: "#fef9c3", color: "#854d0e",
-                            padding: "1px 7px", borderRadius: 999,
-                          }}>
-                            current
-                          </span>
-                        )}
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>›</span>
-                      </div>
-                    </button>
-                  ))}
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                          {isSelf && (
+                            <span style={{
+                              fontSize: "0.68rem", background: "#fef9c3", color: "#854d0e",
+                              padding: "1px 7px", borderRadius: 999,
+                            }}>
+                              {mode === "link" ? "source (not allowed)" : "current"}
+                            </span>
+                          )}
+                          {!disabledForLink && (
+                            <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>›</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -270,7 +293,7 @@ export function ComponentActionModal({
           {step === "component" && (
             <div>
               <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 14px" }}>
-                Select where to {mode === "copy" ? "copy" : "move"}{" "}
+                Select where to {mode === "copy" ? "copy" : mode === "move" ? "move" : "link"}{" "}
                 <strong>{sourceComponentName}</strong> on{" "}
                 <strong>{targetPage?.title}</strong>
               </p>
@@ -312,6 +335,14 @@ export function ComponentActionModal({
                         {comp.namespace && (
                           <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: 8 }}>
                             {comp.namespace}
+                          </span>
+                        )}
+                        {comp.instance.linkedFrom && (
+                          <span style={{
+                            fontSize: "0.68rem", background: "#ede9fe", color: "#6d28d9",
+                            padding: "1px 6px", borderRadius: 999, marginLeft: 8,
+                          }}>
+                            linked
                           </span>
                         )}
                       </div>
@@ -368,6 +399,18 @@ export function ComponentActionModal({
                 }}>
                   ⚠️ Moving will remove the component from <strong>{sourcePageTitle}</strong> and
                   save a new version on both pages.
+                </div>
+              )}
+
+              {mode === "link" && (
+                <div style={{
+                  background: "#ede9fe", border: "1px solid #c4b5fd",
+                  borderRadius: 8, padding: "10px 14px",
+                  fontSize: "0.8rem", color: "#5b21b6", marginBottom: 16,
+                }}>
+                  🔗 The component on <strong>{targetPage?.title}</strong> will always reflect changes
+                  made to the original on <strong>{sourcePageTitle}</strong>. It cannot be edited
+                  independently.
                 </div>
               )}
 

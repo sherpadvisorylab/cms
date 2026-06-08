@@ -563,6 +563,89 @@ export async function moveComponentToPage(
   revalidatePath(`/admin/pages/${targetPageId}/content`);
 }
 
+export async function linkComponentToPage(
+  sourcePageId: string,
+  sourceIdx: number,
+  targetPageId: string,
+  targetIdx: number | null,
+  position: "above" | "below" | "start",
+) {
+  const [sourceLatest, targetLatest, allPages] = await Promise.all([
+    cms.pageVersions.getLatest(sourcePageId),
+    cms.pageVersions.getLatest(targetPageId),
+    cms.pages.findAll(),
+  ]);
+
+  const sourcePage = allPages.find((p) => p.id === sourcePageId);
+  const targetPage = allPages.find((p) => p.id === targetPageId);
+  const sourceStructure = [...((sourceLatest?.structure ?? sourcePage?.structure ?? []) as ComponentInstance[])];
+  const targetStructure = [...((targetLatest?.structure ?? targetPage?.structure ?? []) as ComponentInstance[])];
+
+  const originInstance = sourceStructure[sourceIdx];
+  if (!originInstance) throw new Error("Source component not found");
+  if (originInstance.linkedFrom) throw new Error("Linked components cannot be linked again");
+
+  // Ensure origin has a stable instanceId
+  if (!originInstance.instanceId) {
+    originInstance.instanceId = crypto.randomUUID();
+    sourceStructure[sourceIdx] = originInstance;
+    await cms.pageVersions.createVersion(sourcePageId, { structure: sourceStructure, publish: false });
+  }
+
+  const linkedInstance: ComponentInstance = {
+    componentId: originInstance.componentId,
+    props: {},
+    linkedFrom: { pageId: sourcePageId, instanceId: originInstance.instanceId },
+  };
+
+  const insertAt =
+    position === "start" ? 0
+    : position === "above" ? (targetIdx ?? 0)
+    : (targetIdx ?? 0) + 1;
+  targetStructure.splice(Math.max(0, Math.min(insertAt, targetStructure.length)), 0, linkedInstance);
+
+  await cms.pageVersions.createVersion(targetPageId, { structure: targetStructure, publish: false });
+  revalidatePath(`/admin/pages/${sourcePageId}/content`);
+  revalidatePath(`/admin/pages/${targetPageId}/content`);
+}
+
+export async function unlinkComponent(pageId: string, instanceIdx: number) {
+  const [latest, allPages] = await Promise.all([
+    cms.pageVersions.getLatest(pageId),
+    cms.pages.findAll(),
+  ]);
+  const page = allPages.find((p) => p.id === pageId);
+  const structure = [...((latest?.structure ?? page?.structure ?? []) as ComponentInstance[])];
+
+  const instance = structure[instanceIdx];
+  if (!instance) throw new Error("Component not found");
+  if (!instance.linkedFrom) throw new Error("Component is not linked");
+
+  // Resolve current props from origin before unlinking
+  const originPage = allPages.find((p) => p.id === instance.linkedFrom!.pageId);
+  if (originPage) {
+    const originLatest = await cms.pageVersions.getLatest(originPage.id);
+    const originInstance = originLatest?.structure.find(
+      (s) => s.instanceId === instance.linkedFrom!.instanceId,
+    );
+    if (originInstance) {
+      structure[instanceIdx] = {
+        componentId: instance.componentId,
+        props: { ...originInstance.props },
+        globals: originInstance.globals ? { ...originInstance.globals } : undefined,
+        animation: instance.animation,
+      };
+    } else {
+      structure[instanceIdx] = { componentId: instance.componentId, props: {} };
+    }
+  } else {
+    structure[instanceIdx] = { componentId: instance.componentId, props: {} };
+  }
+
+  await cms.pageVersions.createVersion(pageId, { structure, publish: false });
+  revalidatePath(`/admin/pages/${pageId}/content`);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function unpublishPage(pageId: string) {

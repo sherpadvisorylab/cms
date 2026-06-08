@@ -368,7 +368,26 @@ export class CMS {
 
       const safeTemplate = protectCmsPlaceholders(normalizeVariableAliases(componentVersion.templateLiquid));
 
-      const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
+      // Resolve linked props: if this instance has linkedFrom, use the origin instance's props/globals
+      let resolvedProps = instance.props;
+      let resolvedGlobals = instance.globals;
+      if (instance.linkedFrom) {
+        const originPage = await this.pages.findAll().then((pages) =>
+          pages.find((p) => p.id === instance.linkedFrom!.pageId) ?? null,
+        );
+        if (originPage) {
+          const originVersion = await this.pageVersions.getLatest(originPage.id);
+          const originInstance = originVersion?.structure.find(
+            (s) => s.instanceId === instance.linkedFrom!.instanceId,
+          );
+          if (originInstance) {
+            resolvedProps = originInstance.props;
+            resolvedGlobals = originInstance.globals;
+          }
+        }
+      }
+
+      const expandedProps = this.expandImageProps(resolvedProps, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,
@@ -380,7 +399,7 @@ export class CMS {
             name: component.name,
             namespace: component.namespace ?? "",
           },
-          ...instance.globals,
+          ...resolvedGlobals,
         },
       }).then(restoreCmsPlaceholders);
 
@@ -831,7 +850,26 @@ export class CMS {
 
       const safeTemplate = protectCmsPlaceholders(normalizeVariableAliases(componentVersion.templateLiquid));
 
-      const expandedProps = this.expandImageProps(instance.props, componentVersion.schema);
+      // Resolve linked props: if this instance has linkedFrom, use the origin instance's props/globals
+      let resolvedProps = instance.props;
+      let resolvedGlobals = instance.globals;
+      if (instance.linkedFrom) {
+        const originPage = await this.pages.findAll().then((pages) =>
+          pages.find((p) => p.id === instance.linkedFrom!.pageId) ?? null,
+        );
+        if (originPage) {
+          const originVersion = await this.pageVersions.getLatest(originPage.id);
+          const originInstance = originVersion?.structure.find(
+            (s) => s.instanceId === instance.linkedFrom!.instanceId,
+          );
+          if (originInstance) {
+            resolvedProps = originInstance.props;
+            resolvedGlobals = originInstance.globals;
+          }
+        }
+      }
+
+      const expandedProps = this.expandImageProps(resolvedProps, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,
@@ -843,7 +881,7 @@ export class CMS {
             name: component.name,
             namespace: component.namespace ?? "",
           },
-          ...instance.globals,
+          ...resolvedGlobals,
         },
       }).then(restoreCmsPlaceholders);
 
