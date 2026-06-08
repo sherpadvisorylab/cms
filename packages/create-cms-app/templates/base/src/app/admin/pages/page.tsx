@@ -33,21 +33,30 @@ export default async function PagesPage({
       }
     }
   }
-  const publishedVersions = await Promise.all(
-    pages.map(async (page) => ({
-      pageId: page.id,
-      version: page.status === "published"
-        ? (await cms.pageVersions.getLatestPublished(page.id))?.version ?? null
-        : null,
-    })),
+  const pageVersionData = await Promise.all(
+    pages.map(async (page) => {
+      const [latestVersion, publishedVersion] = await Promise.all([
+        cms.pageVersions.getLatest(page.id).catch(() => null),
+        page.status === "published"
+          ? cms.pageVersions.getLatestPublished(page.id).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      return {
+        pageId: page.id,
+        publishedVersionNumber: publishedVersion?.version ?? null,
+        structure: latestVersion?.structure ?? page.structure ?? [],
+      };
+    }),
   );
-  const publishedVersionMap = Object.fromEntries(
-    publishedVersions.map(({ pageId, version }) => [pageId, version]),
-  );
-  const pagesWithPublishedVersion = pages.map((page) => ({
-    ...page,
-    publishedVersionNumber: publishedVersionMap[page.id] ?? null,
-  }));
+  const pagesWithPublishedVersion = pages.map((page) => {
+    const vd = pageVersionData.find((v) => v.pageId === page.id);
+    return {
+      ...page,
+      publishedVersionNumber: vd?.publishedVersionNumber ?? null,
+      componentCount: vd?.structure.length ?? 0,
+      linkedComponentCount: vd?.structure.filter((s) => !!s.linkedFrom).length ?? 0,
+    };
+  });
 
   const total     = pages.length;
   const published = pages.filter((p) => p.status === "published").length;

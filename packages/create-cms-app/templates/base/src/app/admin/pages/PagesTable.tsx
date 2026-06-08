@@ -15,6 +15,8 @@ import type { CmsPage, CmsArea, ComponentInstance } from "@sherpacms/domain";
 
 type PageRow = CmsPage & {
   publishedVersionNumber?: number | null;
+  componentCount?: number;
+  linkedComponentCount?: number;
 };
 
 const SYSTEM_PAGE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -130,10 +132,30 @@ function collectVisiblePageIds(
   return matchedIds;
 }
 
+function compareRootPages(
+  left: PageRow,
+  right: PageRow,
+  systemPageMap: Record<string, string>,
+): number {
+  const leftType = systemPageMap[left.id];
+  const rightType = systemPageMap[right.id];
+  const leftIsHome = leftType === "home";
+  const rightIsHome = rightType === "home";
+  const leftIsSystem = !!leftType && !leftIsHome;
+  const rightIsSystem = !!rightType && !rightIsHome;
+
+  if (leftIsHome && !rightIsHome) return -1;
+  if (rightIsHome && !leftIsHome) return 1;
+  if (leftIsSystem && !rightIsSystem) return 1;
+  if (rightIsSystem && !leftIsSystem) return -1;
+  return comparePages(left, right);
+}
+
 function buildTreeRows(
   pages: PageRow[],
   expandedMap: Record<string, boolean>,
   forceExpandAll: boolean,
+  systemPageMap: Record<string, string> = {},
 ) {
   const visibleIds = new Set(pages.map((page) => page.id));
   const childrenByParent = new Map<string | null, PageRow[]>();
@@ -145,8 +167,13 @@ function buildTreeRows(
     childrenByParent.set(parentId, siblings);
   }
 
-  for (const siblings of childrenByParent.values()) {
-    siblings.sort(comparePages);
+  // Root level: home first, other system pages last; children: alphabetical
+  const rootSiblings = childrenByParent.get(null) ?? [];
+  rootSiblings.sort((a, b) => compareRootPages(a, b, systemPageMap));
+  childrenByParent.set(null, rootSiblings);
+
+  for (const [parentId, siblings] of childrenByParent.entries()) {
+    if (parentId !== null) siblings.sort(comparePages);
   }
 
   const rows: TreeRow[] = [];
@@ -187,6 +214,7 @@ function buildPageOptionRows(
     filtered,
     Object.fromEntries(filtered.map((page) => [page.id, true])),
     true,
+    {},
   );
 
   return rows.map(({ page, depth }) => ({
@@ -240,6 +268,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
     visiblePages,
     expandedRows,
     forceExpandAll,
+    systemPageMap,
   );
 
   useEffect(() => {
@@ -479,6 +508,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                 <th>Permalink</th>
                 <th>Area</th>
                 <th>Status</th>
+                <th>Components</th>
                 <th>Updated</th>
                 <th></th>
               </tr>
@@ -596,6 +626,28 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                           ? `${page.status} v${page.publishedVersionNumber}`
                           : page.status}
                       </span>
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {page.componentCount !== undefined ? (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{
+                            fontSize: "0.78rem", fontWeight: 600,
+                            color: page.componentCount === 0 ? "var(--text-muted)" : "var(--text)",
+                          }}>
+                            {page.componentCount}
+                          </span>
+                          {!!page.linkedComponentCount && (
+                            <span style={{
+                              fontSize: "0.68rem", background: "#ede9fe", color: "#6d28d9",
+                              padding: "1px 6px", borderRadius: 999, fontWeight: 600,
+                            }}>
+                              {"🔗"} {page.linkedComponentCount}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>{"—"}</span>
+                      )}
                     </td>
                     <td style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
                       {page.updatedAt ? new Date(page.updatedAt).toLocaleDateString("en-CA") : "—"}
