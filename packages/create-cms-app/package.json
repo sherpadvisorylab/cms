@@ -11,12 +11,15 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "commander": "^12.0.0",
-    "chalk": "^5.3.0"
+    "@sherpacms/cms": "^0.3.5",
+    "@sherpacms/domain": "^0.3.5",
+    "@sherpacms/infrastructure": "^0.3.5",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
   }
 }

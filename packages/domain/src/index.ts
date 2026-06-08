@@ -10,6 +10,7 @@ export * from "./entities/Settings";
 export * from "./entities/User";
 export * from "./entities/Form";
 export * from "./entities/SystemVars";
+export * from "./entities/Redirect";
 
 // Ports
 export * from "./ports/IPageRepository";
@@ -23,3 +24,4 @@ export * from "./ports/INavigationRepository";
 export * from "./ports/ISettingsRepository";
 export * from "./ports/IUserRepository";
 export * from "./ports/IFormRepository";
+export * from "./ports/IRedirectRepository";

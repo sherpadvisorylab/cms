@@ -11,6 +11,7 @@ import {
   SettingsRepository,
   UserRepository,
   FormRepository,
+  RedirectRepository,
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
@@ -33,6 +34,7 @@ import {
   ISettingsRepository,
   IUserRepository,
   IFormRepository,
+  IRedirectRepository,
   IRenderEngine,
 } from "@sherpacms/domain";
 import { FormRenderer } from "@sherpacms/form-generator";
@@ -106,6 +108,7 @@ export class CMS {
   readonly settings: ISettingsRepository;
   readonly users: IUserRepository;
   readonly forms: IFormRepository;
+  readonly redirects: IRedirectRepository;
 
   // Render engine
   readonly render: IRenderEngine;
@@ -127,6 +130,7 @@ export class CMS {
     this.settings = new SettingsRepository(storage);
     this.users = new UserRepository(storage);
     this.forms = new FormRepository(storage);
+    this.redirects = new RedirectRepository(storage);
     this.render = new LiquidRenderEngine();
   }
 
