@@ -185,7 +185,6 @@ export default function NewPageClient({ areas, pages, templateId }: Props) {
   const canSubmit =
     !submitting &&
     !!area.trim() &&
-    !!parentId.trim() &&
     !!title.trim() &&
     !!slug.trim() &&
     templateReady;
@@ -277,9 +276,8 @@ export default function NewPageClient({ areas, pages, templateId }: Props) {
               className="form-control"
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
-              required
             >
-              <option value="">Select parent page</option>
+              <option value="">/ (Site root)</option>
               {parentOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label} ({option.permalink})

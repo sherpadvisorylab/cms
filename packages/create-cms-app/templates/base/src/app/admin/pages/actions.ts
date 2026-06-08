@@ -140,8 +140,8 @@ export async function createPage(formData: FormData) {
   const hasCustomPermalink = readCustomPermalinkFlag(formData);
   const requestedPermalink = (formData.get("permalink") as string) || null;
 
-  if (!area || !title || !slug || !parentId || !seoTitle) {
-    throw new Error("Area, parent page, title, slug, and meta title are required");
+  if (!area || !title || !slug || !seoTitle) {
+    throw new Error("Area, title, slug, and meta title are required");
   }
 
   const draftPage: PageDraftInput = {

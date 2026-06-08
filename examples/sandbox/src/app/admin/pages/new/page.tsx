@@ -10,8 +10,16 @@ export default async function NewPagePage({ searchParams }: { searchParams: Sear
     searchParams,
   ]);
 
+  // Exclude system pages (e.g. 404) and archived pages from the parent list
+  const systemPageIds = new Set(
+    areas.flatMap((area) => Object.values(area.systemPages ?? {})),
+  );
+  const selectablePages = pages.filter(
+    (p) => !systemPageIds.has(p.id) && p.status !== "archived",
+  );
+
   const templateParam = params.template;
   const templateId = Array.isArray(templateParam) ? templateParam[0] ?? null : templateParam ?? null;
 
-  return <NewPageClient areas={areas} pages={pages} templateId={templateId} />;
+  return <NewPageClient areas={areas} pages={selectablePages} templateId={templateId} />;
 }
