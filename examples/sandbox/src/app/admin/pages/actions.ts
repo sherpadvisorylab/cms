@@ -173,7 +173,7 @@ export async function createPage(formData: FormData) {
     ogImageUrl: (formData.get("ogImageUrl") as string) || undefined,
   });
   await cms.pageVersions.createVersion(page.id, { structure, publish: false });
-  redirect(`/admin/pages/${page.id}`);
+  redirect(`/admin/pages/${page.id}/content`);
 }
 
 export async function clonePage(data: {
