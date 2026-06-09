@@ -13,7 +13,8 @@ interface MediaLibraryModalProps {
 
 type DupeConfirm = {
   slugName: string;
-  resolve: (action: "overwrite" | "keep") => void;
+  addName: string;
+  resolve: (action: "overwrite" | "add" | "cancel") => void;
 };
 
 function formatSize(bytes: number) {
@@ -112,16 +113,18 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
     return data.url;
   }
 
-  async function resolveFilename(file: File, existingNames: Set<string>): Promise<string> {
+  async function resolveFilename(file: File, existingNames: Set<string>): Promise<string | null> {
     const slugName = slugifyFilename(file.name);
     if (!existingNames.has(slugName)) return slugName;
 
-    const action = await new Promise<"overwrite" | "keep">((resolve) => {
-      setDupeConfirm({ slugName, resolve });
+    const addName = findAvailableName(slugName, existingNames);
+    const action = await new Promise<"overwrite" | "add" | "cancel">((resolve) => {
+      setDupeConfirm({ slugName, addName, resolve });
     });
     setDupeConfirm(null);
 
-    return action === "overwrite" ? slugName : findAvailableName(slugName, existingNames);
+    if (action === "cancel") return null;
+    return action === "overwrite" ? slugName : addName;
   }
 
   function isAcceptable(file: File) {
@@ -146,8 +149,10 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
     for (let index = 0; index < acceptable.length; index += 1) {
       try {
         const filename = await resolveFilename(acceptable[index], existingNames);
-        await uploadOne(acceptable[index], filename);
-        existingNames.add(filename);
+        if (filename !== null) {
+          await uploadOne(acceptable[index], filename);
+          existingNames.add(filename);
+        }
       } catch (err) {
         setError((err as Error).message);
       }
@@ -375,20 +380,25 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
 
       {dupeConfirm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 400, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h4 style={{ margin: "0 0 12px", fontSize: "1rem", fontWeight: 700 }}>File already exists</h4>
-            <p style={{ margin: "0 0 8px", fontSize: "0.88rem", color: "var(--text-muted)" }}>
-              A file with this name is already in the library:
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h4 style={{ margin: "0 0 8px", fontSize: "1rem", fontWeight: 700 }}>File già esistente</h4>
+            <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              Un file con questo nome è già presente nella libreria:
             </p>
             <p style={{ margin: "0 0 20px", fontSize: "0.82rem", fontWeight: 600, wordBreak: "break-all", background: "var(--bg-light)", padding: "6px 10px", borderRadius: 6 }}>
               {dupeConfirm.slugName}
             </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button className="btn btn-secondary" onClick={() => dupeConfirm.resolve("keep")}>
-                Keep both
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn btn-danger" style={{ textAlign: "left" }} onClick={() => dupeConfirm.resolve("overwrite")}>
+                <strong>Sovrascrivi</strong>
+                <span style={{ display: "block", fontSize: "0.78rem", fontWeight: 400, opacity: 0.8 }}>Sostituisce il file esistente, il nome rimane <code>{dupeConfirm.slugName}</code></span>
               </button>
-              <button className="btn btn-danger" onClick={() => dupeConfirm.resolve("overwrite")}>
-                Overwrite
+              <button className="btn btn-secondary" style={{ textAlign: "left" }} onClick={() => dupeConfirm.resolve("add")}>
+                <strong>Aggiungi</strong>
+                <span style={{ display: "block", fontSize: "0.78rem", fontWeight: 400, opacity: 0.8 }}>Salva come <code>{dupeConfirm.addName}</code></span>
+              </button>
+              <button className="btn btn-secondary" onClick={() => dupeConfirm.resolve("cancel")}>
+                Annulla
               </button>
             </div>
           </div>

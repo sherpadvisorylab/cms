@@ -7,6 +7,7 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { TopLoadingBar } from "@/components/admin/TopLoadingBar";
 import { AdminFaviconManager } from "@/components/admin/AdminFaviconManager";
+import { DevModeToggle } from "@/components/admin/DevModeToggle";
 import { adminLayoutMetadata } from "@/lib/adminMetadata";
 
 initAdmin();
@@ -26,8 +27,9 @@ const NAV: NavGroup[] = [
   {
     group: "Content",
     items: [
-      { href: "/admin/pages",  label: "Pages", icon: "📄" },
-      { href: "/admin/forms",  label: "Forms", icon: "📋" },
+      { href: "/admin/pages",       label: "Pages",       icon: "📄" },
+      { href: "/admin/forms",       label: "Forms",       icon: "📋" },
+      { href: "/admin/collections", label: "Collections", icon: "🗃️" },
     ],
   },
   {
@@ -42,6 +44,7 @@ const NAV: NavGroup[] = [
   {
     group: "Platform",
     items: [
+      { href: "/admin/redirects", label: "Redirects", icon: "↪" },
       { href: "/admin/users",    label: "Users",    icon: "👥" },
       { href: "/admin/settings", label: "Settings", icon: "⚙️" },
     ],
@@ -104,6 +107,9 @@ export default async function AdminLayout({
             </div>
           ))}
         </nav>
+        <div style={{ padding: "8px 10px 4px", borderTop: "1px solid #374151" }}>
+          <DevModeToggle />
+        </div>
         <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-between">
           <span className="text-xs text-gray-400 truncate">{email}</span>
           <LogoutButton />

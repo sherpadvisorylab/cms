@@ -5,7 +5,7 @@ import { buildPermalinkMap, normalizePermalink } from "@/lib/pagePermalinks";
 import { sanitizePageTemplateStructure } from "@/lib/pageTemplates";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ComponentInstance, CmsPage, CmsPageSeo } from "@sherpacms/domain";
+import type { ComponentInstance, CmsPage, CmsPageSeo, ComponentSchemaField } from "@sherpacms/domain";
 import { SYSTEM_PAGE_RULES, getSystemPageType } from "@/lib/systemPageRules";
 
 type PageVersionRecord = {
@@ -665,4 +665,40 @@ export async function unpublishPage(pageId: string) {
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
   await revalidatePublicPermalinks([permalink]);
+}
+
+// ── Collection entry picker ───────────────────────────────────────────────────
+
+export async function getCollectionRecordsForPicker(collectionSlug: string): Promise<{
+  records: { id: string; data: Record<string, unknown> }[];
+  schema: ComponentSchemaField[];
+  usageMap: Record<string, number>;
+}> {
+  const collection = await cms.collections.findBySlug(collectionSlug).catch(() => null);
+  if (!collection) return { records: [], schema: [], usageMap: {} };
+
+  const records = await cms.collections.findRecords(collection.id).catch(() => []);
+
+  // Count how many page structures reference each record via filteredRecordIds
+  const allPages = await cms.pages.findAll().catch(() => []);
+  const usageMap: Record<string, number> = {};
+  await Promise.all(
+    allPages.map(async (page) => {
+      const version = await cms.pageVersions.getLatest(page.id).catch(() => null);
+      if (!version) return;
+      for (const block of version.structure) {
+        if (block.blockType === "collection" && block.collectionSlug === collectionSlug && block.filteredRecordIds?.length) {
+          for (const id of block.filteredRecordIds) {
+            usageMap[id] = (usageMap[id] ?? 0) + 1;
+          }
+        }
+      }
+    }),
+  );
+
+  return {
+    records: records.map((r) => ({ id: r.id, data: r.data })),
+    schema: collection.schema,
+    usageMap,
+  };
 }

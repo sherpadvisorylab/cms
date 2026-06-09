@@ -17,6 +17,7 @@ type PageRow = CmsPage & {
   publishedVersionNumber?: number | null;
   componentCount?: number;
   linkedComponentCount?: number;
+  collectionCount?: number;
 };
 
 const SYSTEM_PAGE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -634,7 +635,7 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                             fontSize: "0.78rem", fontWeight: 600,
                             color: page.componentCount === 0 ? "var(--text-muted)" : "var(--text)",
                           }}>
-                            {page.componentCount}
+                            {"🧩"} {page.componentCount}
                           </span>
                           {!!page.linkedComponentCount && (
                             <span style={{
@@ -642,6 +643,14 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                               padding: "1px 6px", borderRadius: 999, fontWeight: 600,
                             }}>
                               {"🔗"} {page.linkedComponentCount}
+                            </span>
+                          )}
+                          {!!page.collectionCount && (
+                            <span style={{
+                              fontSize: "0.68rem", background: "#dcfce7", color: "#16a34a",
+                              padding: "1px 6px", borderRadius: 999, fontWeight: 600,
+                            }}>
+                              {"🗃️"} {page.collectionCount}
                             </span>
                           )}
                         </div>

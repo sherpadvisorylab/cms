@@ -1,11 +1,16 @@
 import "./admin.css";
-import { createClient } from "@/lib/supabase/server";
+import { initAdmin } from "@/lib/firebase/admin";
+import { getAuth } from "firebase-admin/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { TopLoadingBar } from "@/components/admin/TopLoadingBar";
 import { AdminFaviconManager } from "@/components/admin/AdminFaviconManager";
+import { DevModeToggle } from "@/components/admin/DevModeToggle";
 import { adminLayoutMetadata } from "@/lib/adminMetadata";
+
+initAdmin();
 
 export const metadata = adminLayoutMetadata;
 
@@ -22,23 +27,25 @@ const NAV: NavGroup[] = [
   {
     group: "Content",
     items: [
-      { href: "/admin/pages", label: "Pages", icon: "📄" },
-      { href: "/admin/forms", label: "Forms", icon: "📋" },
+      { href: "/admin/pages",       label: "Pages",       icon: "📄" },
+      { href: "/admin/forms",       label: "Forms",       icon: "📋" },
+      { href: "/admin/collections", label: "Collections", icon: "🗃️" },
     ],
   },
   {
     group: "Design",
     items: [
       { href: "/admin/components", label: "Components", icon: "🧩" },
-      { href: "/admin/templates", label: "Templates", icon: "📐" },
-      { href: "/admin/areas", label: "Areas", icon: "🗂️" },
+      { href: "/admin/templates",  label: "Templates",  icon: "📐" },
+      { href: "/admin/areas",      label: "Areas",      icon: "🗂️" },
       { href: "/admin/navigation", label: "Navigation", icon: "🧭" },
     ],
   },
   {
     group: "Platform",
     items: [
-      { href: "/admin/users", label: "Users", icon: "👥" },
+      { href: "/admin/redirects", label: "Redirects", icon: "↪" },
+      { href: "/admin/users",    label: "Users",    icon: "👥" },
       { href: "/admin/settings", label: "Settings", icon: "⚙️" },
     ],
   },
@@ -49,17 +56,24 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("__session")?.value;
 
-  if (!user) redirect("/login");
+  if (!session) redirect("/login");
+
+  let email = "";
+  try {
+    const decoded = await getAuth().verifySessionCookie(session, true);
+    email = decoded.email ?? "";
+  } catch {
+    redirect("/login");
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
       <TopLoadingBar />
       <AdminFaviconManager />
+      {/* Sidebar */}
       <aside className="w-56 bg-gray-900 text-white flex flex-col">
         <div className="border-b border-gray-700" style={{ height: "var(--header-h)", padding: "0 16px", display: "flex", alignItems: "center", flexShrink: 0 }}>
           <span className="font-bold text-lg">CMS Admin</span>
@@ -93,11 +107,16 @@ export default async function AdminLayout({
             </div>
           ))}
         </nav>
+        <div style={{ padding: "8px 10px 4px", borderTop: "1px solid #374151" }}>
+          <DevModeToggle />
+        </div>
         <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-between">
-          <span className="text-xs text-gray-400 truncate">{user.email}</span>
+          <span className="text-xs text-gray-400 truncate">{email}</span>
           <LogoutButton />
         </div>
       </aside>
+
+      {/* Main content */}
       <main className="flex-1 overflow-auto" style={{ paddingLeft: "1.5rem", paddingRight: "1.5rem", paddingBottom: "1.5rem" }}>
         {children}
       </main>

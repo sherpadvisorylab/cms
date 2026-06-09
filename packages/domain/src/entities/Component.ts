@@ -59,6 +59,14 @@ export interface ComponentSchemaField {
   options?: { label: string; value: string }[];
   /** Inline help text shown next to the label as a tooltip. Optional. */
   helpText?: string;
+  /** Placeholder text shown in the input when empty. */
+  placeholder?: string;
+  /** Whether this field must be filled before saving a record/component. */
+  required?: boolean;
+  /** Layout width hint for the admin form: full | half | third. */
+  colWidth?: "full" | "half" | "third";
+  /** Validation rule: predefined key (e.g. "email") or custom regex string (e.g. "/^\d+$/"). */
+  validator?: string;
   /**
    * For `list` fields: the schema of each item. Nested lists are not supported
    * (one level only) for storage tractability and editor UX.

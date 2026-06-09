@@ -46,7 +46,11 @@ export interface ComponentAnimation {
 }
 
 export interface ComponentInstance {
-  componentId: string;
+  /** Discriminator: undefined or "component" = standard component block; "collection" = collection view block. */
+  blockType?: "component" | "collection";
+
+  // ── Component block fields (blockType === "component" or undefined) ──────────
+  componentId?: string;
   props: Record<string, unknown>;
   globals?: Record<string, unknown>;
   /** Optional reveal-on-scroll animation applied to the component's rendered wrapper. */
@@ -58,7 +62,19 @@ export interface ComponentInstance {
     pageId: string;
     instanceId: string;
   };
-  /** When true, the component is hidden from the public render but remains editable in the admin. */
+
+  // ── Collection block fields (blockType === "collection") ─────────────────────
+  /** Slug of the collection to embed. Required when blockType is "collection". */
+  collectionSlug?: string;
+  /** Slug of the specific view to render. If omitted, renders the default view. */
+  collectionViewSlug?: string;
+  /**
+   * When set, only these record IDs are rendered (in this order).
+   * If empty or undefined, all records matching the view filter/sort are shown.
+   */
+  filteredRecordIds?: string[];
+
+  /** When true, the block is hidden from the public render but remains visible in the admin. */
   disabled?: boolean;
 }
 

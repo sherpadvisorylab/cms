@@ -11,7 +11,8 @@ export type VariablePickerContext =
   | "component_schema"
   | "navigation_template"
   | "layout_template"
-  | "page_schema_manual";
+  | "page_schema_manual"
+  | "collection_template";
 
 type BuiltInVariableDefinition = {
   namespace: RegistryNamespace;
@@ -149,6 +150,16 @@ const CONTEXT_MATRIX: Record<VariablePickerContext, PickerContextConfig> = {
     allowIfHelper: false,
     allowForHelper: false,
   },
+  collection_template: {
+    namespaces: ["site", "page", "styles"],
+    allowLocalVariables: true,
+    localSectionLabel: "Collection Variables",
+    allowFormEmbeds: false,
+    allowNavigationEmbeds: true,
+    allowComponentEmbeds: true,
+    allowIfHelper: true,
+    allowForHelper: true,
+  },
 };
 
 export function getPickerContextConfig(context: VariablePickerContext): PickerContextConfig {
@@ -272,7 +283,7 @@ export function buildVariablePickerSections(context: VariablePickerContext, sour
         label: "UI Components",
         items: components.map((component) => ({
           label: `{{component:${normalizeComponentEmbedLabel(component)}}}`,
-          apply: `{{component:${component.id}}}`,
+          apply: `{{component:${normalizeComponentEmbedLabel(component)}}}`,
           detail: component.name + (component.namespace ? ` · ${component.namespace}` : ""),
         })),
       });

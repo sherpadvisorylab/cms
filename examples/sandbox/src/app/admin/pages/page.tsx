@@ -53,8 +53,9 @@ export default async function PagesPage({
     return {
       ...page,
       publishedVersionNumber: vd?.publishedVersionNumber ?? null,
-      componentCount: vd?.structure.length ?? 0,
+      componentCount: vd?.structure.filter((s) => !s.blockType || s.blockType === "component").length ?? 0,
       linkedComponentCount: vd?.structure.filter((s) => !!s.linkedFrom).length ?? 0,
+      collectionCount: vd?.structure.filter((s) => s.blockType === "collection").length ?? 0,
     };
   });
 

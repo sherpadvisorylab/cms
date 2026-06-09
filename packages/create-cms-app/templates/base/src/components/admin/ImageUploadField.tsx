@@ -3,6 +3,12 @@
 import { useRef, useState } from "react";
 import { MediaLibraryModal } from "./MediaLibraryModal";
 
+type DupeConfirm = {
+  slugName: string;
+  addName: string;
+  resolve: (action: "overwrite" | "add" | "cancel") => void;
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type ImageObjectValue = { url: string; alt?: string };
 export type ImageValue = string | ImageObjectValue | null | undefined;
@@ -52,6 +58,7 @@ export function ImageUploadField({
   const [error,        setError]        = useState<string | null>(null);
   const [dragOver,     setDragOver]     = useState(false);
   const [showLibrary,  setShowLibrary]  = useState(false);
+  const [dupeConfirm,  setDupeConfirm]  = useState<DupeConfirm | null>(null);
 
   const url      = getImageUrl(value);
   const alt      = getImageAlt(value);
@@ -85,16 +92,42 @@ export function ImageUploadField({
     return file.type.startsWith("image/") || file.type.startsWith("video/");
   }
 
+  function findAvailableName(slugName: string, existingNames: Set<string>): string {
+    if (!existingNames.has(slugName)) return slugName;
+    const dotIdx = slugName.lastIndexOf(".");
+    const base = dotIdx >= 0 ? slugName.slice(0, dotIdx) : slugName;
+    const ext  = dotIdx >= 0 ? slugName.slice(dotIdx) : "";
+    let counter = 2;
+    while (existingNames.has(`${base}-${counter}${ext}`)) counter++;
+    return `${base}-${counter}${ext}`;
+  }
+
   async function handleFile(file: File) {
     if (!isAcceptable(file)) { setError(`Unsupported file type: ${file.type || "unknown"}`); return; }
     setError(null);
     setUploading(true);
     try {
-      const slugName   = slugifyFilename(file.name);
+      const slugName    = slugifyFilename(file.name);
       const originalAlt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+
+      // Check for duplicate
+      const listRes = await fetch("/api/admin/list-assets");
+      const listData = await listRes.json() as { assets?: { name: string }[] };
+      const existingNames = new Set((listData.assets ?? []).map((a) => a.name));
+      let filename = slugName;
+      if (existingNames.has(slugName)) {
+        const addName = findAvailableName(slugName, existingNames);
+        const action = await new Promise<"overwrite" | "add" | "cancel">((resolve) => {
+          setDupeConfirm({ slugName, addName, resolve });
+        });
+        setDupeConfirm(null);
+        if (action === "cancel") return;
+        filename = action === "overwrite" ? slugName : addName;
+      }
+
       const form = new FormData();
       form.append("file", file);
-      form.append("filename", slugName);
+      form.append("filename", filename);
       const res  = await fetch("/api/admin/upload-asset", { method: "POST", body: form });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? `Upload failed (${res.status})`);
@@ -211,6 +244,33 @@ export function ImageUploadField({
           onSelect={(selectedUrl, selectedAlt) => emitUrl(selectedUrl, !alt ? selectedAlt : undefined)}
           onClose={() => setShowLibrary(false)}
         />
+      )}
+
+      {dupeConfirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 420, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h4 style={{ margin: "0 0 8px", fontSize: "1rem", fontWeight: 700 }}>File già esistente</h4>
+            <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              Un file con questo nome è già presente nella libreria:
+            </p>
+            <p style={{ margin: "0 0 20px", fontSize: "0.82rem", fontWeight: 600, wordBreak: "break-all", background: "var(--bg-light)", padding: "6px 10px", borderRadius: 6 }}>
+              {dupeConfirm.slugName}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn btn-danger" style={{ textAlign: "left" }} onClick={() => dupeConfirm.resolve("overwrite")}>
+                <strong>Sovrascrivi</strong>
+                <span style={{ display: "block", fontSize: "0.78rem", fontWeight: 400, opacity: 0.8 }}>Sostituisce il file esistente, il nome rimane <code>{dupeConfirm.slugName}</code></span>
+              </button>
+              <button className="btn btn-secondary" style={{ textAlign: "left" }} onClick={() => dupeConfirm.resolve("add")}>
+                <strong>Aggiungi</strong>
+                <span style={{ display: "block", fontSize: "0.78rem", fontWeight: 400, opacity: 0.8 }}>Salva come <code>{dupeConfirm.addName}</code></span>
+              </button>
+              <button className="btn btn-secondary" onClick={() => dupeConfirm.resolve("cancel")}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
       {hint && (

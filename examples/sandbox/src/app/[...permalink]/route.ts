@@ -1,8 +1,12 @@
 import { cms } from "@/lib/cms";
-import { createClient } from "@/lib/supabase/server";
+import { initAdmin } from "@/lib/firebase/admin";
+import { getAuth } from "firebase-admin/auth";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
+import { isDevModeActive } from "@/lib/devMode";
+
+initAdmin();
 
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
@@ -34,16 +38,18 @@ export async function GET(
   const isDraft = searchParams.get("draft") === "1";
 
   if (isDraft) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const session = request.headers.get("cookie")?.match(/__session=([^;]+)/)?.[1];
+    if (!session) return new Response("Unauthorized", { status: 401 });
+    try {
+      await getAuth().verifySessionCookie(session, true);
+    } catch {
       return new Response("Unauthorized", { status: 401 });
     }
   }
 
   const areaName = await getPrimaryPublicAreaName();
+  const devMode = isDevModeActive();
+  const bypassCache = isDraft || devMode;
 
   if (!isDraft) {
     const area = await cms.areas.findByKey(areaName).catch(() => null);
@@ -54,26 +60,48 @@ export async function GET(
         return normalizePermalink(page?.permalink ?? page?.slug) === normalizedPermalink;
       });
       if (isSystemPermalink) {
-        const notFound = await render404Cached(areaName).catch(() => null);
-        return new Response(
-          notFound ?? `<!DOCTYPE html><html><body><h2>404 - Not found</h2></body></html>`,
-          { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
-        );
+        const notFound = devMode
+          ? await cms.renderSystemPage(areaName, "404").then((h) => h ?? cms.renderPage(areaName, "/404", {}))
+          : await render404Cached(areaName);
+        return new Response(notFound ?? "<h1>404 Not Found</h1>", {
+          status: 404,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            ...(devMode && { "Cache-Control": "no-store, no-cache" }),
+          },
+        });
       }
     }
   }
 
-  const html = isDraft
-    ? await cms.renderPage(areaName, normalizedPermalink, { draft: true })
+  const html = bypassCache
+    ? await cms.renderPage(areaName, normalizedPermalink, { draft: isDraft })
     : await renderPageCached(areaName, normalizedPermalink);
 
   if (!html) {
-    const notFound = isDraft
+    const collectionHtml = await cms.renderCollectionDetailPage(areaName, normalizedPermalink, {
+      draft: isDraft,
+      searchParams: Object.fromEntries(new URL(request.url).searchParams),
+    });
+    if (collectionHtml) {
+      return new Response(collectionHtml, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...(bypassCache && { "Cache-Control": "no-store, no-cache" }),
+        },
+      });
+    }
+
+    const notFound = bypassCache
       ? (await cms.renderSystemPage(areaName, "404") ?? await cms.renderPage(areaName, "/404", {}))
       : await render404Cached(areaName);
     return new Response(notFound ?? "<h1>404 Not Found</h1>", {
       status: 404,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        ...(bypassCache && { "Cache-Control": "no-store, no-cache" }),
+      },
     });
   }
 
@@ -81,7 +109,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      ...(isDraft && { "Cache-Control": "no-store" }),
+      ...(bypassCache && { "Cache-Control": "no-store, no-cache" }),
     },
   });
 }

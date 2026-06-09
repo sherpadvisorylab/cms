@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { publishVersion, updateStructure } from "../../actions";
+import { publishVersion, updateStructure, unlinkComponent, getCollectionRecordsForPicker } from "../../actions";
 import { PageEditorHeader } from "../PageEditorHeader";
 import { PublishToggle } from "@/components/admin/PublishToggle";
 import { ComponentPickerModal } from "@/components/admin/ComponentPickerModal";
@@ -13,8 +13,10 @@ import type { ComponentInstance, ComponentSchemaField } from "@sherpacms/domain"
 import { validateFieldValue } from "@/components/admin/validators";
 import { SaveAsTemplateDialog } from "@/components/admin/SaveAsTemplateDialog";
 import { VersionBadge } from "@/components/admin/VersionBadge";
+import { ComponentActionModal } from "@/components/admin/ComponentActionModal";
 
 type ComponentMeta = { id: string; name: string; namespace: string | null; type: string; status: string };
+type CollectionMeta = { slug: string; name: string; views: { slug: string; name: string }[] };
 type VersionInfo = {
   id: string;
   version: number;
@@ -25,6 +27,8 @@ type VersionInfo = {
   isPublished: boolean;
 };
 type Viewport = "desktop" | "tablet" | "mobile";
+type PickerRecord = { id: string; data: Record<string, unknown> };
+type PickerData = { records: PickerRecord[]; schema: ComponentSchemaField[]; usageMap: Record<string, number> };
 
 const VIEWPORT_WIDTH: Record<Viewport, string> = {
   desktop: "100%",
@@ -320,6 +324,10 @@ function ComponentCard({
   onMoveDown,
   onRemove,
   onInsertBelow,
+  onAction,
+  onUnlink,
+  onToggleDisabled,
+  linkedPageInfo,
 }: {
   instance: ComponentInstance;
   index: number;
@@ -332,11 +340,35 @@ function ComponentCard({
   onMoveDown: () => void;
   onRemove: () => void;
   onInsertBelow: () => void;
+  onAction: (mode: "copy" | "move" | "link") => void;
+  onUnlink: () => void;
+  onToggleDisabled: () => void;
+  linkedPageInfo?: { title: string; permalink: string };
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    function handler(e: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setShowActionMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showActionMenu]);
+
+  const isLinked = !!instance.linkedFrom;
+  const isDisabled = !!instance.disabled;
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
+    <div className="card" style={{
+      marginBottom: 12,
+      ...(isLinked ? { borderColor: "#c4b5fd", borderWidth: 1.5 } : {}),
+      ...(isDisabled ? { opacity: 0.55, borderStyle: "dashed" } : {}),
+    }}>
       <div
         style={{
           display: "flex",
@@ -351,18 +383,138 @@ function ComponentCard({
         <div style={{ flex: 1 }}>
           <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{componentName}</span>
           {namespace && <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginLeft: 8 }}>{namespace}</span>}
+          {isLinked && (
+            <span style={{
+              fontSize: "0.68rem", background: "#ede9fe", color: "#6d28d9",
+              padding: "1px 8px", borderRadius: 999, marginLeft: 8, fontWeight: 600,
+            }}>
+              {"\uD83D\uDD17"} Linked
+            </span>
+          )}
+          {isDisabled && (
+            <span style={{
+              fontSize: "0.68rem", background: "#f1f5f9", color: "#64748b",
+              padding: "1px 8px", borderRadius: 999, marginLeft: 8, fontWeight: 600,
+              border: "1px dashed #cbd5e1",
+            }}>
+              Hidden
+            </span>
+          )}
         </div>
-        <div style={{ display: "flex", gap: 4 }} onClick={(event) => event.stopPropagation()}>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }} onClick={(event) => event.stopPropagation()}>
+          {/* Visible/hidden toggle */}
+          <button
+            className="btn-icon"
+            onClick={onToggleDisabled}
+            title={isDisabled ? "Enable component (show in page)" : "Disable component (hide from page)"}
+            style={{ fontSize: "0.85rem", color: isDisabled ? "var(--text-muted)" : "var(--success, #16a34a)", opacity: isDisabled ? 0.5 : 1 }}
+          >
+            {isDisabled ? "\uD83D\uDC41\uFE0F\u200D\uD83D\uDDE8\uFE0F" : "\uD83D\uDC41"}
+          </button>
+          <span style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
           <button className="btn-icon" onClick={onMoveUp} disabled={index === 0} title="Move up">{"\u25B2"}</button>
           <button className="btn-icon" onClick={onMoveDown} disabled={index >= total - 1} title="Move down">{"\u25BC"}</button>
           <button className="btn-icon" onClick={onInsertBelow} style={{ color: "var(--primary)" }} title="Insert below">+</button>
           <button className="btn-icon" onClick={onRemove} style={{ color: "var(--danger)" }} title="Remove">{"\u00D7"}</button>
+
+          {/* Actions dropdown */}
+          <div ref={actionMenuRef} style={{ position: "relative" }}>
+            <button
+              className="btn-icon"
+              title="More actions"
+              onClick={() => setShowActionMenu((v) => !v)}
+              style={{ fontSize: "1rem", letterSpacing: "0.05em" }}
+            >
+              {"\u22EF"}
+            </button>
+            {showActionMenu && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 300,
+                background: "#fff", border: "1px solid var(--border)", borderRadius: 8,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 170, overflow: "hidden",
+              }}>
+                {isLinked ? (
+                  <button
+                    onClick={() => { setShowActionMenu(false); onUnlink(); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%",
+                      padding: "9px 14px", textAlign: "left", background: "none",
+                      border: "none", cursor: "pointer", fontSize: "0.85rem",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span>{"\u26D4"}</span>
+                    <span>Unlink</span>
+                  </button>
+                ) : (
+                  <>
+                    {(["copy", "move", "link"] as const).map((actionMode) => (
+                      <button
+                        key={actionMode}
+                        onClick={() => { setShowActionMenu(false); onAction(actionMode); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10, width: "100%",
+                          padding: "9px 14px", textAlign: "left", background: "none",
+                          border: "none", cursor: "pointer", fontSize: "0.85rem",
+                          ...(actionMode === "link" ? { borderTop: "1px solid var(--border)" } : {}),
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-light)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <span>
+                          {actionMode === "copy" ? "\uD83D\uDCCB" : actionMode === "move" ? "\u2702\uFE0F" : "\uD83D\uDD17"}
+                        </span>
+                        <span>
+                          {actionMode === "copy" ? "Copy in\u2026" : actionMode === "move" ? "Move to\u2026" : "Link to\u2026"}
+                        </span>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>{collapsed ? "\u25B6" : "\u25BC"}</span>
       </div>
 
       {!collapsed && (
-        schema.length === 0 ? (
+        isLinked ? (
+          <div style={{
+            background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 8,
+            padding: "12px 16px", fontSize: "0.82rem", color: "#6d28d9",
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span>{"\uD83D\uDD17"}</span>
+              <span style={{ fontWeight: 600 }}>{"Linked component \u2014 read-only"}</span>
+            </div>
+            <div style={{ fontSize: "0.78rem", color: "#7c3aed" }}>
+              <span>Origin page: </span>
+              {linkedPageInfo ? (
+                <a
+                  href={`/admin/pages/${instance.linkedFrom!.pageId}/content`}
+                  style={{ color: "#7c3aed", fontWeight: 600, textDecoration: "underline" }}
+                >
+                  {linkedPageInfo.title}
+                  <span style={{ fontFamily: "monospace", fontWeight: 400, marginLeft: 6, opacity: 0.8 }}>
+                    ({linkedPageInfo.permalink})
+                  </span>
+                </a>
+              ) : (
+                <span style={{ fontFamily: "monospace", opacity: 0.7 }}>{instance.linkedFrom!.pageId}</span>
+              )}
+            </div>
+            <div style={{ fontSize: "0.78rem", color: "#7c3aed", opacity: 0.85 }}>
+              Origin component: <strong>{componentName}</strong>
+              {namespace && <span style={{ marginLeft: 6, opacity: 0.7 }}>{namespace}</span>}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "#9333ea", marginTop: 2, opacity: 0.75 }}>
+              Changes made on the origin page are automatically reflected here. Use <strong>Unlink</strong> in the {"\u22EF"} menu to make it independent.
+            </div>
+          </div>
+        ) : schema.length === 0 ? (
           <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>No editable fields.</p>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "12px 16px" }}>
@@ -398,6 +550,8 @@ export default function ContentPage() {
   const [structure, setStructure] = useState<ComponentInstance[]>([]);
   const [schemas, setSchemas] = useState<Record<string, ComponentSchemaField[]>>({});
   const [components, setComponents] = useState<ComponentMeta[]>([]);
+  const [collections, setCollections] = useState<CollectionMeta[]>([]);
+  const [linkedPages, setLinkedPages] = useState<Record<string, { title: string; permalink: string }>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -413,6 +567,16 @@ export default function ContentPage() {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [previewKey, setPreviewKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const [actionModal, setActionModal] = useState<{ mode: "copy" | "move" | "link"; index: number } | null>(null);
+
+  const [pickerCollectionIdx, setPickerCollectionIdx] = useState<number | null>(null);
+  const [pickerData, setPickerData] = useState<PickerData | null>(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set());
+  const [collectionRecordCache, setCollectionRecordCache] = useState<Record<string, PickerRecord[]>>({});
+  const pickerDragRef = useRef<number | null>(null);
 
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState<VersionInfo[]>([]);
@@ -436,6 +600,8 @@ export default function ContentPage() {
         setSavedStructureJson(serializeStructure(nextStructure));
         setSchemas(data.componentSchemas ?? {});
         setComponents(data.components ?? []);
+        setCollections(data.collections ?? []);
+        setLinkedPages(data.linkedPages ?? {});
         setLoading(false);
       });
   }, [pageId]);
@@ -470,6 +636,78 @@ export default function ContentPage() {
     setStructure((prev) => prev.filter((_, itemIndex) => itemIndex !== idx));
   }
 
+  function toggleDisabled(idx: number) {
+    setStructure((prev) =>
+      prev.map((item, i) => i === idx ? { ...item, disabled: !item.disabled } : item),
+    );
+  }
+
+  function updateCollectionFilter(idx: number, filteredRecordIds: string[] | undefined) {
+    setStructure((prev) =>
+      prev.map((item, i) => i === idx ? { ...item, filteredRecordIds } : item),
+    );
+  }
+
+  function reorderFilteredEntry(idx: number, fromEntry: number, toEntry: number) {
+    setStructure((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx || !item.filteredRecordIds) return item;
+        const next = [...item.filteredRecordIds];
+        const [moved] = next.splice(fromEntry, 1);
+        next.splice(toEntry, 0, moved);
+        return { ...item, filteredRecordIds: next };
+      }),
+    );
+  }
+
+  function getRecordLabel(record: PickerRecord, schema: ComponentSchemaField[]): string {
+    const labelField = schema.find((f) => f.type === "text" || f.type === "richtext");
+    if (labelField) {
+      const val = record.data[labelField.key];
+      if (typeof val === "string" && val) return val;
+    }
+    for (const v of Object.values(record.data)) {
+      if (typeof v === "string" && v) return v;
+    }
+    return record.id.slice(0, 12);
+  }
+
+  const openEntryPicker = useCallback(async (idx: number) => {
+    const instance = structure[idx];
+    if (!instance?.collectionSlug) return;
+    setPickerCollectionIdx(idx);
+    setPickerSearch("");
+    setPickerSelected(new Set(instance.filteredRecordIds ?? []));
+    setPickerData(null);
+    setPickerLoading(true);
+    try {
+      const data = await getCollectionRecordsForPicker(instance.collectionSlug);
+      setPickerData(data);
+      setCollectionRecordCache((prev) => ({ ...prev, [instance.collectionSlug!]: data.records }));
+    } finally {
+      setPickerLoading(false);
+    }
+  }, [structure]);
+
+  function closePicker() {
+    setPickerCollectionIdx(null);
+    setPickerData(null);
+    setPickerSearch("");
+    setPickerSelected(new Set());
+  }
+
+  function confirmPicker() {
+    if (pickerCollectionIdx === null) return;
+    const instance = structure[pickerCollectionIdx];
+    if (!instance) return;
+    const existing = instance.filteredRecordIds ?? [];
+    // Keep existing order for already-selected, append new ones
+    const newIds = [...pickerSelected].filter((id) => !existing.includes(id));
+    const kept = existing.filter((id) => pickerSelected.has(id));
+    updateCollectionFilter(pickerCollectionIdx, [...kept, ...newIds]);
+    closePicker();
+  }
+
   function addComponent(componentId: string) {
     const newItem: ComponentInstance = { componentId, props: {} };
 
@@ -493,6 +731,26 @@ export default function ContentPage() {
     setInsertAfter(null);
   }
 
+  function addCollectionBlock(slug: string, viewSlug?: string) {
+    const newItem: ComponentInstance = {
+      blockType: "collection",
+      collectionSlug: slug,
+      collectionViewSlug: viewSlug,
+      props: {},
+    };
+    if (insertAfter !== null) {
+      setStructure((prev) => {
+        const next = [...prev];
+        next.splice(insertAfter + 1, 0, newItem);
+        return next;
+      });
+    } else {
+      setStructure((prev) => [...prev, newItem]);
+    }
+    setShowPicker(false);
+    setInsertAfter(null);
+  }
+
   useEffect(() => {
     if (!showSaveMenu) return;
     function handler(e: MouseEvent) {
@@ -510,6 +768,50 @@ export default function ContentPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showPreviewMenu]);
+
+  async function handleActionSuccess(mode: "copy" | "move" | "link", sourceIndex: number, targetPageId: string) {
+    if (mode === "move") {
+      if (targetPageId === pageId) {
+        const data = await fetch(`/admin/pages/${pageId}/content/data`).then((r) => r.json());
+        const nextStructure = data.structure ?? [];
+        setStructure(nextStructure);
+        setSavedStructureJson(serializeStructure(nextStructure));
+        setLatestVersionId(data.latestVersionId ?? null);
+        setEditingVersionNumber(data.latestVersionNumber ?? null);
+      } else {
+        setStructure((prev) => {
+          const next = prev.filter((_, i) => i !== sourceIndex);
+          setSavedStructureJson(serializeStructure(next));
+          return next;
+        });
+        fetch(`/admin/pages/${pageId}/content/data`).then((r) => r.json()).then((data) => {
+          setLatestVersionId(data.latestVersionId ?? null);
+          setEditingVersionNumber(data.latestVersionNumber ?? null);
+        });
+      }
+    } else if (mode === "link") {
+      // Reload source page to pick up the newly assigned instanceId
+      const data = await fetch(`/admin/pages/${pageId}/content/data`).then((r) => r.json());
+      const nextStructure = data.structure ?? [];
+      setStructure(nextStructure);
+      setSavedStructureJson(serializeStructure(nextStructure));
+      setLatestVersionId(data.latestVersionId ?? null);
+      setEditingVersionNumber(data.latestVersionNumber ?? null);
+      setLinkedPages(data.linkedPages ?? {});
+    }
+    setActionModal(null);
+  }
+
+  async function handleUnlink(idx: number) {
+    await unlinkComponent(pageId, idx);
+    const data = await fetch(`/admin/pages/${pageId}/content/data`).then((r) => r.json());
+    const nextStructure = data.structure ?? [];
+    setStructure(nextStructure);
+    setSavedStructureJson(serializeStructure(nextStructure));
+    setLatestVersionId(data.latestVersionId ?? null);
+    setEditingVersionNumber(data.latestVersionNumber ?? null);
+    setLinkedPages(data.linkedPages ?? {});
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -717,17 +1019,142 @@ export default function ContentPage() {
           {structure.length === 0 ? (
             <div className="card">
               <div className="empty-state">
-                <p>No components yet. Add your first component.</p>
+                <p>No blocks yet. Add a component or a collection view.</p>
                 <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => { setInsertAfter(null); setShowPicker(true); }}>
-                  + Add component
+                  + Add block
                 </button>
               </div>
             </div>
           ) : (
             <>
               {structure.map((instance, idx) => {
-                const component = getComponent(instance.componentId);
-                const schema = schemas[instance.componentId] ?? [];
+                if (instance.blockType === "collection") {
+                  const col = collections.find((c) => c.slug === instance.collectionSlug);
+                  const view = col?.views.find((v) => v.slug === instance.collectionViewSlug);
+                  const isDisabled = !!instance.disabled;
+                  const cachedRecords = collectionRecordCache[instance.collectionSlug ?? ""];
+                  const allEntries = !instance.filteredRecordIds;
+                  return (
+                    <div
+                      key={`collection-${instance.collectionSlug}-${idx}`}
+                      className="card"
+                      style={{ marginBottom: 12, borderColor: "#bbf7d0", borderWidth: 1.5,
+                        ...(isDisabled ? { opacity: 0.55, borderStyle: "dashed" } : {}) }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 700, minWidth: 28 }}>#{idx + 1}</span>
+                        <span style={{ fontSize: "1rem" }}>🗃️</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#16a34a" }}>
+                            {col?.name ?? instance.collectionSlug}
+                          </span>
+                          {view && (
+                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 8 }}>
+                              {view.name}
+                            </span>
+                          )}
+                          {!view && instance.collectionViewSlug && (
+                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 8, fontFamily: "monospace" }}>
+                              {instance.collectionViewSlug}
+                            </span>
+                          )}
+                          <span style={{ fontSize: "0.68rem", background: "#dcfce7", color: "#16a34a",
+                            padding: "1px 8px", borderRadius: 999, marginLeft: 8, fontWeight: 600 }}>
+                            Collection
+                          </span>
+                          {isDisabled && (
+                            <span style={{ fontSize: "0.68rem", background: "#f1f5f9", color: "#64748b",
+                              padding: "1px 8px", borderRadius: 999, marginLeft: 8, fontWeight: 600,
+                              border: "1px dashed #cbd5e1" }}>
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                          <button className="btn-icon" onClick={() => toggleDisabled(idx)}
+                            title={isDisabled ? "Enable" : "Disable"}
+                            style={{ fontSize: "0.85rem", color: isDisabled ? "var(--text-muted)" : "var(--success, #16a34a)", opacity: isDisabled ? 0.5 : 1 }}>
+                            {isDisabled ? "🙈" : "👁"}
+                          </button>
+                          <span style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
+                          <button className="btn-icon" onClick={() => moveUp(idx)} disabled={idx === 0} title="Move up">▲</button>
+                          <button className="btn-icon" onClick={() => moveDown(idx)} disabled={idx >= structure.length - 1} title="Move down">▼</button>
+                          <button className="btn-icon" onClick={() => { setInsertAfter(idx); setShowPicker(true); }} style={{ color: "var(--primary)" }} title="Insert below">+</button>
+                          <button className="btn-icon" onClick={() => removeComponent(idx)} style={{ color: "var(--danger)" }} title="Remove">×</button>
+                        </div>
+                      </div>
+
+                      {/* All entries toggle */}
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.82rem", userSelect: "none" }}>
+                          <input
+                            type="checkbox"
+                            checked={allEntries}
+                            onChange={(e) => {
+                              if (e.target.checked) updateCollectionFilter(idx, undefined);
+                              else updateCollectionFilter(idx, []);
+                            }}
+                          />
+                          All entries
+                        </label>
+                        {!allEntries && (
+                          <button className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }}
+                            onClick={() => void openEntryPicker(idx)}>
+                            + Add entries
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Filtered entries list */}
+                      {!allEntries && (
+                        <div style={{ marginTop: 8 }}>
+                          {instance.filteredRecordIds!.length === 0 ? (
+                            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", padding: "6px 0" }}>
+                              No entries selected — click &ldquo;+ Add entries&rdquo; to pick.
+                            </div>
+                          ) : (
+                            instance.filteredRecordIds!.map((recId, entryIdx) => {
+                              const cached = cachedRecords?.find((r) => r.id === recId);
+                              const label = cached
+                                ? Object.values(cached.data).find((v) => typeof v === "string" && v) as string ?? recId.slice(0, 12)
+                                : recId.slice(0, 12);
+                              return (
+                                <div
+                                  key={recId}
+                                  draggable
+                                  onDragStart={() => { pickerDragRef.current = entryIdx; }}
+                                  onDragOver={(e) => { e.preventDefault(); }}
+                                  onDrop={() => {
+                                    const from = pickerDragRef.current;
+                                    if (from !== null && from !== entryIdx) reorderFilteredEntry(idx, from, entryIdx);
+                                    pickerDragRef.current = null;
+                                  }}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 8,
+                                    padding: "5px 8px", borderRadius: 6, marginBottom: 4,
+                                    background: "var(--bg-light)", border: "1px solid var(--border)",
+                                    cursor: "grab", fontSize: "0.82rem",
+                                  }}
+                                >
+                                  <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>⠿</span>
+                                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                                  <button className="btn-icon" style={{ color: "var(--danger)", fontSize: "0.7rem" }}
+                                    onClick={() => {
+                                      const next = instance.filteredRecordIds!.filter((_, i) => i !== entryIdx);
+                                      updateCollectionFilter(idx, next);
+                                    }}>×</button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const component = getComponent(instance.componentId ?? "");
+                const schema = schemas[instance.componentId ?? ""] ?? [];
                 return (
                   <ComponentCard
                     key={`${instance.componentId}-${idx}`}
@@ -735,18 +1162,22 @@ export default function ContentPage() {
                     index={idx}
                     total={structure.length}
                     schema={schema}
-                    componentName={component?.name ?? instance.componentId}
+                    componentName={component?.name ?? instance.componentId ?? ""}
                     namespace={component?.namespace ?? null}
                     onPropChange={(key, value) => updateProp(idx, key, value)}
                     onMoveUp={() => moveUp(idx)}
                     onMoveDown={() => moveDown(idx)}
                     onRemove={() => removeComponent(idx)}
                     onInsertBelow={() => { setInsertAfter(idx); setShowPicker(true); }}
+                    onAction={(mode) => setActionModal({ mode, index: idx })}
+                    onUnlink={() => handleUnlink(idx)}
+                    onToggleDisabled={() => toggleDisabled(idx)}
+                    linkedPageInfo={instance.linkedFrom ? linkedPages[instance.linkedFrom.pageId] : undefined}
                   />
                 );
               })}
               <button className="btn btn-secondary btn-sm" style={{ marginTop: 4 }} onClick={() => { setInsertAfter(null); setShowPicker(true); }}>
-                + Add component to end
+                + Add block
               </button>
             </>
           )}
@@ -797,7 +1228,26 @@ export default function ContentPage() {
       </div>
 
       {showPicker && (
-        <ComponentPickerModal components={components} onSelect={addComponent} onClose={() => { setShowPicker(false); setInsertAfter(null); }} />
+        <ComponentPickerModal
+          components={components}
+          collections={collections}
+          onSelect={addComponent}
+          onSelectCollection={addCollectionBlock}
+          onClose={() => { setShowPicker(false); setInsertAfter(null); }}
+        />
+      )}
+
+      {actionModal !== null && (
+        <ComponentActionModal
+          mode={actionModal.mode}
+          sourcePageId={pageId}
+          sourcePageTitle={title}
+          sourceIndex={actionModal.index}
+          sourceInstance={structure[actionModal.index]}
+          sourceComponentName={getComponent(structure[actionModal.index]?.componentId)?.name ?? structure[actionModal.index]?.componentId ?? ""}
+          onClose={() => setActionModal(null)}
+          onSuccess={handleActionSuccess}
+        />
       )}
 
       {showSaveAsTemplate && (
@@ -865,6 +1315,100 @@ export default function ContentPage() {
           </div>
         )}
       </SlideDrawer>
+
+      {/* Collection entry picker modal */}
+      {pickerCollectionIdx !== null && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 14, width: 560, maxWidth: "94vw", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}>
+            {/* Header */}
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: "1.1rem" }}>🗃️</span>
+              <span style={{ fontWeight: 700, fontSize: "0.95rem", flex: 1 }}>Select entries</span>
+              <button className="btn-icon" onClick={closePicker} style={{ fontSize: "1.1rem" }}>×</button>
+            </div>
+
+            {/* Search */}
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <input
+                className="form-control"
+                placeholder="Search entries…"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                style={{ fontSize: "0.85rem" }}
+                autoFocus
+              />
+            </div>
+
+            {/* List */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
+              {pickerLoading ? (
+                <div className="empty-state"><p>Loading…</p></div>
+              ) : !pickerData || pickerData.records.length === 0 ? (
+                <div className="empty-state"><p>No entries found.</p></div>
+              ) : (
+                <>
+                  {/* Table header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 80px", gap: 8, padding: "4px 16px 6px", fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>
+                    <span />
+                    <span>Entry</span>
+                    <span style={{ textAlign: "right" }}>In pages</span>
+                  </div>
+                  {pickerData.records
+                    .filter((rec) => {
+                      if (!pickerSearch) return true;
+                      const q = pickerSearch.toLowerCase();
+                      return Object.values(rec.data).some((v) => typeof v === "string" && v.toLowerCase().includes(q));
+                    })
+                    .map((rec) => {
+                      const label = getRecordLabel(rec, pickerData.schema);
+                      const checked = pickerSelected.has(rec.id);
+                      const inPages = pickerData.usageMap[rec.id] ?? 0;
+                      return (
+                        <label
+                          key={rec.id}
+                          style={{
+                            display: "grid", gridTemplateColumns: "32px 1fr 80px", gap: 8,
+                            alignItems: "center", padding: "7px 16px", cursor: "pointer",
+                            background: checked ? "#f0fdf4" : "transparent",
+                            borderBottom: "1px solid var(--border)",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setPickerSelected((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(rec.id)) next.delete(rec.id);
+                                else next.add(rec.id);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span style={{ fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                          <span style={{ fontSize: "0.78rem", color: inPages > 0 ? "#0369a1" : "var(--text-muted)", textAlign: "right", fontWeight: inPages > 0 ? 600 : 400 }}>
+                            {inPages > 0 ? inPages : "—"}
+                          </span>
+                        </label>
+                      );
+                    })}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                {pickerSelected.size} selected
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-secondary" onClick={closePicker}>Cancel</button>
+                <button className="btn btn-primary" onClick={confirmPicker}>Add selected</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -12,6 +12,7 @@ import {
   UserRepository,
   FormRepository,
   RedirectRepository,
+  CollectionRepository,
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
@@ -35,6 +36,7 @@ import {
   IUserRepository,
   IFormRepository,
   IRedirectRepository,
+  ICollectionRepository,
   IRenderEngine,
 } from "@sherpacms/domain";
 import { FormRenderer } from "@sherpacms/form-generator";
@@ -109,6 +111,7 @@ export class CMS {
   readonly users: IUserRepository;
   readonly forms: IFormRepository;
   readonly redirects: IRedirectRepository;
+  readonly collections: ICollectionRepository;
 
   // Render engine
   readonly render: IRenderEngine;
@@ -131,6 +134,7 @@ export class CMS {
     this.users = new UserRepository(storage);
     this.forms = new FormRepository(storage);
     this.redirects = new RedirectRepository(storage);
+    this.collections = new CollectionRepository(storage);
     this.render = new LiquidRenderEngine();
   }
 
@@ -329,7 +333,7 @@ export class CMS {
    * 10. Build head from area head template
    * 11. Assemble full HTML document
    */
-  async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean }): Promise<string | null> {
+  async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean; searchParams?: Record<string, string> }): Promise<string | null> {
     const draft = opts?.draft === true;
 
     // 1. Resolve page
@@ -366,6 +370,18 @@ export class CMS {
     for (const instance of version.structure) {
       if (instance.disabled) continue;
 
+      if (instance.blockType === "collection" && instance.collectionSlug) {
+        const viewPart = instance.collectionViewSlug ?? "";
+        const filterPart = instance.filteredRecordIds?.length ? instance.filteredRecordIds.join(",") : "";
+        let token = `{{collection:${instance.collectionSlug}`;
+        if (viewPart || filterPart) token += `:${viewPart}`;
+        if (filterPart) token += `|${filterPart}`;
+        token += "}}";
+        contentHtml += wrapAnimation(token, instance.animation);
+        continue;
+      }
+
+      if (!instance.componentId) continue;
       const component = await this.components.findById(instance.componentId);
       if (!component) continue;
 
@@ -440,6 +456,7 @@ export class CMS {
     };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
     contentHtml = await this.resolveNavigations(contentHtml, contentContext);
+    contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams);
     contentHtml = await this.resolveForms(contentHtml);
 
     const pageContext = this.buildPageContext(page, contentHtml);
@@ -474,6 +491,7 @@ export class CMS {
 
     bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
     bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
+    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles }, opts?.searchParams);
     bodyHtml = await this.resolveForms(bodyHtml);
 
     // 11. Render head template with namespaced globals
@@ -675,9 +693,315 @@ export class CMS {
     return result;
   }
 
+  // ── Collection pattern helpers ─────────────────────────────────────────────
+
+  /** Resolve a {field} pattern string against a variable map. slugifyValues = true for slug/permalink. */
+  private resolvePattern(
+    pattern: string,
+    vars: Record<string, unknown>,
+    slugifyValues = false,
+  ): string {
+    return pattern.replace(/\{([^}]+)\}/g, (_, key) => {
+      const raw = String(vars[key] ?? "");
+      return slugifyValues ? raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") : raw;
+    });
+  }
+
+  /** Build the computed fields (slug, permalink, metaTitle, metaDescription) for a record. */
+  private buildRecordComputedFields(
+    record: { id: string; data: Record<string, unknown> },
+    collection: import("@sherpacms/domain").CmsCollection,
+    siteName: string,
+  ): { slug: string; permalink: string; metaTitle: string; metaDescription: string } {
+    const slugPattern = collection.slugPattern || "{id}";
+    const permalinkPattern = collection.permalinkPattern || `/{collection.slug}/{record.slug}`;
+
+    const slugVars = { ...record.data, id: record.id };
+    const slug = this.resolvePattern(slugPattern, slugVars, true);
+
+    const permalinkVars = {
+      ...record.data,
+      id: record.id,
+      "record.slug": slug,
+      "collection.slug": collection.slug,
+      "collection.name": collection.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    };
+    const permalink = this.resolvePattern(permalinkPattern, permalinkVars, false);
+
+    const metaVars = { ...record.data, id: record.id, "record.slug": slug, "record.permalink": permalink, "site.name": siteName };
+    const metaTitle = collection.detailMetaTitle
+      ? this.resolvePattern(collection.detailMetaTitle, metaVars, false)
+      : String(record.data[collection.schema[0]?.key ?? ""] ?? record.id);
+    const metaDescription = collection.detailMetaDescription
+      ? this.resolvePattern(collection.detailMetaDescription, metaVars, false)
+      : "";
+
+    return { slug, permalink, metaTitle, metaDescription };
+  }
+
+  /**
+   * Render the detail page for a collection record identified by permalink.
+   * Returns null if no matching collection+record is found.
+   */
+  async renderCollectionDetailPage(
+    areaKey: string,
+    permalink: string,
+    opts?: { draft?: boolean; searchParams?: Record<string, string> },
+  ): Promise<string | null> {
+    const area = await this.areas.findByKey(areaKey);
+    const settingsObj = await this.settings.get();
+    const siteName = settingsObj?.branding?.projectName ?? area?.name ?? "";
+
+    // Find the collection and record matching this permalink
+    const allCollections = await this.collections.findAll().catch(() => []);
+    let matchedCollection: import("@sherpacms/domain").CmsCollection | null = null;
+    let matchedRecord: { id: string; data: Record<string, unknown> } | null = null;
+    let matchedComputed: ReturnType<typeof this.buildRecordComputedFields> | null = null;
+
+    for (const col of allCollections) {
+      if (col.hasDetailPage === false) continue;
+      if (!col.detailTemplate) continue;
+      const pattern = col.permalinkPattern || `/{collection.slug}/{record.slug}`;
+      // Build a regex from the pattern by expanding known static vars
+      const expandedPattern = pattern
+        .replace(/\{collection\.slug\}/g, col.slug)
+        .replace(/\{collection\.name\}/g, col.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+      const regexStr = "^" + expandedPattern.replace(/\{[^}]+\}/g, "([^/]+)") + "$";
+      const regex = new RegExp(regexStr);
+      if (!regex.test(permalink)) continue;
+
+      const records = await this.collections.findRecords(col.id).catch(() => []);
+      for (const rec of records) {
+        const computed = this.buildRecordComputedFields(rec, col, siteName);
+        if (computed.permalink === permalink || normalizePermalink(computed.permalink) === normalizePermalink(permalink)) {
+          matchedCollection = col;
+          matchedRecord = rec;
+          matchedComputed = computed;
+          break;
+        }
+      }
+      if (matchedCollection) break;
+    }
+
+    if (!matchedCollection || !matchedRecord || !matchedComputed) return null;
+
+    const recordContext = {
+      id: matchedRecord.id,
+      ...matchedRecord.data,
+      slug: matchedComputed.slug,
+      permalink: matchedComputed.permalink,
+      metaTitle: matchedComputed.metaTitle,
+      metaDescription: matchedComputed.metaDescription,
+    };
+
+    const virtualPage = {
+      title: matchedComputed.metaTitle,
+      slug: matchedComputed.slug,
+      permalink: matchedComputed.permalink,
+      seo: { metaTitle: matchedComputed.metaTitle, metaDescription: matchedComputed.metaDescription },
+    } as import("@sherpacms/domain").CmsPage;
+
+    const baseSite = this.buildSiteContext(area, settingsObj, virtualPage);
+    const basePage = this.buildPageContext(virtualPage);
+    const baseStyles = this.buildStylesContext(area, settingsObj);
+
+    // Build merged component props: collection defaults + per-record overrides
+    const recordComponentProps = (matchedRecord.data.__componentProps__ ?? {}) as Record<string, Record<string, unknown>>;
+    const propsMap: Record<string, Record<string, unknown>> = {};
+    const templateComponentSlugs = [...(matchedCollection.detailTemplate ?? "").matchAll(/\{\{component:([^}]+)\}\}/g)].map((m) => m[1]);
+    for (const slug of templateComponentSlugs) {
+      const defaults = matchedCollection.componentDefaultProps?.[slug] ?? {};
+      const overrides = recordComponentProps[slug] ?? {};
+      propsMap[slug] = { ...defaults, ...overrides };
+    }
+
+    // Render detail template with record context
+    const detailTemplate = protectCmsPlaceholders(normalizeVariableAliases(matchedCollection.detailTemplate ?? ""));
+    let contentHtml = await this.render.render({
+      template: detailTemplate,
+      data: { record: recordContext },
+      globals: { site: baseSite, page: basePage, styles: baseStyles },
+    }).then(restoreCmsPlaceholders);
+
+    const detailCss = matchedCollection.detailCss ?? "";
+    const detailJs = matchedCollection.detailJs ?? "";
+
+    const contentContext = { site: baseSite, page: basePage, styles: baseStyles };
+    contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext, propsMap);
+    contentHtml = await this.resolveNavigations(contentHtml, contentContext);
+    contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams);
+
+    const metaTags = this.buildMetaTags(virtualPage, matchedComputed.permalink);
+    const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
+    const headTrackingScripts = this.buildTrackingScripts(area, "head");
+
+    const areaCss = area?.design?.areaCss ?? "";
+    const areaJs = area?.design?.areaJs ?? "";
+    const allCss = [areaCss, detailCss].filter(Boolean).join("\n");
+    const allJs = [areaJs, detailJs].filter(Boolean).join("\n");
+    const stylesTag = allCss ? `<style>${allCss}</style>` : "";
+    const scriptsTag = allJs ? `<script>${allJs}</script>` : "";
+
+    const pageContext = this.buildPageContext(virtualPage, contentHtml);
+    const siteContext = this.buildSiteContext(area, settingsObj, virtualPage, metaTags, stylesTag + headTrackingScripts, scriptsTag, trackingScripts);
+
+    const bodyTemplate = protectCmsPlaceholders(normalizeVariableAliases(area?.design?.bodyTemplate ?? "{{page.content}}"));
+    let bodyHtml = await this.render.render({
+      template: bodyTemplate,
+      data: {},
+      globals: { page: pageContext, site: siteContext, styles: baseStyles },
+    }).then(restoreCmsPlaceholders);
+
+    if (area?.design?.bodyElements) {
+      for (const el of area.design.bodyElements) {
+        bodyHtml = bodyHtml.replace(new RegExp(escapeRegex(el.variable), "g"), el.content);
+      }
+    }
+    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
+    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
+    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles }, opts?.searchParams);
+
+    const headTemplate = protectCmsPlaceholders(normalizeVariableAliases(area?.design?.headTemplate ?? "<head><title>{{page.metaTitle}}</title></head>"));
+    const headHtml = await this.render.render({
+      template: headTemplate,
+      data: {},
+      globals: { page: pageContext, site: siteContext, styles: baseStyles },
+    }).then(restoreCmsPlaceholders);
+
+    const bodyTopTracking = this.buildTrackingScripts(area, "body-top");
+    return `<!DOCTYPE html>\n<html>\n${headHtml}\n${bodyTopTracking}${bodyHtml}\n</html>`;
+  }
+
+  /**
+   * Resolve {{collection:slug}} or {{collection:slug:view-slug}} placeholders in HTML.
+   * Applies view filter, sort, and pagination before rendering the view template.
+   */
+  private async resolveCollections(
+    html: string,
+    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+    searchParams?: Record<string, string>,
+  ): Promise<string> {
+    const pattern = /\{\{collection:([^}:]+)(?::([^}]*))?\}\}/g;
+    const matches: { full: string; slug: string; viewSlug?: string; filteredRecordIds?: string[] }[] = [];
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      const rawSecond = match[2] ?? "";
+      const pipeIdx = rawSecond.indexOf("|");
+      const viewSlug = pipeIdx >= 0 ? rawSecond.slice(0, pipeIdx) || undefined : rawSecond || undefined;
+      const filteredRecordIds = pipeIdx >= 0 ? rawSecond.slice(pipeIdx + 1).split(",").filter(Boolean) : undefined;
+      matches.push({ full: match[0], slug: match[1], viewSlug, filteredRecordIds });
+    }
+    if (matches.length === 0) return html;
+
+    let result = html;
+
+    for (const m of matches) {
+      const collection = await this.collections.findBySlug(m.slug).catch(() => null);
+      if (!collection) {
+        result = result.replace(m.full, "");
+        continue;
+      }
+
+      const view = m.viewSlug
+        ? collection.views.find((v) => v.slug === m.viewSlug)
+        : collection.views.sort((a, b) => a.order - b.order)[0];
+
+      if (!view?.template) {
+        result = result.replace(m.full, "");
+        continue;
+      }
+
+      // Load and process records
+      let records = await this.collections.findRecords(collection.id).catch(() => []);
+
+      // If filteredRecordIds is set, use only those records in that order (skip view filter/sort)
+      if (m.filteredRecordIds?.length) {
+        const byId = new Map(records.map((r) => [r.id, r]));
+        records = m.filteredRecordIds.map((id) => byId.get(id)).filter((r): r is typeof records[number] => r !== undefined);
+      } else {
+        // Filter (eq only, MVP)
+        if (view.filterField && view.filterValue !== undefined && view.filterValue !== null && view.filterValue !== "") {
+          records = records.filter((r) => r.data[view.filterField!] === view.filterValue);
+        }
+      }
+
+      // Sort (skip when filteredRecordIds defines order)
+      if (!m.filteredRecordIds?.length && view.sortField) {
+        const dir = view.sortDirection === "desc" ? -1 : 1;
+        records = records.slice().sort((a, b) => {
+          const av = a.data[view.sortField!];
+          const bv = b.data[view.sortField!];
+          if (av === bv) return 0;
+          if (av == null) return dir;
+          if (bv == null) return -dir;
+          return av < bv ? -dir : dir;
+        });
+      }
+
+      // Pagination
+      const pageSize = view.pageSize && view.pageSize > 0 ? view.pageSize : 0;
+      const currentPage = pageSize > 0 ? Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1) : 1;
+      const totalCount = records.length;
+      const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1;
+      const paginatedRecords = pageSize > 0
+        ? records.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : records;
+
+      const pagination = {
+        page: currentPage,
+        page_size: pageSize,
+        total_count: totalCount,
+        total_pages: totalPages,
+        has_prev: currentPage > 1,
+        has_next: currentPage < totalPages,
+        prev_page: Math.max(1, currentPage - 1),
+        next_page: Math.min(totalPages, currentPage + 1),
+      };
+
+      const siteNameForPattern = ctx.site["name"] ?? "";
+      const hasDetail = collection.hasDetailPage !== false;
+      const collectionContext = {
+        id: collection.id,
+        name: collection.name,
+        slug: collection.slug,
+        records: paginatedRecords.map((r) => {
+          if (!hasDetail) return { id: r.id, ...r.data };
+          const computed = this.buildRecordComputedFields(r, collection, siteNameForPattern);
+          return { id: r.id, ...r.data, slug: computed.slug, permalink: computed.permalink, metaTitle: computed.metaTitle, metaDescription: computed.metaDescription };
+        }),
+        pagination,
+      };
+
+      // Temporarily escape {{component:...}} so LiquidJS doesn't choke on the colon syntax
+      const escapedTemplate = normalizeVariableAliases(view.template).replace(
+        /\{\{component:([^}]+)\}\}/g,
+        (_: string, slug: string) => `<!--COMP_EMBED:${slug}-->`,
+      );
+
+      const rendered = await this.render.render({
+        template: escapedTemplate,
+        data: { collection: collectionContext },
+        globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
+      });
+
+      // Restore component embeds and resolve them
+      const restoredHtml = rendered.replace(/<!--COMP_EMBED:([^-][^-]*?)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
+      const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx);
+
+      let html = resolvedHtml;
+      if (view.css) html = `<style>${view.css}</style>` + html;
+      if (view.js) html = html + `<script>${view.js}</script>`;
+
+      result = result.replace(m.full, html);
+    }
+
+    return result;
+  }
+
   private async resolveComponentEmbeds(
     html: string,
     ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+    propsMap?: Record<string, Record<string, unknown>>,
   ): Promise<string> {
     let result = html;
     const allComponents = await this.components.findAll().catch(() => []);
@@ -705,9 +1029,11 @@ export class CMS {
           continue;
         }
 
+        const componentProps = propsMap?.[ref.toLowerCase()] ?? propsMap?.[normalizeComponentReference(component.name)] ?? {};
+
         const rendered = await this.render.render({
           template: protectCmsPlaceholders(normalizeVariableAliases(version.templateLiquid)),
-          data: {},
+          data: componentProps,
           globals: {
             site: ctx.site,
             page: ctx.page,
@@ -813,7 +1139,7 @@ export class CMS {
   async renderContent(
     areaKey: string,
     permalink: string,
-    opts?: { draft?: boolean },
+    opts?: { draft?: boolean; searchParams?: Record<string, string> },
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
 
@@ -847,9 +1173,23 @@ export class CMS {
     let componentJs = "";
     const seenComponentIds = new Set<string>();
 
+
+
     for (const instance of version.structure) {
       if (instance.disabled) continue;
 
+      if (instance.blockType === "collection" && instance.collectionSlug) {
+        const viewPart = instance.collectionViewSlug ?? "";
+        const filterPart = instance.filteredRecordIds?.length ? instance.filteredRecordIds.join(",") : "";
+        let token = `{{collection:${instance.collectionSlug}`;
+        if (viewPart || filterPart) token += `:${viewPart}`;
+        if (filterPart) token += `|${filterPart}`;
+        token += "}}";
+        contentHtml += wrapAnimation(token, instance.animation);
+        continue;
+      }
+
+      if (!instance.componentId) continue;
       const component = await this.components.findById(instance.componentId);
       if (!component) continue;
 
@@ -902,9 +1242,10 @@ export class CMS {
       }
     }
 
-    // 5. Resolve component, navigation and form embeds
+    // 5. Resolve component, navigation, collection and form embeds
     contentHtml = await this.resolveComponentEmbeds(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
     contentHtml = await this.resolveNavigations(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
+    contentHtml = await this.resolveCollections(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext }, opts?.searchParams);
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Append area-level CSS/JS
@@ -1131,7 +1472,8 @@ function protectCmsPlaceholders(template: string): string {
   return template
     .replace(/\{\{form:([^}]+)\}\}/g, "__CMS_FORM_$1__")
     .replace(/\{\{navigation:([^}]+)\}\}/g, "__CMS_NAV_$1__")
-    .replace(/\{\{component:([^}]+)\}\}/g, "__CMS_COMPONENT_$1__");
+    .replace(/\{\{component:([^}]+)\}\}/g, "__CMS_COMPONENT_$1__")
+    .replace(/\{\{collection:([^}]+)\}\}/g, (_, ref) => `__CMS_COL_START__${ref.replace(/:/g, "__COL_SEP__")}__CMS_COL_END__`);
 }
 
 /** Restore CMS placeholders after Liquid rendering */
@@ -1139,7 +1481,8 @@ function restoreCmsPlaceholders(html: string): string {
   return html
     .replace(/__CMS_FORM_([^_]+)__/g, "{{form:$1}}")
     .replace(/__CMS_NAV_([^_]+)__/g, "{{navigation:$1}}")
-    .replace(/__CMS_COMPONENT_([^_]+)__/g, "{{component:$1}}");
+    .replace(/__CMS_COMPONENT_([^_]+)__/g, "{{component:$1}}")
+    .replace(/__CMS_COL_START__(.*?)__CMS_COL_END__/g, (_, ref) => `{{collection:${ref.replace(/__COL_SEP__/g, ":")}}}`);
 }
 
 function normalizeComponentReference(name: string): string {

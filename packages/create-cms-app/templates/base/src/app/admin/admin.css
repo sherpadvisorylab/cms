@@ -75,6 +75,8 @@ textarea.code-editor  { font-family: 'JetBrains Mono', 'Fira Code', monospace; f
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
 .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.collection-tabs { scrollbar-width: none; -ms-overflow-style: none; }
+.collection-tabs::-webkit-scrollbar { display: none; }
 .tab  {
   padding: 10px 20px; font-size: 0.875rem; font-weight: 500; cursor: pointer;
   border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
