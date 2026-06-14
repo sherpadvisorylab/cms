@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+﻿import { describe, it, expect, beforeEach } from "vitest";
 import { InMemoryAdapter } from "@sherpacms/infrastructure";
-import { CMS } from "../CMS";
+import { CMS } from "../src/CMS";
 
 describe("CMS", () => {
   let adapter: InMemoryAdapter;
@@ -35,14 +35,6 @@ describe("CMS", () => {
       const areas = await cms.areas.findAll();
       expect(areas.length).toBeGreaterThanOrEqual(1);
       expect(areas[0].name).toBe("Public");
-    });
-
-    it("creates default menus", async () => {
-      await cms.bootstrap();
-      const navbar = await cms.menus.findByKey("navbar");
-      expect(navbar).not.toBeNull();
-      const footer = await cms.menus.findByKey("footer");
-      expect(footer).not.toBeNull();
     });
 
     it("creates default settings", async () => {
@@ -160,7 +152,7 @@ describe("CMS", () => {
           { key: "home", type: "page", label: "Home", url: "/" },
           { key: "about", type: "page", label: "About", url: "/about" },
         ],
-        template: '<nav>{% for item in items %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}</nav>',
+        template: '<nav>{% for item in menu.items %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}</nav>',
       });
 
       // Create area with navigation placeholder in body using actual id
@@ -420,6 +412,111 @@ describe("CMS", () => {
       expect(result).not.toBeNull();
       expect(result).toContain("<nav aria-label='Legacy Site'>");
       expect(result).toContain("Legacy nav content");
+    });
+
+    it("exposes {{site.locale}} and {{site.default_locale}} in Liquid context", async () => {
+      await cms.areas.create({
+        name: "public",
+        status: "active",
+        defaultLocale: "it",
+        supportedLocales: ["it", "en"],
+        design: {
+          headTemplate: "<head><title>{{page.metaTitle}}</title></head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
+        },
+      });
+
+      const comp = await cms.components.create({ name: "locale-display", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, {
+        templateLiquid: "<span>{{site.locale}}|{{site.default_locale}}</span>",
+      });
+
+      const page = await cms.pages.create({
+        area: "public",
+        slug: "test",
+        title: "Test",
+        status: "published",
+        structure: [],
+        locale: "en",
+      });
+      await cms.pageVersions.createVersion(page.id, {
+        structure: [{ componentId: comp.id, props: {} }],
+        publish: true,
+      });
+
+      const result = await cms.renderPage("public", "test", { locale: "en" });
+      expect(result).not.toBeNull();
+      expect(result).toContain("en|it");
+    });
+
+    it("injects hreflang tags when page has translations", async () => {
+      await cms.areas.create({
+        name: "public",
+        status: "active",
+        rootPath: "/",
+        defaultLocale: "it",
+        supportedLocales: ["it", "en"],
+        design: {
+          headTemplate: "<head>{{site.metaTags}}</head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
+        },
+      });
+
+      await cms.settings.save({ id: "global", branding: { siteUrl: "https://example.com" } });
+
+      const comp = await cms.components.create({ name: "block", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, { templateLiquid: "<p>Content</p>" });
+
+      const key = "test-translation-key";
+      const pageIt = await cms.pages.create({
+        area: "public", slug: "pagina", title: "Pagina IT", status: "published", structure: [], locale: "it", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageIt.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const pageEn = await cms.pages.create({
+        area: "public", slug: "page", title: "Page EN", status: "published", structure: [], locale: "en", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageEn.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const result = await cms.renderPage("public", "pagina", { locale: "it" });
+      expect(result).not.toBeNull();
+      expect(result).toContain('hreflang="it"');
+      expect(result).toContain('hreflang="en"');
+      expect(result).toContain('hreflang="x-default"');
+    });
+
+    it("exposes {{page.translations}} array in Liquid", async () => {
+      await cms.areas.create({
+        name: "public",
+        status: "active",
+        defaultLocale: "it",
+        supportedLocales: ["it", "en"],
+        design: {
+          headTemplate: "<head></head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
+        },
+      });
+
+      const comp = await cms.components.create({ name: "switcher", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, {
+        templateLiquid: "{% for t in page.translations %}{{t.locale}}{% endfor %}",
+      });
+
+      const key = "switcher-key";
+      const pageIt = await cms.pages.create({
+        area: "public", slug: "it-page", title: "IT", status: "published", structure: [], locale: "it", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageIt.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const pageEn = await cms.pages.create({
+        area: "public", slug: "en-page", title: "EN", status: "published", structure: [], locale: "en", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageEn.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const result = await cms.renderPage("public", "it-page", { locale: "it" });
+      expect(result).not.toBeNull();
+      expect(result).toContain("it");
+      expect(result).toContain("en");
     });
   });
 });

@@ -139,6 +139,7 @@ export async function createPage(formData: FormData) {
   const parentId = String(formData.get("parentId") ?? "").trim() || null;
   const hasCustomPermalink = readCustomPermalinkFlag(formData);
   const requestedPermalink = (formData.get("permalink") as string) || null;
+  const locale = (formData.get("locale") as string) || undefined;
 
   if (!area || !title || !slug || !seoTitle) {
     throw new Error("Area, title, slug, and meta title are required");
@@ -165,6 +166,7 @@ export async function createPage(formData: FormData) {
     parentId,
     status: "draft",
     structure,
+    locale: locale ?? null,
     seo: {
       metaTitle: seoTitle || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
@@ -263,6 +265,9 @@ export async function updatePage(id: string, formData: FormData) {
     permalink,
   ]);
 
+  const locale = (formData.get("locale") as string) || undefined;
+  const translationKey = (formData.get("translationKey") as string) || undefined;
+
   await cms.pages.update(id, {
     title: formData.get("title") as string,
     slug,
@@ -271,6 +276,8 @@ export async function updatePage(id: string, formData: FormData) {
     area: draftPage.area,
     status,
     parentId,
+    locale: locale ?? null,
+    translationKey: translationKey ?? null,
     seo: {
       metaTitle: (formData.get("seoTitle") as string) || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
@@ -665,6 +672,31 @@ export async function unpublishPage(pageId: string) {
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${pageId}`);
   await revalidatePublicPermalinks([permalink]);
+}
+
+// ── Translation key management ────────────────────────────────────────────────
+
+export async function setTranslationKey(pageId: string, existingKey: string | null) {
+  const translationKey = existingKey ?? crypto.randomUUID();
+  await cms.pages.update(pageId, { translationKey });
+  const siblings = await cms.pages.findByTranslationKey(translationKey).catch(() => []);
+  const allPages = await cms.pages.findAll();
+  revalidatePath(`/admin/pages/${pageId}`);
+  return {
+    translationKey,
+    siblings: siblings.map((p) => ({
+      id: p.id,
+      title: p.title,
+      locale: p.locale ?? "",
+      status: p.status,
+      permalink: allPages.find((a) => a.id === p.id)?.permalink ?? p.slug ?? "",
+    })),
+  };
+}
+
+export async function removeTranslationKey(pageId: string) {
+  await cms.pages.update(pageId, { translationKey: null });
+  revalidatePath(`/admin/pages/${pageId}`);
 }
 
 // ── Collection entry picker ───────────────────────────────────────────────────

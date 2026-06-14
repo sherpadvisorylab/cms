@@ -7,6 +7,8 @@ type SeedAreaDefinition = {
   rootPath?: string;
   siteName?: string;
   status?: "active" | "inactive";
+  defaultLocale?: string;
+  supportedLocales?: string[];
   style?: Record<string, unknown>;
   design?: Record<string, unknown>;
   legal?: Record<string, unknown>;
@@ -39,6 +41,8 @@ export async function seedAreas(cms: any) {
       rootPath: areaDef.rootPath ?? "/",
       siteName: areaDef.siteName,
       status: areaDef.status ?? "active",
+      defaultLocale: areaDef.defaultLocale,
+      supportedLocales: areaDef.supportedLocales,
       style: areaDef.style,
       design: areaDef.design,
       legal: areaDef.legal,

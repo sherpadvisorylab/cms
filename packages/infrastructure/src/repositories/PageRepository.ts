@@ -20,8 +20,23 @@ export class PageRepository implements IPageRepository {
     return pages[0] ?? null;
   }
 
-  async findAll(area?: string): Promise<CmsPage[]> {
-    return this.adapter.getAll<CmsPage>("pages", area ? { area } : undefined);
+  async findAll(area?: string, locale?: string): Promise<CmsPage[]> {
+    const filter: Record<string, unknown> = {};
+    if (area) filter.area = area;
+    if (locale) filter.locale = locale;
+    return this.adapter.getAll<CmsPage>("pages", Object.keys(filter).length ? filter : undefined);
+  }
+
+  async findByLocale(area: string, locale: string): Promise<CmsPage[]> {
+    return this.adapter.getAll<CmsPage>("pages", { area, locale });
+  }
+
+  async findByTranslationKey(translationKey: string): Promise<CmsPage[]> {
+    return this.adapter.getAll<CmsPage>("pages", { translationKey });
+  }
+
+  async findPublishedByTranslationKey(translationKey: string): Promise<CmsPage[]> {
+    return this.adapter.getAll<CmsPage>("pages", { translationKey, status: "published" });
   }
 
   async create(page: Omit<CmsPage, "id" | "createdAt" | "updatedAt">): Promise<CmsPage> {

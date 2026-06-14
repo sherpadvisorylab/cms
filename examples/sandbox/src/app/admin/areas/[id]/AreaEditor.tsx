@@ -8,6 +8,7 @@ import { saveAreaFull } from "../actions";
 import type {
   CmsArea, CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking,
   CmsAreaAccessPolicy, CmsColorSchema, CmsLegalPage, CmsSettings, CmsTrackingScript,
+  CmsLocaleEntry,
 } from "@sherpacms/domain";
 import type { ComponentEmbed } from "@/components/admin/CodeEditor";
 
@@ -43,15 +44,16 @@ interface Props {
   bodyTemplates?: AreaHtmlTemplate[];
 }
 
-type Tab = "basic" | "style" | "design" | "legal" | "tracking" | "access";
+type Tab = "basic" | "style" | "design" | "legal" | "tracking" | "access" | "localization";
 
 const TAB_LABELS: Record<Tab, string> = {
-  basic:    "Basic Data",
-  style:    "Style",
-  design:   "Design",
-  legal:    "Legal",
-  tracking: "Tracking",
-  access:   "Access",
+  basic:        "Basic Data",
+  style:        "Style",
+  design:       "Design",
+  legal:        "Legal",
+  tracking:     "Tracking",
+  access:       "Access",
+  localization: "Localization",
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -121,6 +123,19 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
   const [recoverEnabled, setRecoverEnabled] = useState(ac.recoverPasswordEnabled ?? true);
   const [recoverPage,    setRecoverPage]    = useState(ac.recoverPasswordPage    ?? "/recover-password");
 
+  // ── Localization ─────────────────────────────────────────────────────────────
+  const globalLocales = ((settings?.branding as Record<string, unknown>)?.locales as CmsLocaleEntry[] | undefined) ?? [];
+  const multiLanguageEnabled = ((settings?.branding as Record<string, unknown>)?.multiLanguageEnabled as boolean | undefined) ?? false;
+  // Default: if area has no explicit list, treat all global locales as enabled
+  const [supportedLocales, setSupportedLocales] = useState<string[]>(
+    area.supportedLocales ?? globalLocales.map((l) => l.code),
+  );
+  function toggleLocale(code: string) {
+    setSupportedLocales((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  }
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true);
@@ -145,7 +160,7 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
       recoverPasswordEnabled: recoverEnabled, recoverPasswordPage: recoverPage,
     };
     startTransition(async () => {
-      await saveAreaFull(area.id, { displayName, siteName, rootPath, description, status, style, design, legal, tracking, accessPolicy });
+      await saveAreaFull(area.id, { displayName, siteName, rootPath, description, status, style, design, legal, tracking, accessPolicy, supportedLocales: supportedLocales.length ? supportedLocales : undefined });
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -752,6 +767,114 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
                 )}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LOCALIZATION ──────────────────────────────────────────────────────── */}
+      {tab === "localization" && (
+        <div className="card">
+          <p style={{ fontSize:"0.78rem", fontWeight:700, textTransform:"uppercase",
+            letterSpacing:"0.06em", color:"var(--text-muted)", marginBottom:16 }}>Localization</p>
+
+          {!multiLanguageEnabled ? (
+            <div style={{
+              background:"var(--surface)", border:"1.5px solid var(--border)", borderRadius:8,
+              padding:"14px 16px", fontSize:"0.84rem", color:"var(--text-muted)",
+            }}>
+              Multi-language is not enabled. Go to{" "}
+              <a href="/admin/settings" style={{ color:"#3b82f6", textDecoration:"underline" }}>
+                Settings → Localization
+              </a>{" "}
+              to enable it and configure locales.
+            </div>
+          ) : globalLocales.length === 0 ? (
+            <div style={{
+              background:"var(--surface)", border:"1.5px solid var(--border)", borderRadius:8,
+              padding:"14px 16px", fontSize:"0.84rem", color:"var(--text-muted)",
+            }}>
+              No locales defined yet. Add them in{" "}
+              <a href="/admin/settings" style={{ color:"#3b82f6", textDecoration:"underline" }}>
+                Settings → Localization
+              </a>{" "}
+              first.
+            </div>
+          ) : (
+            <>
+              <span className="form-hint" style={{ display:"block", marginBottom:14 }}>
+                Locales are defined globally in Settings. Toggle each one on or off for this area.
+              </span>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"0.84rem" }}>
+                <thead>
+                  <tr style={{ borderBottom:"1.5px solid var(--border)" }}>
+                    <th style={{ textAlign:"left", padding:"6px 10px", fontWeight:600, color:"var(--text-muted)", fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Locale</th>
+                    <th style={{ textAlign:"left", padding:"6px 10px", fontWeight:600, color:"var(--text-muted)", fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Root Path</th>
+                    <th style={{ textAlign:"center", padding:"6px 10px", fontWeight:600, color:"var(--text-muted)", fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Default</th>
+                    <th style={{ textAlign:"center", padding:"6px 10px", fontWeight:600, color:"var(--text-muted)", fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.05em" }}>Enabled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {globalLocales.map((locale) => {
+                    const enabled = supportedLocales.includes(locale.code);
+                    return (
+                      <tr key={locale.code} style={{ borderBottom:"1px solid var(--border)" }}>
+                        <td style={{ padding:"10px 10px" }}>
+                          <span style={{
+                            display:"inline-block", fontFamily:"monospace", fontWeight:700,
+                            fontSize:"0.82rem", background:"var(--surface)",
+                            border:"1.5px solid var(--border)", borderRadius:5,
+                            padding:"2px 8px", color:"var(--text)",
+                          }}>{locale.code.toUpperCase()}</span>
+                        </td>
+                        <td style={{ padding:"10px 10px", fontFamily:"monospace", fontSize:"0.82rem", color:"var(--text-muted)" }}>
+                          {locale.rootPath}
+                        </td>
+                        <td style={{ padding:"10px 10px", textAlign:"center" }}>
+                          {locale.isDefault && (
+                            <span style={{
+                              display:"inline-block", fontSize:"0.72rem", fontWeight:700,
+                              background:"rgba(59,130,246,0.1)", color:"#2563eb",
+                              border:"1.5px solid rgba(59,130,246,0.3)", borderRadius:4,
+                              padding:"2px 7px",
+                            }}>default</span>
+                          )}
+                        </td>
+                        <td style={{ padding:"10px 10px", textAlign:"center" }}>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={enabled}
+                            onClick={() => toggleLocale(locale.code)}
+                            style={{
+                              position:"relative", display:"inline-block",
+                              width:40, height:22, borderRadius:11,
+                              background: enabled ? "#3b82f6" : "#d1d5db",
+                              border:"none", cursor:"pointer", padding:0,
+                              transition:"background 0.2s",
+                            }}
+                          >
+                            <span style={{
+                              position:"absolute", top:3,
+                              left: enabled ? 20 : 3,
+                              width:16, height:16, borderRadius:"50%",
+                              background:"#fff", transition:"left 0.2s",
+                            }} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {supportedLocales.length === 0 && (
+                <div style={{
+                  marginTop:12, background:"#fef3c7", border:"1.5px solid #f59e0b",
+                  borderRadius:8, padding:"10px 14px", fontSize:"0.82rem", color:"#92400e",
+                }}>
+                  No locales are enabled for this area — it will behave as monolingual.
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

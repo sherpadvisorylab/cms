@@ -1,0 +1,31 @@
+{
+  "name": "Language Switcher",
+  "namespace": "system",
+  "type": "ui",
+  "category": "System",
+  "status": "published",
+  "version": {
+    "templateLiquid": "{% if page.translations.size > 0 %}<nav class=\"ls-nav ls-style-{{ style | default: 'pills' }}\" aria-label=\"Language\">{% for t in page.translations %}<a href=\"{{ t.url }}\" class=\"ls-item{% if t.is_current %} ls-active{% endif %}\" hreflang=\"{{ t.locale }}\" data-locale=\"{{ t.locale }}\">{% if show_flags %}{{ t.locale | upcase }}{% else %}{{ t.label }}{% endif %}</a>{% endfor %}</nav><script>(function(){var items=document.querySelectorAll('.ls-item[data-locale]');items.forEach(function(el){el.addEventListener('click',function(e){e.preventDefault();var locale=el.getAttribute('data-locale');document.cookie='NEXT_LOCALE='+locale+';path=/;max-age=31536000;SameSite=Lax';window.location.href=el.getAttribute('href');});});})();</script>{% endif %}",
+    "schema": [
+      {
+        "key": "style",
+        "label": "Display Style",
+        "type": "select",
+        "defaultValue": "pills",
+        "options": [
+          { "label": "Pills", "value": "pills" },
+          { "label": "Dropdown", "value": "dropdown" },
+          { "label": "Inline Links", "value": "inline" }
+        ]
+      },
+      {
+        "key": "show_flags",
+        "label": "Show locale code instead of label",
+        "type": "toggle",
+        "defaultValue": false
+      }
+    ],
+    "css": ".ls-nav{display:flex;gap:.5rem;align-items:center}.ls-nav.ls-style-pills .ls-item{padding:.35rem .9rem;border-radius:999px;font-size:.85rem;font-weight:500;text-decoration:none;border:1px solid currentColor;opacity:.6;transition:opacity .15s,background .15s}.ls-nav.ls-style-pills .ls-item.ls-active{opacity:1;background:var(--primary,#2563eb);color:#fff;border-color:var(--primary,#2563eb)}.ls-nav.ls-style-inline .ls-item{font-size:.85rem;text-decoration:none;opacity:.6;padding:.2rem .4rem}.ls-nav.ls-style-inline .ls-item.ls-active{opacity:1;font-weight:600}.ls-nav.ls-style-dropdown{position:relative}.ls-nav.ls-style-dropdown .ls-item{display:none}.ls-nav.ls-style-dropdown .ls-item.ls-active{display:inline-block;cursor:pointer}",
+    "js": ""
+  }
+}

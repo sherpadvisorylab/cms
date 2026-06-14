@@ -149,7 +149,7 @@ export class CMS {
   async renderSystemPage(
     areaKey: string,
     type: string,
-    opts?: { draft?: boolean },
+    opts?: { draft?: boolean; locale?: string },
   ): Promise<string | null> {
     const area = await this.areas.findByKey(areaKey);
     const pageId = area?.systemPages?.[type];
@@ -157,7 +157,7 @@ export class CMS {
     const allPages = await this.pages.findAll(areaKey);
     const page = allPages.find((p) => p.id === pageId) ?? null;
     if (!page) return null;
-    return this.renderPage(areaKey, page.permalink ?? page.slug, opts);
+    return this.renderPage(areaKey, this.resolveSystemPagePath(type), opts);
   }
 
   /**
@@ -176,7 +176,7 @@ export class CMS {
     const allPages = await this.pages.findAll(areaKey);
     const page = allPages.find((p) => p.id === pageId) ?? null;
     if (!page) return null;
-    return this.renderContent(areaKey, page.permalink ?? page.slug);
+    return this.renderContent(areaKey, this.resolveSystemPagePath(type));
   }
 
   /**
@@ -333,15 +333,23 @@ export class CMS {
    * 10. Build head from area head template
    * 11. Assemble full HTML document
    */
-  async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean; searchParams?: Record<string, string> }): Promise<string | null> {
+  async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean; locale?: string; searchParams?: Record<string, string> }): Promise<string | null> {
     const draft = opts?.draft === true;
+    const area = await this.areas.findByKey(areaKey);
 
     // 1. Resolve page
     let page = await this.pages.findByPermalink(areaKey, permalink);
+    if (!page) {
+      page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink);
+    }
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
       const normalizedPermalink = normalizePermalink(permalink);
-      page = all.find((p) => normalizePermalink(p.permalink ?? p.slug) === normalizedPermalink) ?? null;
+      page = all.find((p) => {
+        const pagePermalink = this.resolveCanonicalPagePermalink(area, p);
+        return pagePermalink === normalizedPermalink
+          || normalizePermalink(p.permalink ?? p.slug) === normalizedPermalink;
+      }) ?? null;
     }
     if (!page) return null;
     if (!draft && page.status !== "published") return null;
@@ -354,11 +362,13 @@ export class CMS {
     }
 
     // 2. Load area and settings
-    const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
 
-    const basePage = this.buildPageContext(page);
-    const baseSite = this.buildSiteContext(area, settingsObj, page);
+    const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
+
+    const basePage = this.buildPageContext(page, "", translations, area);
+    const baseSite = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);
     const baseStyles = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
@@ -434,9 +444,15 @@ export class CMS {
       }
     }
 
+    const hreflangEntries = translations.map((t) => ({
+      locale: t.locale,
+      url: t.url,
+      isDefault: t.locale === (area?.defaultLocale ?? ""),
+    }));
     const metaTags = this.buildMetaTags(
       page as CmsPage,
-      this.buildPublicPageUrl(area, settingsObj, page),
+      this.buildPublicPageUrl(area, settingsObj, page, effectiveLocale, area?.defaultLocale ?? ""),
+      hreflangEntries,
     );
     const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
 
@@ -451,7 +467,7 @@ export class CMS {
 
     const contentContext = {
       page: basePage,
-        site: this.buildSiteContext(area, settingsObj, page),
+      site: this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale),
       styles: baseStyles,
     };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
@@ -459,18 +475,28 @@ export class CMS {
     contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams);
     contentHtml = await this.resolveForms(contentHtml);
 
-    const pageContext = this.buildPageContext(page, contentHtml);
+    const pageContext = this.buildPageContext(page, contentHtml, translations, area);
     const siteContext = this.buildSiteContext(
       area,
-        settingsObj,
-        page,
-        metaTags,
+      settingsObj,
+      page,
+      metaTags,
       stylesTag + headTrackingScripts,
       scriptsTag,
       trackingScripts,
+      effectiveLocale,
     );
 
     // 6. Render body template with the same globals contract used by component Liquid
+    // bodyElements are passed as top-level globals so {{variableName}} resolves via Liquid
+    const bodyElementsGlobals: Record<string, string> = {};
+    if (area?.design?.bodyElements) {
+      for (const el of area.design.bodyElements) {
+        const key = el.variable.replace(/^\{\{|\}\}$/g, "").trim();
+        if (key) bodyElementsGlobals[key] = el.content;
+      }
+    }
+
     const bodyTemplate = protectCmsPlaceholders(normalizeVariableAliases(area?.design?.bodyTemplate ?? "{{page.content}}"));
     let bodyHtml = await this.render.render({
       template: bodyTemplate,
@@ -479,15 +505,9 @@ export class CMS {
         page: pageContext,
         site: siteContext,
         styles: baseStyles,
+        ...bodyElementsGlobals,
       },
     }).then(restoreCmsPlaceholders);
-
-    if (area?.design?.bodyElements) {
-      for (const el of area.design.bodyElements) {
-        const pattern = new RegExp(escapeRegex(el.variable), "g");
-        bodyHtml = bodyHtml.replace(pattern, el.content);
-      }
-    }
 
     bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
     bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
@@ -604,45 +624,127 @@ export class CMS {
     stylesMarkup = "",
     scriptsMarkup = "",
     trackingScripts = "",
-  ): Record<string, string> {
-    const site = Object.fromEntries(
+    effectiveLocale = "",
+  ): Record<string, unknown> {
+    const site: Record<string, unknown> = Object.fromEntries(
       this.getMergedSettingVariables(settings)
         .filter((variable) => variable.namespace === "site")
         .map((variable) => [variable.key, this.resolveVariableValue(variable)]),
     );
 
-    site.name = area?.siteName || site.name || settings?.branding?.projectName || area?.displayName || area?.name || "";
-    site.permalink = page ? this.buildPublicPageUrl(area, settings, page) : (site.permalink || "");
-    site.logo = area?.style?.logoLight || site.logo || settings?.branding?.logoLight || "";
-    site.logoDark = area?.style?.logoDark || site.logoDark || settings?.branding?.logoDark || "";
-    site.favicon = area?.style?.favicon || site.favicon || settings?.branding?.favicon || "";
+    site.name = area?.siteName || (site.name as string) || settings?.branding?.projectName || area?.displayName || area?.name || "";
+    site.permalink = page ? this.buildPublicPageUrl(area, settings, page, effectiveLocale, area?.defaultLocale ?? "") : ((site.permalink as string) || "");
+    site.logo = area?.style?.logoLight || (site.logo as string) || settings?.branding?.logoLight || "";
+    site.logoDark = area?.style?.logoDark || (site.logoDark as string) || settings?.branding?.logoDark || "";
+    site.favicon = area?.style?.favicon || (site.favicon as string) || settings?.branding?.favicon || "";
     site.metaTags = metaTags;
     site.styles = stylesMarkup;
     site.scripts = scriptsMarkup;
     site.trackingScripts = trackingScripts;
+    site.locale = effectiveLocale || area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+    site.default_locale = area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+    site.supported_locales = area?.supportedLocales ?? [];
 
     return site;
   }
 
-  private buildPublicPageUrl(area: CmsArea | null, settings: CmsSettings | null, page: CmsPage): string {
-    const pagePermalink = normalizePermalink(page.permalink ?? page.slug);
+  private buildPublicPageUrl(
+    area: CmsArea | null,
+    settings: CmsSettings | null,
+    page: CmsPage,
+    effectiveLocale = "",
+    defaultLocale = "",
+  ): string {
+    const pagePermalink = this.resolveCanonicalPagePermalink(area, page);
     const rootPath = normalizeAreaRootPath(area?.rootPath);
-    const relativePath = pagePermalink === "/" ? (rootPath || "/") : `${rootPath}${pagePermalink}`;
-    const siteUrl = normalizeSiteUrl(settings?.branding?.siteUrl);
 
+    const resolvedDefaultLocale = defaultLocale || area?.defaultLocale || "";
+    const isNonDefaultLocale = effectiveLocale && resolvedDefaultLocale && effectiveLocale !== resolvedDefaultLocale;
+    const localePrefix = isNonDefaultLocale ? `/${effectiveLocale}` : "";
+
+    const relativePath = pagePermalink === "/"
+      ? (localePrefix || rootPath || "/")
+      : `${localePrefix}${rootPath}${pagePermalink}`;
+
+    const siteUrl = normalizeSiteUrl(settings?.branding?.siteUrl);
     if (!siteUrl) return relativePath || "/";
     return relativePath === "/" ? `${siteUrl}/` : `${siteUrl}${relativePath}`;
   }
 
-  private buildPageContext(page: CmsPage, content = ""): Record<string, string> {
+  /**
+   * Resolve published translations for a page (all locale versions linked by translationKey).
+   * Returns an array ready for {{page.translations}} Liquid context.
+   */
+  private async resolvePageTranslations(
+    page: CmsPage,
+    area: CmsArea | null,
+    settings: CmsSettings | null,
+    effectiveLocale: string,
+  ): Promise<Array<{ locale: string; label: string; url: string; is_current: boolean }>> {
+    if (!page.translationKey) return [];
+    const siblings = await this.pages.findPublishedByTranslationKey(page.translationKey).catch(() => []);
+    if (siblings.length <= 1) return [];
+    return siblings.map((p) => {
+      const loc = p.locale ?? area?.defaultLocale ?? "";
+      return {
+        locale: loc,
+        label: loc.toUpperCase(),
+        url: this.buildPublicPageUrl(area, settings, p, loc, area?.defaultLocale ?? ""),
+        is_current: loc === effectiveLocale,
+      };
+    });
+  }
+
+  private buildPageContext(
+    page: CmsPage,
+    content = "",
+    translations: Array<{ locale: string; label: string; url: string; is_current: boolean }> = [],
+    area: CmsArea | null = null,
+  ): Record<string, unknown> {
     return {
       title: page.title,
       slug: page.slug,
-      permalink: page.permalink ?? normalizePermalink(page.slug),
+      permalink: this.resolveCanonicalPagePermalink(area, page),
       metaTitle: page.seo?.metaTitle ?? page.seoTitle ?? page.title,
       metaDescription: page.seo?.metaDescription ?? page.seoDescription ?? "",
       content,
+      locale: page.locale ?? "",
+      translation_key: page.translationKey ?? "",
+      translations,
     };
+  }
+
+  private resolveSystemPagePath(type: string): string {
+    return type === "home" ? "/" : normalizePermalink(`/${type}`);
+  }
+
+  private resolveCanonicalPagePermalink(area: CmsArea | null, page: CmsPage): string {
+    if (area?.systemPages) {
+      const matchedEntry = Object.entries(area.systemPages).find(([, pageId]) => pageId === page.id);
+      if (matchedEntry) {
+        return this.resolveSystemPagePath(matchedEntry[0]);
+      }
+    }
+    return normalizePermalink(page.permalink ?? page.slug);
+  }
+
+  private async findSystemPageByCanonicalPermalink(
+    areaKey: string,
+    area: CmsArea | null,
+    permalink: string,
+  ): Promise<CmsPage | null> {
+    const normalizedPermalink = normalizePermalink(permalink);
+    if (!area?.systemPages) return null;
+
+    const systemEntry = Object.entries(area.systemPages).find(
+      ([type]) => this.resolveSystemPagePath(type) === normalizedPermalink,
+    );
+    if (!systemEntry) return null;
+
+    const pageId = systemEntry[1];
+    if (!pageId) return null;
+    const allPages = await this.pages.findAll(areaKey);
+    return allPages.find((p) => p.id === pageId) ?? null;
   }
 
   /**
@@ -650,7 +752,7 @@ export class CMS {
    */
   private async resolveNavigations(
     html: string,
-    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
   ): Promise<string> {
     const navPattern = /\{\{navigation:([^}]+)\}\}/g;
     let match;
@@ -746,7 +848,7 @@ export class CMS {
   async renderCollectionDetailPage(
     areaKey: string,
     permalink: string,
-    opts?: { draft?: boolean; searchParams?: Record<string, string> },
+    opts?: { draft?: boolean; locale?: string; searchParams?: Record<string, string> },
   ): Promise<string | null> {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
@@ -878,7 +980,7 @@ export class CMS {
    */
   private async resolveCollections(
     html: string,
-    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
     searchParams?: Record<string, string>,
   ): Promise<string> {
     const pattern = /\{\{collection:([^}:]+)(?::([^}]*))?\}\}/g;
@@ -958,7 +1060,7 @@ export class CMS {
         next_page: Math.min(totalPages, currentPage + 1),
       };
 
-      const siteNameForPattern = ctx.site["name"] ?? "";
+      const siteNameForPattern = (ctx.site["name"] as string | undefined) ?? "";
       const hasDetail = collection.hasDetailPage !== false;
       const collectionContext = {
         id: collection.id,
@@ -1000,7 +1102,7 @@ export class CMS {
 
   private async resolveComponentEmbeds(
     html: string,
-    ctx: { site: Record<string, string>; page: Record<string, string>; styles: Record<string, string> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
     propsMap?: Record<string, Record<string, unknown>>,
   ): Promise<string> {
     let result = html;
@@ -1084,7 +1186,11 @@ export class CMS {
    * Build meta tags from page SEO data.
    * Supports both new nested seo object and legacy flat fields.
    */
-  private buildMetaTags(page: CmsPage, canonicalUrl: string): string {
+  private buildMetaTags(
+    page: CmsPage,
+    canonicalUrl: string,
+    hreflangEntries: Array<{ locale: string; url: string; isDefault: boolean }> = [],
+  ): string {
     const tags: string[] = [];
     const desc = page.seo?.metaDescription ?? page.seoDescription;
     const keywords = page.seo?.keywords;
@@ -1096,6 +1202,12 @@ export class CMS {
     }
     if (keywords) {
       tags.push(`<meta name="keywords" content="${escapeAttr(keywords)}">`);
+    }
+    for (const entry of hreflangEntries) {
+      tags.push(`<link rel="alternate" hreflang="${escapeAttr(entry.locale)}" href="${escapeAttr(entry.url)}">`);
+      if (entry.isDefault) {
+        tags.push(`<link rel="alternate" hreflang="x-default" href="${escapeAttr(entry.url)}">`);
+      }
     }
     return tags.join("\n  ");
   }
@@ -1139,7 +1251,7 @@ export class CMS {
   async renderContent(
     areaKey: string,
     permalink: string,
-    opts?: { draft?: boolean; searchParams?: Record<string, string> },
+    opts?: { draft?: boolean; locale?: string; searchParams?: Record<string, string> },
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
 
@@ -1163,8 +1275,11 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
 
-    const pageContext = this.buildPageContext(page);
-    const siteContext = this.buildSiteContext(area, settingsObj, page);
+    const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
+
+    const pageContext = this.buildPageContext(page, "", translations, area);
+    const siteContext = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);
     const stylesContext = this.buildStylesContext(area, settingsObj);
 
     // 4. Render each component + collect CSS/JS
@@ -1283,7 +1398,7 @@ export class CMS {
       for (const page of pages) {
         if (page.status !== "published") continue;
 
-        const pagePermalink = normalizePermalink(page.permalink ?? page.slug);
+        const pagePermalink = this.resolveCanonicalPagePermalink(area, page);
         const isHome = pagePermalink === "/";
         const loc = isHome
           ? `${baseUrl}${rootPath || "/"}`

@@ -36,10 +36,27 @@ export interface CmsVariableDefinition {
   options?: CmsVariableOption[];
 }
 
+/** Per-locale routing configuration. */
+export interface CmsLocaleEntry {
+  /** BCP 47 locale code, e.g. "it", "en", "fr". */
+  code: string;
+  /** URL path prefix for this locale. Default locale is typically "/", others "/en", "/fr" etc. */
+  rootPath: string;
+  /** True for exactly one locale — the one served at rootPath ("/"). */
+  isDefault?: boolean;
+}
+
 export interface CmsSettingsBranding {
   projectName?: string;
   siteUrl?: string;
+  /** Default locale code (kept for monolingual fallback and backward compat). Authoritative value comes from locales[isDefault].code when multi-language is enabled. */
   defaultLanguage?: string;
+  /** Whether multi-language routing is active. When false the site behaves as mono-lingual. */
+  multiLanguageEnabled?: boolean;
+  /** Ordered locale configurations. Replaces the flat supportedLocales array. */
+  locales?: CmsLocaleEntry[];
+  /** Flat list of supported locale codes — kept in sync with locales[] for backward compat. */
+  supportedLocales?: string[];
   defaultTimezone?: string;
   logoLight?: string;
   logoDark?: string;

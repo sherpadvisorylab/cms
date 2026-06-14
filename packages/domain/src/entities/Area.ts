@@ -113,6 +113,18 @@ export interface CmsArea {
   rootPath?: string;
   status: "active" | "inactive";
   pagesCount?: number;
+  /**
+   * IETF BCP 47 locale code served at rootPath (e.g. "it").
+   * Pages with this locale are accessible without a locale prefix.
+   * Falls back to SHERPA_DEFAULT_LOCALE env var when not set.
+   */
+  defaultLocale?: string | null;
+  /**
+   * All locale codes supported by this area (e.g. ["it", "en", "fr"]).
+   * Non-default locales are served at /<locale>/... paths.
+   * Pages with a locale not in this list cannot be published.
+   */
+  supportedLocales?: string[] | null;
   style?: CmsAreaStyle;
   design?: CmsAreaDesign;
   legal?: CmsAreaLegal;

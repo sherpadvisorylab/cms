@@ -4,19 +4,21 @@ import { useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import type {
   CmsSettings,
+  CmsLocaleEntry,
   CmsVariableDefinition,
   CmsVariableNamespace,
   CmsVariableType,
 } from "@sherpacms/domain";
-import { saveBranding, saveAuthentication, saveSystemVars } from "./actions";
+import { saveBranding, saveAuthentication, saveSystemVars, saveLocalization } from "./actions";
 import { ImageUploadField, getImageUrl, type ImageValue } from "@/components/admin/ImageUploadField";
 import { BUILT_IN_STYLE_VARIABLES, mergeSettingVariables } from "@/lib/variables/registry";
 
-type Tab = "branding" | "auth" | "systemvars" | "backup";
+type Tab = "branding" | "localization" | "auth" | "systemvars" | "backup";
 type EditableVariableRow = CmsVariableDefinition & { id: string };
 
 const TAB_LABELS: Record<Tab, string> = {
   branding: "Branding & defaults",
+  localization: "Localization",
   auth: "Authentication",
   systemvars: "System variables",
   backup: "Backup",
@@ -94,6 +96,43 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
   const [logoDark, setLogoDark] = useState<ImageValue>((settings?.branding as any)?.logoDark ?? "");
   const [favicon, setFavicon] = useState<ImageValue>((settings?.branding as any)?.favicon ?? "");
 
+  const initLocales: CmsLocaleEntry[] = (() => {
+    const stored = (settings?.branding as any)?.locales as CmsLocaleEntry[] | undefined;
+    if (stored?.length) return stored;
+    const defLang = (settings?.branding as any)?.defaultLanguage as string | undefined;
+    if (defLang) return [{ code: defLang, rootPath: "/", isDefault: true }];
+    return [];
+  })();
+  const [multiLangEnabled, setMultiLangEnabled] = useState<boolean>(
+    (settings?.branding as any)?.multiLanguageEnabled ?? false
+  );
+  const [locales, setLocales] = useState<CmsLocaleEntry[]>(initLocales);
+  const [newLocaleCode, setNewLocaleCode] = useState("");
+
+  function addLocale(raw: string) {
+    const code = raw.trim().toLowerCase().replace(/[^a-z-]/g, "");
+    if (!code || locales.some((l) => l.code === code)) { setNewLocaleCode(""); return; }
+    const isFirst = locales.length === 0;
+    setLocales((prev) => [...prev, { code, rootPath: isFirst ? "/" : `/${code}`, isDefault: isFirst }]);
+    setNewLocaleCode("");
+  }
+
+  function removeLocale(code: string) {
+    setLocales((prev) => {
+      const next = prev.filter((l) => l.code !== code);
+      if (next.length && !next.some((l) => l.isDefault)) next[0] = { ...next[0], isDefault: true };
+      return next;
+    });
+  }
+
+  function setDefaultLocale(code: string) {
+    setLocales((prev) => prev.map((l) => ({ ...l, isDefault: l.code === code })));
+  }
+
+  function updateRootPath(code: string, rootPath: string) {
+    setLocales((prev) => prev.map((l) => (l.code === code ? { ...l, rootPath } : l)));
+  }
+
   function onSave(action: (fd: FormData) => Promise<void>) {
     return async (fd: FormData) => {
       startTransition(async () => {
@@ -165,6 +204,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
               </div>
             </div>
 
+
             <input type="hidden" name="logoLight" value={getImageUrl(logoLight)} />
             <input type="hidden" name="logoDark" value={getImageUrl(logoDark)} />
             <input type="hidden" name="favicon" value={getImageUrl(favicon)} />
@@ -215,6 +255,130 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
 
           <button type="submit" className="btn btn-primary" disabled={pending}>
             {pending ? "Saving..." : "Save branding"}
+          </button>
+        </form>
+      )}
+
+      {tab === "localization" && (
+        <form action={onSave(saveLocalization)}>
+          <input type="hidden" name="locales" value={JSON.stringify(locales)} />
+          <input type="hidden" name="multiLanguageEnabled" value={multiLangEnabled ? "on" : "off"} />
+
+          {/* Multi-language toggle */}
+          <div className="card" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={multiLangEnabled}
+              onClick={() => setMultiLangEnabled((v) => !v)}
+              style={{
+                flexShrink: 0, marginTop: 3,
+                width: 40, height: 22, borderRadius: 11, padding: 0, border: "none",
+                background: multiLangEnabled ? "#3b82f6" : "#d1d5db",
+                cursor: "pointer", position: "relative", transition: "background 0.2s",
+              }}
+            >
+              <span style={{
+                display: "block",
+                position: "absolute", top: 3, left: multiLangEnabled ? 20 : 3,
+                width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }} />
+            </button>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "0.95rem", marginBottom: 2 }}>Enable multi-language</div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                Pages are served at <code>/{"<locale>"}</code> paths. Language switcher appears in the admin sidebar.
+                When disabled, the site behaves as mono-lingual using the Default language from Branding.
+              </div>
+            </div>
+          </div>
+
+          {/* Locale table */}
+          {multiLangEnabled && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 16 }}>
+                Configure the locales this platform supports. Areas inherit this list unless they override it.
+                The <strong>Default</strong> locale is served at the area root path (<code>/</code>); others at their root path.
+              </p>
+
+              {locales.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16, fontSize: "0.875rem" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                      <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 600, color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Locale</th>
+                      <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 600, color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Root path</th>
+                      <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 600, color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Default</th>
+                      <th style={{ width: 48 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {locales.map((loc) => (
+                      <tr key={loc.code} style={{ borderBottom: "1px solid var(--border)" }}>
+                        <td style={{ padding: "8px 10px" }}>
+                          <span style={{
+                            display: "inline-block", padding: "2px 10px", borderRadius: 6,
+                            background: loc.isDefault ? "rgba(59,130,246,0.12)" : "var(--bg-secondary, #f3f4f6)",
+                            border: loc.isDefault ? "1px solid rgba(59,130,246,0.35)" : "1px solid var(--border)",
+                            fontWeight: 700, fontSize: "0.8rem", letterSpacing: "0.06em",
+                            color: loc.isDefault ? "#3b82f6" : "inherit",
+                          }}>
+                            {loc.code.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <input
+                            className="form-control"
+                            style={{ maxWidth: 160, padding: "4px 8px", fontSize: "0.85rem" }}
+                            value={loc.rootPath}
+                            onChange={(e) => updateRootPath(loc.code, e.target.value)}
+                            placeholder={loc.isDefault ? "/" : `/${loc.code}`}
+                          />
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                          <input
+                            type="radio"
+                            name="defaultLocaleRadio"
+                            checked={!!loc.isDefault}
+                            onChange={() => setDefaultLocale(loc.code)}
+                            style={{ accentColor: "#3b82f6", width: 16, height: 16, cursor: "pointer" }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px 6px", textAlign: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => removeLocale(loc.code)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: "1rem", padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}
+                            title={`Remove ${loc.code.toUpperCase()}`}
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {/* Add locale */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  className="form-control"
+                  style={{ maxWidth: 120, padding: "5px 10px" }}
+                  placeholder="it, en, fr…"
+                  value={newLocaleCode}
+                  onChange={(e) => setNewLocaleCode(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLocale(newLocaleCode); } }}
+                />
+                <button type="button" className="btn btn-secondary" onClick={() => addLocale(newLocaleCode)}>
+                  Add locale
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button type="submit" className="btn btn-primary" disabled={pending}>
+            {pending ? "Saving..." : "Save localization"}
           </button>
         </form>
       )}

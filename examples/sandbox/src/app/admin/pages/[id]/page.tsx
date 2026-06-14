@@ -1,6 +1,7 @@
 import { cms } from "@/lib/cms";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { updatePage, deletePage } from "../actions";
 import { PageSettingsActions } from "./PageSettingsActions";
 import { PageSchemaEditor } from "./PageSchemaEditor";
@@ -9,6 +10,8 @@ import { PageEditorHeader } from "./PageEditorHeader";
 import { VersionBadge } from "@/components/admin/VersionBadge";
 import { buildAdminDocumentTitle } from "@/lib/adminMetadata";
 import { PageSettingsFormSections } from "./PageSettingsFormSections";
+import { TranslationsPanel } from "./TranslationsPanel";
+import { ADMIN_LOCALE_COOKIE } from "@/lib/i18n";
 
 export async function generateMetadata({
   params,
@@ -39,6 +42,9 @@ export default async function PageSettingsPage({
     cms.components.findAll(),
   ]);
 
+  const cookieStore = await cookies();
+  const adminLocale = cookieStore.get(ADMIN_LOCALE_COOKIE)?.value ?? "";
+
   const pageArea = areas.find((area) => area.name === allPages.find((page) => page.id === id)?.area);
   const currentSystemType = pageArea?.systemPages
     ? Object.entries(pageArea.systemPages).find(([, pageId]) => pageId === id)?.[0] ?? null
@@ -58,7 +64,7 @@ export default async function PageSettingsPage({
       structure.map(async (instance, index) => {
         const component = allComponents.find((entry) => entry.id === instance.componentId);
         if (!component) return null;
-        const version = await cms.componentVersions.getLatest(instance.componentId).catch(() => null);
+        const version = await cms.componentVersions.getLatest(instance.componentId ?? "").catch(() => null);
         return {
           instanceIndex: index,
           componentId: component.id,
@@ -78,6 +84,20 @@ export default async function PageSettingsPage({
   const savedConfig = (page.seo as { schemaConfig?: PageSchemaConfig })?.schemaConfig ?? null;
   const isPublished = page.status === "published" && !!publishedVersion;
   const update = updatePage.bind(null, id);
+
+  // Translations sidebar data
+  const translationSiblings = page.translationKey
+    ? await cms.pages.findByTranslationKey(page.translationKey).catch(() => [])
+    : [];
+  const translationSiblingsData = translationSiblings.map((p) => ({
+    id: p.id,
+    title: p.title,
+    locale: p.locale ?? "",
+    status: p.status,
+    permalink: allPages.find((a) => a.id === p.id)?.permalink ?? p.slug ?? "",
+  }));
+
+  const areaLocales = pageArea?.supportedLocales ?? [];
 
   return (
     <div>
@@ -106,11 +126,21 @@ export default async function PageSettingsPage({
           initialPage={page}
           currentSystemType={currentSystemType}
           isSystemPage={isSystemPage}
+          initialLocale={page.locale ?? adminLocale ?? pageArea?.defaultLocale ?? ""}
           onDelete={deletePage.bind(null, id)}
         />
       </form>
 
       <PageSchemaEditor pageId={id} components={componentEntries} savedConfig={savedConfig} />
+
+      {areaLocales.length > 1 && (
+        <TranslationsPanel
+          pageId={id}
+          currentLocale={page.locale ?? adminLocale ?? pageArea?.defaultLocale ?? ""}
+          translationKey={page.translationKey ?? null}
+          siblings={translationSiblingsData}
+        />
+      )}
     </div>
   );
 }

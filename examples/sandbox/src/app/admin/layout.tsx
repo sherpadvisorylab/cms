@@ -8,7 +8,10 @@ import { LogoutButton } from "@/components/admin/LogoutButton";
 import { TopLoadingBar } from "@/components/admin/TopLoadingBar";
 import { AdminFaviconManager } from "@/components/admin/AdminFaviconManager";
 import { DevModeToggle } from "@/components/admin/DevModeToggle";
+import { LocaleSwitcher } from "@/components/admin/LocaleSwitcher";
 import { adminLayoutMetadata } from "@/lib/adminMetadata";
+import { cms } from "@/lib/cms";
+import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 
 initAdmin();
 
@@ -69,14 +72,33 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  const [areaName, globalSettings] = await Promise.all([
+    getPrimaryPublicAreaName().catch(() => ""),
+    cms.settings.get().catch(() => null),
+  ]);
+  const area = areaName ? await cms.areas.findByKey(areaName).catch(() => null) : null;
+  const defaultLocale =
+    area?.defaultLocale ??
+    globalSettings?.branding?.defaultLanguage ??
+    process.env.SHERPA_DEFAULT_LOCALE ??
+    "en";
+  const supportedLocales =
+    area?.supportedLocales ??
+    globalSettings?.branding?.supportedLocales ??
+    [];
+  const multiLanguageEnabled = globalSettings?.branding?.multiLanguageEnabled ?? false;
+
   return (
     <div className="flex h-screen bg-gray-100">
       <TopLoadingBar />
       <AdminFaviconManager />
       {/* Sidebar */}
       <aside className="w-56 bg-gray-900 text-white flex flex-col">
-        <div className="border-b border-gray-700" style={{ height: "var(--header-h)", padding: "0 16px", display: "flex", alignItems: "center", flexShrink: 0 }}>
+        <div className="border-b border-gray-700" style={{ height: "var(--header-h)", padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <span className="font-bold text-lg">CMS Admin</span>
+          {multiLanguageEnabled && supportedLocales.length > 1 && (
+            <LocaleSwitcher supportedLocales={supportedLocales} defaultLocale={defaultLocale} />
+          )}
         </div>
         <nav className="flex-1 px-2 py-3 overflow-y-auto" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {NAV.map((group, gi) => (

@@ -2,7 +2,7 @@
 
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
-import type { CmsVariableDefinition } from "@sherpacms/domain";
+import type { CmsVariableDefinition, CmsLocaleEntry } from "@sherpacms/domain";
 
 export async function saveBranding(formData: FormData) {
   const existing = await cms.settings.get();
@@ -39,6 +39,28 @@ export async function saveAuthentication(formData: FormData) {
     },
   });
   revalidatePath("/admin/settings");
+}
+
+export async function saveLocalization(formData: FormData) {
+  const multiLanguageEnabled = formData.get("multiLanguageEnabled") === "on";
+  const locales: CmsLocaleEntry[] = JSON.parse((formData.get("locales") as string) || "[]");
+  const defaultEntry = locales.find((l) => l.isDefault) ?? locales[0];
+
+  const existing = await cms.settings.get();
+  await cms.settings.save({
+    id: "global",
+    ...(existing ?? {}),
+    branding: {
+      ...(existing?.branding ?? {}),
+      multiLanguageEnabled,
+      locales,
+      // Keep backward-compat fields in sync
+      defaultLanguage: defaultEntry?.code ?? existing?.branding?.defaultLanguage,
+      supportedLocales: locales.map((l) => l.code),
+    },
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/api/locale-config");
 }
 
 export async function saveSystemVars(data: {

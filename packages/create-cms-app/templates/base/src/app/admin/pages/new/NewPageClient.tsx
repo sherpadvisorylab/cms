@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createPage } from "../actions";
 import { joinParentPermalink } from "@/lib/pagePermalinks";
 import type { CmsArea, CmsPage } from "@sherpacms/domain";
+import { ADMIN_LOCALE_COOKIE } from "@/lib/i18n";
 
 type Props = {
   areas: CmsArea[];
@@ -103,9 +104,16 @@ function buildParentOptions(pages: CmsPage[]) {
   return rows;
 }
 
+function readAdminLocaleCookie(): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${ADMIN_LOCALE_COOKIE}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
 export default function NewPageClient({ areas, pages, templateId }: Props) {
   const [area, setArea] = useState(areas[0]?.name ?? "");
   const [parentId, setParentId] = useState("");
+  const [locale, setLocale] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -121,6 +129,23 @@ export default function NewPageClient({ areas, pages, templateId }: Props) {
     [area, pages],
   );
   const parentOptions = useMemo(() => buildParentOptions(pagesInArea), [pagesInArea]);
+
+  const selectedAreaConfig = useMemo(
+    () => areas.find((a) => a.name === area),
+    [area, areas],
+  );
+  const areaLocales = selectedAreaConfig?.supportedLocales ?? [];
+
+  // Sync locale when area changes
+  useEffect(() => {
+    const adminLocale = readAdminLocaleCookie();
+    if (areaLocales.length > 1) {
+      const candidate = areaLocales.includes(adminLocale) ? adminLocale : (selectedAreaConfig?.defaultLocale ?? areaLocales[0] ?? "");
+      setLocale(candidate);
+    } else {
+      setLocale(selectedAreaConfig?.defaultLocale ?? "");
+    }
+  }, [area, areaLocales, selectedAreaConfig]);
 
   useEffect(() => {
     if (!slugTouched) {
@@ -201,6 +226,7 @@ export default function NewPageClient({ areas, pages, templateId }: Props) {
     form.set("title", title.trim());
     form.set("slug", slug.trim());
     form.set("seoTitle", title.trim());
+    if (locale) form.set("locale", locale);
     if (templateStruct) form.set("structure", templateStruct);
     try {
       await createPage(form);
@@ -267,6 +293,27 @@ export default function NewPageClient({ areas, pages, templateId }: Props) {
               ))}
             </select>
           </div>
+
+          {areaLocales.length > 1 && (
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label">Locale</label>
+              <select
+                className="form-control"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                style={{ maxWidth: 200, fontFamily: "monospace" }}
+              >
+                {areaLocales.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc.toUpperCase()}{loc === selectedAreaConfig?.defaultLocale ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="form-hint" style={{ marginTop: 4 }}>
+                Language version for this page.
+              </p>
+            </div>
+          )}
 
           <div className="form-group" style={{ marginBottom: 16 }}>
             <label className="form-label">

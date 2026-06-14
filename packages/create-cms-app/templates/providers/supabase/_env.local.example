@@ -6,6 +6,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 # Service role key (only for server-side scripts like seed.ts — never expose to browser)
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
+# ── i18n (optional) ──────────────────────────────────────────────────────────
+# Fallback locale for monolingual sites (default: "en")
+# SHERPA_DEFAULT_LOCALE=en
+
 # ── Database (Drizzle) ────────────────────────────────────────────────────────
 # Found in: Supabase dashboard → Project Settings → Database → Connection string (URI)
 # Use port 6543 (Transaction mode / pgBouncer) — avoids exhausting free-tier connection slots.

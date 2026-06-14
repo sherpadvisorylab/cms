@@ -23,10 +23,12 @@ export const cmsAreas = pgTable("cms_areas", {
   design:       jsonb("design").default({}),
   legal:        jsonb("legal").default({}),
   tracking:     jsonb("tracking").default({}),
-  accessPolicy: jsonb("access_policy").default({}),
-  systemPages:  jsonb("system_pages").default({}),
-  createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  accessPolicy:     jsonb("access_policy").default({}),
+  systemPages:      jsonb("system_pages").default({}),
+  defaultLocale:    text("default_locale"),
+  supportedLocales: jsonb("supported_locales"),
+  createdAt:        timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt:        timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export const cmsPages = pgTable("cms_pages", {
   seoTitle:       text("seo_title"),
   seoDescription: text("seo_description"),
   ogImageUrl:     text("og_image_url"),
+  locale:         text("locale"),
+  translationKey: text("translation_key"),
   createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

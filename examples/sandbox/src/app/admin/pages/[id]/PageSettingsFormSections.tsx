@@ -17,6 +17,7 @@ type Props = {
   initialPage: CmsPage;
   currentSystemType: string | null;
   isSystemPage: boolean;
+  initialLocale?: string;
   onDelete: () => Promise<void>;
 };
 
@@ -43,12 +44,14 @@ export function PageSettingsFormSections({
   initialPage,
   currentSystemType,
   isSystemPage,
+  initialLocale,
   onDelete,
 }: Props) {
   const [title, setTitle] = useState(initialPage.title);
   const [slug, setSlug] = useState(initialPage.slug);
   const [area, setArea] = useState(initialPage.area);
   const [parentId, setParentId] = useState(initialPage.parentId ?? "");
+  const [locale, setLocale] = useState(initialPage.locale ?? initialLocale ?? "");
   const [hasCustomPermalink, setHasCustomPermalink] = useState(
     !!initialPage.hasCustomPermalink,
   );
@@ -139,6 +142,45 @@ export function PageSettingsFormSections({
         </div>
 
         <input type="hidden" name="status" value={initialPage.status} />
+        <input type="hidden" name="translationKey" value={initialPage.translationKey ?? ""} />
+
+        {(() => {
+          const selectedArea = areas.find((a) => a.name === area);
+          const supported = selectedArea?.supportedLocales ?? [];
+          const isUnsupported = !!locale && supported.length > 0 && !supported.includes(locale);
+          if (supported.length <= 1) return (
+            <input type="hidden" name="locale" value={selectedArea?.defaultLocale ?? ""} />
+          );
+          return (
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label">Locale</label>
+              <select
+                name="locale"
+                className="form-control"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value)}
+                style={{ maxWidth: 160, fontFamily: "monospace" }}
+              >
+                {supported.map((loc) => (
+                  <option key={loc} value={loc}>{loc.toUpperCase()}{loc === selectedArea?.defaultLocale ? " (default)" : ""}</option>
+                ))}
+                {locale && !supported.includes(locale) && (
+                  <option value={locale}>{locale.toUpperCase()} ⚠️</option>
+                )}
+              </select>
+              {isUnsupported && (
+                <div style={{
+                  marginTop: 8, padding: "8px 12px", borderRadius: 6,
+                  background: "#fef3c7", border: "1px solid #f59e0b",
+                  fontSize: "0.78rem", color: "#92400e",
+                }}>
+                  ⚠️ Locale <strong>{locale}</strong> is not supported by the <strong>{selectedArea?.displayName || area}</strong> area.
+                  This page will not be published until this locale is added to the area's supported locales.
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="form-group">
           <label className="form-label">Parent page</label>

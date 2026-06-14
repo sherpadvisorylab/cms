@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryAdapter } from "../adapters/InMemoryAdapter";
+﻿import { describe, it, expect, beforeEach } from "vitest";
+import { InMemoryAdapter } from "../src/adapters/InMemoryAdapter";
 
 describe("InMemoryAdapter", () => {
   let adapter: InMemoryAdapter;

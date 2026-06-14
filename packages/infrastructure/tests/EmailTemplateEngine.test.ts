@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { EmailTemplateEngine } from "../email/EmailTemplateEngine";
+﻿import { describe, it, expect } from "vitest";
+import { EmailTemplateEngine } from "../src/email/EmailTemplateEngine";
 
 describe("EmailTemplateEngine.render", () => {
   it("replaces simple variables", () => {

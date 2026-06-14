@@ -36,30 +36,34 @@ export async function deleteArea(id: string) {
   revalidatePath("/admin/areas");
 }
 
-// ── Full area save (all 6 tabs) ────────────────────────────────────────────────
+// ── Full area save (all 7 tabs) ────────────────────────────────────────────────
 export async function saveAreaFull(id: string, data: {
-  displayName:  string;
-  siteName:     string;
-  rootPath:     string;
-  description:  string;
-  status:       "active" | "inactive";
-  style:        CmsAreaStyle;
-  design:       CmsAreaDesign;
-  legal:        CmsAreaLegal;
-  tracking:     CmsAreaTracking;
-  accessPolicy: CmsAreaAccessPolicy;
+  displayName:      string;
+  siteName:         string;
+  rootPath:         string;
+  description:      string;
+  status:           "active" | "inactive";
+  style:            CmsAreaStyle;
+  design:           CmsAreaDesign;
+  legal:            CmsAreaLegal;
+  tracking:         CmsAreaTracking;
+  accessPolicy:     CmsAreaAccessPolicy;
+  defaultLocale?:   string;
+  supportedLocales?: string[];
 }) {
   await cms.areas.update(id, {
-    displayName:  data.displayName  || undefined,
-    siteName:     data.siteName     || undefined,
-    rootPath:     data.rootPath     || "/",
-    description:  data.description  || undefined,
-    status:       data.status,
-    style:        data.style,
-    design:       data.design,
-    legal:        data.legal,
-    tracking:     data.tracking,
-    accessPolicy: data.accessPolicy,
+    displayName:      data.displayName  || undefined,
+    siteName:         data.siteName     || undefined,
+    rootPath:         data.rootPath     || "/",
+    description:      data.description  || undefined,
+    status:           data.status,
+    style:            data.style,
+    design:           data.design,
+    legal:            data.legal,
+    tracking:         data.tracking,
+    accessPolicy:     data.accessPolicy,
+    defaultLocale:    data.defaultLocale   || undefined,
+    supportedLocales: data.supportedLocales?.length ? data.supportedLocales : undefined,
   });
   revalidatePath("/admin/areas");
 }

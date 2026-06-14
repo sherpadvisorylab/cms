@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { InMemoryAdapter } from "../adapters/InMemoryAdapter";
-import { PageRepository, PageVersionRepository } from "../repositories/PageRepository";
+﻿import { describe, it, expect, beforeEach } from "vitest";
+import { InMemoryAdapter } from "../src/adapters/InMemoryAdapter";
+import { PageRepository, PageVersionRepository } from "../src/repositories/PageRepository";
 
 describe("PageRepository", () => {
   let adapter: InMemoryAdapter;
@@ -58,6 +58,50 @@ describe("PageRepository", () => {
     await repo.delete(page.id);
     const found = await repo.findBySlug("public", "delete-me");
     expect(found).toBeNull();
+  });
+
+  it("findAll filters by locale when provided", async () => {
+    await repo.create({ area: "public", slug: "home-it", title: "Home IT", status: "published", structure: [], locale: "it" });
+    await repo.create({ area: "public", slug: "home-en", title: "Home EN", status: "published", structure: [], locale: "en" });
+
+    const itPages = await repo.findAll("public", "it");
+    expect(itPages).toHaveLength(1);
+    expect(itPages[0].slug).toBe("home-it");
+
+    const allPages = await repo.findAll("public");
+    expect(allPages).toHaveLength(2);
+  });
+
+  it("findByLocale returns only pages of that locale for the area", async () => {
+    await repo.create({ area: "public", slug: "about-it", title: "About IT", status: "published", structure: [], locale: "it" });
+    await repo.create({ area: "public", slug: "about-en", title: "About EN", status: "draft", structure: [], locale: "en" });
+    await repo.create({ area: "other", slug: "other-it", title: "Other IT", status: "published", structure: [], locale: "it" });
+
+    const results = await repo.findByLocale("public", "it");
+    expect(results).toHaveLength(1);
+    expect(results[0].slug).toBe("about-it");
+  });
+
+  it("findByTranslationKey returns all locale versions of the same logical page", async () => {
+    const key = "shared-uuid-123";
+    await repo.create({ area: "public", slug: "home-it", title: "Home IT", status: "published", structure: [], locale: "it", translationKey: key });
+    await repo.create({ area: "public", slug: "home-en", title: "Home EN", status: "draft",     structure: [], locale: "en", translationKey: key });
+    await repo.create({ area: "public", slug: "other",   title: "Other",   status: "published", structure: [], locale: "it", translationKey: "different-key" });
+
+    const translations = await repo.findByTranslationKey(key);
+    expect(translations).toHaveLength(2);
+    expect(translations.map((p) => p.slug).sort()).toEqual(["home-en", "home-it"]);
+  });
+
+  it("findPublishedByTranslationKey returns only published translations", async () => {
+    const key = "shared-uuid-456";
+    await repo.create({ area: "public", slug: "home-it", title: "Home IT", status: "published", structure: [], locale: "it", translationKey: key });
+    await repo.create({ area: "public", slug: "home-en", title: "Home EN", status: "draft",     structure: [], locale: "en", translationKey: key });
+    await repo.create({ area: "public", slug: "home-fr", title: "Home FR", status: "published", structure: [], locale: "fr", translationKey: key });
+
+    const published = await repo.findPublishedByTranslationKey(key);
+    expect(published).toHaveLength(2);
+    expect(published.map((p) => p.locale).sort()).toEqual(["fr", "it"]);
   });
 });
 

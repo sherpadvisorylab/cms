@@ -7,6 +7,8 @@ type SeedPageDefinition = {
   area?: string;
   status?: "draft" | "published" | "archived";
   parentId?: string | null;
+  locale?: string;
+  translationKey?: string;
   structure?: unknown[];
   content?: Record<string, unknown>;
   seo?: Record<string, unknown>;
@@ -46,10 +48,10 @@ export async function seedPages(cms: any) {
   for (const pageDef of seedPageDefs) {
     const area = pageDef.area || defaultAreaName;
     const slug = pageDef.slug ?? "";
+    const areaObj = areas.find((a: any) => a.name === area);
 
     // Skip if system page type already assigned for this area
     if (pageDef.systemPageType) {
-      const areaObj = areas.find((a: any) => a.name === area);
       if (areaObj?.systemPages?.[pageDef.systemPageType]) {
         console.log(`  -> skip system page (already assigned): ${pageDef.systemPageType}`);
         continue;
@@ -82,17 +84,22 @@ export async function seedPages(cms: any) {
       : "/";
     const permalink = joinParentPermalink(parentPermalink, slug);
 
+    const areaLocale = areaObj?.defaultLocale ?? undefined;
+    const pageLocale = pageDef.locale ?? areaLocale;
+
     const page = existing ?? await cms.pages.create({
       area,
       slug,
       permalink,
       hasCustomPermalink: false,
-      title:    pageDef.title,
-      status:   pageDef.status ?? "draft",
-      parentId: pageDef.parentId ?? null,
+      title:          pageDef.title,
+      status:         pageDef.status ?? "draft",
+      parentId:       pageDef.parentId ?? null,
+      locale:         pageLocale ?? null,
+      translationKey: pageDef.translationKey ?? null,
       structure,
-      content:  pageDef.content ?? {},
-      seo:      pageDef.seo ?? {},
+      content:        pageDef.content ?? {},
+      seo:            pageDef.seo ?? {},
     });
     if (!existing) {
       knownPages.push(page);

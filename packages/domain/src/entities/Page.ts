@@ -25,6 +25,16 @@ export interface CmsPage {
   content?: Record<string, unknown>;
   seo?: CmsPageSeo;
   style?: CmsPageStyle;
+  /**
+   * IETF BCP 47 locale code for this page (e.g. "it", "en", "fr").
+   * Falls back to area.defaultLocale or SHERPA_DEFAULT_LOCALE env var at runtime.
+   */
+  locale?: string | null;
+  /**
+   * UUID shared across all translated versions of the same logical page.
+   * Set at creation time; copied when creating a translation from an existing page.
+   */
+  translationKey?: string | null;
   /** @deprecated Use seo.metaTitle instead */
   seoTitle?: string | null;
   /** @deprecated Use seo.metaDescription instead */
