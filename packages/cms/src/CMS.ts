@@ -376,6 +376,7 @@ export class CMS {
     let componentCss = "";
     let componentJs = "";
     const seenComponentIds = new Set<string>();
+    const collectionPropsMap = new Map<string, Record<string, Record<string, unknown>>>();
 
     for (const instance of version.structure) {
       if (instance.disabled) continue;
@@ -388,6 +389,9 @@ export class CMS {
         if (filterPart) token += `|${filterPart}`;
         token += "}}";
         contentHtml += wrapAnimation(token, instance.animation);
+        if (instance.collectionComponentProps) {
+          collectionPropsMap.set(`${instance.collectionSlug}:${viewPart}`, instance.collectionComponentProps);
+        }
         continue;
       }
 
@@ -472,7 +476,7 @@ export class CMS {
     };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
     contentHtml = await this.resolveNavigations(contentHtml, contentContext);
-    contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams);
+    contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams, collectionPropsMap);
     contentHtml = await this.resolveForms(contentHtml);
 
     const pageContext = this.buildPageContext(page, contentHtml, translations, area);
@@ -982,6 +986,7 @@ export class CMS {
     html: string,
     ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
     searchParams?: Record<string, string>,
+    collectionPropsMap?: Map<string, Record<string, Record<string, unknown>>>,
   ): Promise<string> {
     const pattern = /\{\{collection:([^}:]+)(?::([^}]*))?\}\}/g;
     const matches: { full: string; slug: string; viewSlug?: string; filteredRecordIds?: string[] }[] = [];
@@ -1088,7 +1093,9 @@ export class CMS {
 
       // Restore component embeds and resolve them
       const restoredHtml = rendered.replace(/<!--COMP_EMBED:([^-][^-]*?)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
-      const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx);
+      const collectionKey = `${m.slug}:${m.viewSlug ?? ""}`;
+      const componentPropsOverride = collectionPropsMap?.get(collectionKey);
+      const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx, componentPropsOverride);
 
       let html = resolvedHtml;
       if (view.css) html = `<style>${view.css}</style>` + html;
@@ -1287,8 +1294,7 @@ export class CMS {
     let componentCss = "";
     let componentJs = "";
     const seenComponentIds = new Set<string>();
-
-
+    const collectionPropsMap = new Map<string, Record<string, Record<string, unknown>>>();
 
     for (const instance of version.structure) {
       if (instance.disabled) continue;
@@ -1301,6 +1307,9 @@ export class CMS {
         if (filterPart) token += `|${filterPart}`;
         token += "}}";
         contentHtml += wrapAnimation(token, instance.animation);
+        if (instance.collectionComponentProps) {
+          collectionPropsMap.set(`${instance.collectionSlug}:${viewPart}`, instance.collectionComponentProps);
+        }
         continue;
       }
 
@@ -1360,7 +1369,7 @@ export class CMS {
     // 5. Resolve component, navigation, collection and form embeds
     contentHtml = await this.resolveComponentEmbeds(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
     contentHtml = await this.resolveNavigations(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
-    contentHtml = await this.resolveCollections(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext }, opts?.searchParams);
+    contentHtml = await this.resolveCollections(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext }, opts?.searchParams, collectionPropsMap);
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Append area-level CSS/JS

@@ -83,6 +83,12 @@ export interface ComponentInstance {
    * If empty or undefined, all records matching the view filter/sort are shown.
    */
   filteredRecordIds?: string[];
+  /**
+   * Per-component prop overrides for components embedded in the collection view template
+   * via {{component:slug}} syntax. Keyed by component slug/name (normalized).
+   * Example: { "2-col-title-text": { title: "FAQ", subtitle: "..." } }
+   */
+  collectionComponentProps?: Record<string, Record<string, unknown>>;
 
   /** When true, the block is hidden from the public render but remains visible in the admin. */
   disabled?: boolean;
