@@ -8,6 +8,9 @@ export interface CmsSettings {
   /** Branding & defaults */
   branding?: CmsSettingsBranding;
 
+  /** SEO — canonical host override and robots.txt content */
+  seo?: CmsSettingsSeo;
+
   /** Authentication / SSO */
   authentication?: CmsSettingsAuthentication;
 
@@ -64,8 +67,13 @@ export interface CmsSettingsBranding {
   defaultFont?: string;
   defaultIconFont?: string;
   favicon?: string;
-  /** When true, strips "www." from the host in canonical URLs. */
-  canonicalStripWww?: boolean;
+}
+
+export interface CmsSettingsSeo {
+  /** Explicit host used for all canonical URLs, e.g. "https://example.com". Overrides branding.siteUrl. */
+  canonicalHost?: string;
+  /** Full content served at /robots.txt */
+  robotsTxt?: string;
 }
 
 export interface CmsSettingsAuthentication {

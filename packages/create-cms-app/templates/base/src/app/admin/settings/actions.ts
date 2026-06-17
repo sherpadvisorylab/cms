@@ -11,10 +11,9 @@ export async function saveBranding(formData: FormData) {
     ...(existing ?? {}),
     branding: {
       ...(existing?.branding ?? {}),
-      projectName:        formData.get("projectName") as string || undefined,
-      siteUrl:            formData.get("siteUrl") as string || undefined,
-      canonicalStripWww:  formData.get("canonicalStripWww") === "on",
-      defaultLanguage:    formData.get("defaultLanguage") as string || undefined,
+      projectName:      formData.get("projectName") as string || undefined,
+      siteUrl:          formData.get("siteUrl") as string || undefined,
+      defaultLanguage:  formData.get("defaultLanguage") as string || undefined,
       defaultTimezone:  formData.get("defaultTimezone") as string || undefined,
       logoLight:        formData.get("logoLight") as string || undefined,
       logoDark:         formData.get("logoDark") as string || undefined,
@@ -28,6 +27,21 @@ export async function saveBranding(formData: FormData) {
     },
   });
   revalidatePath("/admin/settings");
+}
+
+export async function saveSeo(formData: FormData) {
+  const existing = await cms.settings.get();
+  await cms.settings.save({
+    id: "global",
+    ...(existing ?? {}),
+    seo: {
+      ...(existing?.seo ?? {}),
+      canonicalHost: formData.get("canonicalHost") as string || undefined,
+      robotsTxt:     formData.get("robotsTxt") as string || undefined,
+    },
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/robots.txt");
 }
 
 export async function saveAuthentication(formData: FormData) {

@@ -9,16 +9,17 @@ import type {
   CmsVariableNamespace,
   CmsVariableType,
 } from "@sherpacms/domain";
-import { saveBranding, saveAuthentication, saveSystemVars, saveLocalization } from "./actions";
+import { saveBranding, saveAuthentication, saveSystemVars, saveLocalization, saveSeo } from "./actions";
 import { ImageUploadField, getImageUrl, type ImageValue } from "@/components/admin/ImageUploadField";
 import { BUILT_IN_STYLE_VARIABLES, mergeSettingVariables } from "@/lib/variables/registry";
 
-type Tab = "branding" | "localization" | "auth" | "systemvars" | "backup";
+type Tab = "branding" | "localization" | "seo" | "auth" | "systemvars" | "backup";
 type EditableVariableRow = CmsVariableDefinition & { id: string };
 
 const TAB_LABELS: Record<Tab, string> = {
   branding: "Branding & defaults",
   localization: "Localization",
+  seo: "SEO",
   auth: "Authentication",
   systemvars: "System variables",
   backup: "Backup",
@@ -175,15 +176,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
               <div className="form-group">
                 <label className="form-label">Site URL</label>
                 <input name="siteUrl" className="form-control" defaultValue={(settings?.branding as any)?.siteUrl ?? ""} placeholder="https://example.com" />
-                <span className="form-hint">Used to generate canonical URLs and site.permalink.</span>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer", fontSize: "0.85rem" }}>
-                  <input
-                    type="checkbox"
-                    name="canonicalStripWww"
-                    defaultChecked={(settings?.branding as any)?.canonicalStripWww ?? false}
-                  />
-                  Strip <code>www.</code> from canonical URLs
-                </label>
+                <span className="form-hint">Used as fallback for canonical URLs. Override it in the SEO tab.</span>
               </div>
             </div>
 
@@ -387,6 +380,47 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
 
           <button type="submit" className="btn btn-primary" disabled={pending}>
             {pending ? "Saving..." : "Save localization"}
+          </button>
+        </form>
+      )}
+
+      {tab === "seo" && (
+        <form action={onSave(saveSeo)}>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 18 }}>
+              SEO settings applied to all public pages.
+            </p>
+
+            <div className="form-group" style={{ marginBottom: 20 }}>
+              <label className="form-label">Canonical host</label>
+              <input
+                name="canonicalHost"
+                className="form-control"
+                defaultValue={(settings?.seo as any)?.canonicalHost ?? ""}
+                placeholder="https://example.com"
+              />
+              <span className="form-hint">
+                Overrides <em>Site URL</em> for canonical and hreflang tags. Leave empty to use Site URL.
+                E.g. <code>https://example.com</code> (no trailing slash).
+              </span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">robots.txt content</label>
+              <textarea
+                name="robotsTxt"
+                className="form-control"
+                rows={10}
+                style={{ fontFamily: "monospace", fontSize: "0.82rem", resize: "vertical" }}
+                defaultValue={(settings?.seo as any)?.robotsTxt ?? ""}
+                placeholder={"User-agent: *\nAllow: /\n\nSitemap: https://example.com/sitemap.xml"}
+              />
+              <span className="form-hint">Served verbatim at <code>/robots.txt</code>. Leave empty for a default allow-all.</span>
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary" disabled={pending}>
+            {pending ? "Saving..." : "Save SEO"}
           </button>
         </form>
       )}
