@@ -64,6 +64,8 @@ export interface CmsSettingsBranding {
   defaultFont?: string;
   defaultIconFont?: string;
   favicon?: string;
+  /** When true, strips "www." from the host in canonical URLs. */
+  canonicalStripWww?: boolean;
 }
 
 export interface CmsSettingsAuthentication {
