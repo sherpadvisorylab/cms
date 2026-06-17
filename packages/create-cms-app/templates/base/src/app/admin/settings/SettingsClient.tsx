@@ -417,6 +417,19 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
               />
               <span className="form-hint">Served verbatim at <code>/robots.txt</code>. Leave empty for a default allow-all.</span>
             </div>
+
+            <div className="form-group" style={{ marginTop: 20 }}>
+              <label className="form-label">llms.txt content</label>
+              <textarea
+                name="llmsTxt"
+                className="form-control"
+                rows={10}
+                style={{ fontFamily: "monospace", fontSize: "0.82rem", resize: "vertical" }}
+                defaultValue={(settings?.seo as any)?.llmsTxt ?? ""}
+                placeholder={"# My Platform\n\n> Short description of what this site is about.\n\n## Docs\n\n- [Page title](https://example.com/page)"}
+              />
+              <span className="form-hint">Served verbatim at <code>/llms.txt</code>. See <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer">llmstxt.org</a> for the spec.</span>
+            </div>
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={pending}>

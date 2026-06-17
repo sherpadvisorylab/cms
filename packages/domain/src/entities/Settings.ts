@@ -74,6 +74,8 @@ export interface CmsSettingsSeo {
   canonicalHost?: string;
   /** Full content served at /robots.txt */
   robotsTxt?: string;
+  /** Full content served at /llms.txt */
+  llmsTxt?: string;
 }
 
 export interface CmsSettingsAuthentication {

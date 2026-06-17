@@ -39,6 +39,7 @@ export async function saveSeo(formData: FormData) {
       ...(existing?.seo ?? {}),
       canonicalHost: formData.get("canonicalHost") as string || undefined,
       robotsTxt:     formData.get("robotsTxt") as string || undefined,
+      llmsTxt:       formData.get("llmsTxt") as string || undefined,
     },
   });
   revalidatePath("/admin/settings");
