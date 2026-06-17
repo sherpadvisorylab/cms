@@ -8,7 +8,7 @@ function normalizeSiteUrl(url: string | undefined | null): string {
 
 function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "";
-  try { return new Date(d).toISOString().split("T")[0]; } catch { return ""; }
+  try { return new Date(d).toISOString(); } catch { return ""; }
 }
 
 function escapeXml(str: string): string {
@@ -39,7 +39,9 @@ const buildSitemap = unstable_cache(
     if (!baseUrl) return buildEmptySitemap();
 
     const areaMap = new Map(areas.map((a) => [a.name, a]));
-    const published = pages.filter((p) => p.status === "published" && p.permalink);
+    const published = pages.filter(
+      (p) => p.status === "published" && p.permalink && p.permalink !== "404" && p.permalink !== "/404"
+    );
 
     const byKey = new Map<string, typeof published>();
     for (const page of published) {
@@ -55,16 +57,18 @@ const buildSitemap = unstable_cache(
       const areaRootPath = (area?.rootPath as string | undefined) ?? "/";
       const defaultLocale = (area?.defaultLocale as string | undefined) ?? "";
 
-      const hreflangs = group.map((p) => ({
-        locale: (p.locale as string | undefined) || defaultLocale,
-        loc: buildPageCanonicalUrl({
-          siteUrl: baseUrl,
-          permalink: p.permalink as string,
-          locale: (p.locale as string | undefined) ?? "",
-          defaultLocale,
-          areaRootPath,
-        }),
-      }));
+      const hreflangs = group
+        .map((p) => ({
+          locale: (p.locale as string | undefined) || defaultLocale,
+          loc: buildPageCanonicalUrl({
+            siteUrl: baseUrl,
+            permalink: p.permalink as string,
+            locale: (p.locale as string | undefined) ?? "",
+            defaultLocale,
+            areaRootPath,
+          }),
+        }))
+        .filter((h) => h.locale !== "");
 
       for (const page of group) {
         const pageLoc = buildPageCanonicalUrl({
