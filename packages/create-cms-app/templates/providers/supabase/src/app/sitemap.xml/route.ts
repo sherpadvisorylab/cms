@@ -57,9 +57,10 @@ const buildSitemap = unstable_cache(
       const areaRootPath = (area?.rootPath as string | undefined) ?? "/";
       const defaultLocale = (area?.defaultLocale as string | undefined) ?? "";
 
+      const envDefaultLocale = process.env.SHERPA_DEFAULT_LOCALE ?? "";
       const hreflangs = group
         .map((p) => ({
-          locale: (p.locale as string | undefined) || defaultLocale,
+          locale: (p.locale as string | undefined) || defaultLocale || envDefaultLocale,
           loc: buildPageCanonicalUrl({
             siteUrl: baseUrl,
             permalink: p.permalink as string,
