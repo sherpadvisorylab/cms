@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
+import { matchRedirect } from "@/lib/redirectMatcher";
 
 function getPublicRequestUrl(request: Request): string {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -15,6 +16,12 @@ function getPublicRequestUrl(request: Request): string {
   }
   return request.url;
 }
+
+const getActiveRedirects = unstable_cache(
+  () => cms.redirects.findAll().catch(() => []),
+  ["active-redirects"],
+  { tags: ["redirects"], revalidate: false },
+);
 
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
@@ -43,6 +50,22 @@ export async function GET(
 ) {
   const { permalink } = await params;
   const normalizedPermalink = normalizePermalink(`/${(permalink ?? []).join("/")}`);
+
+  const allRedirects = await getActiveRedirects();
+  if (allRedirects.length > 0) {
+    const urlObj = new URL(request.url);
+    const redirectMatch = matchRedirect(normalizedPermalink + urlObj.search, allRedirects);
+    if (redirectMatch) {
+      if (redirectMatch.statusCode === 410 || redirectMatch.statusCode === 503) {
+        return new Response(null, { status: redirectMatch.statusCode });
+      }
+      const dest = redirectMatch.destination.startsWith("http")
+        ? redirectMatch.destination
+        : new URL(redirectMatch.destination, request.url).toString();
+      return Response.redirect(dest, redirectMatch.statusCode);
+    }
+  }
+
   const { searchParams } = new URL(request.url);
   const publicUrl = getPublicRequestUrl(request);
   const isDraft = searchParams.get("draft") === "1";
