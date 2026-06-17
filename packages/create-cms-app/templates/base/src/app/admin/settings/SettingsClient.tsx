@@ -176,6 +176,14 @@ export function SettingsClient({ initialSettings }: { initialSettings: CmsSettin
                 <label className="form-label">Site URL</label>
                 <input name="siteUrl" className="form-control" defaultValue={(settings?.branding as any)?.siteUrl ?? ""} placeholder="https://example.com" />
                 <span className="form-hint">Used to generate canonical URLs and site.permalink.</span>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer", fontSize: "0.85rem" }}>
+                  <input
+                    type="checkbox"
+                    name="canonicalStripWww"
+                    defaultChecked={(settings?.branding as any)?.canonicalStripWww ?? false}
+                  />
+                  Strip <code>www.</code> from canonical URLs
+                </label>
               </div>
             </div>
 

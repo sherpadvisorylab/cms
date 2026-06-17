@@ -11,9 +11,10 @@ export async function saveBranding(formData: FormData) {
     ...(existing ?? {}),
     branding: {
       ...(existing?.branding ?? {}),
-      projectName:      formData.get("projectName") as string || undefined,
-      siteUrl:          formData.get("siteUrl") as string || undefined,
-      defaultLanguage:  formData.get("defaultLanguage") as string || undefined,
+      projectName:        formData.get("projectName") as string || undefined,
+      siteUrl:            formData.get("siteUrl") as string || undefined,
+      canonicalStripWww:  formData.get("canonicalStripWww") === "on",
+      defaultLanguage:    formData.get("defaultLanguage") as string || undefined,
       defaultTimezone:  formData.get("defaultTimezone") as string || undefined,
       logoLight:        formData.get("logoLight") as string || undefined,
       logoDark:         formData.get("logoDark") as string || undefined,
