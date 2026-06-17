@@ -29,7 +29,7 @@ const getFaviconUrl = unstable_cache(
   { tags: ["favicon"], revalidate: false },
 );
 
-async function fetchFromStorage(assetPath: string): Promise<{ data: Uint8Array; contentType: string } | null> {
+async function fetchFromStorage(assetPath: string): Promise<{ data: ArrayBuffer; contentType: string } | null> {
   try {
     const file = getStorage().bucket().file(`cms-assets/${assetPath}`);
     const [exists] = await file.exists();
@@ -37,7 +37,7 @@ async function fetchFromStorage(assetPath: string): Promise<{ data: Uint8Array; 
     const [buffer] = await file.download();
     const [metadata] = await file.getMetadata();
     return {
-      data: new Uint8Array(buffer),
+      data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
       contentType: (metadata.contentType as string | undefined) ?? guessContentType(assetPath),
     };
   } catch {
@@ -63,7 +63,7 @@ export async function GET() {
     const faviconUrl = await getFaviconUrl();
     if (!faviconUrl) return new Response(null, { status: 404 });
 
-    let result: { data: Uint8Array | ArrayBuffer; contentType: string } | null = null;
+    let result: { data: ArrayBuffer; contentType: string } | null = null;
 
     if (faviconUrl.startsWith("/assets/")) {
       result = await fetchFromStorage(faviconUrl.replace(/^\/assets\//, ""));
