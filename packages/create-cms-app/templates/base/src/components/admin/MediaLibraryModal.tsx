@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type Asset = { name: string; url: string; contentType: string; size: number };
+type Asset = { name: string; url: string; storageUrl: string; contentType: string; size: number };
 type MediaLibraryFilter = "image" | "video" | "file" | "all";
 
 interface MediaLibraryModalProps {
@@ -346,7 +346,7 @@ export function MediaLibraryModal({ onSelect, onClose, filter = "all" }: MediaLi
                   </button>
 
                   <button
-                    onClick={() => { onSelect(asset.url, altFromSlug(asset.name)); onClose(); }}
+                    onClick={() => { onSelect(asset.storageUrl, altFromSlug(asset.name)); onClose(); }}
                     style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}
                   >
                     {isVideoAsset(asset) ? (

@@ -32,20 +32,27 @@ function renderHomeCached(areaName: string) {
         )
         .find(Boolean);
 
-      if (!candidate) throw new Error("Home page not found");
-      const html = await cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), {});
-      if (!html) throw new Error("Home page not found");
-      return html;
+      if (!candidate) return null; // no home page configured → redirect to admin
+      return cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), {});
+      // throws on render errors (not cached); null if no output
     },
     [`render:${areaName}:home`],
     { revalidate: false, tags: ["home-page", "pages"] },
-  )().catch(() => null);
+  )();
+  // resolves to string (ok) | null (not configured) | rejects (render error)
 }
 
 export async function GET(request: Request) {
   const publicUrl = getPublicRequestUrl(request);
   const areaName = await getPrimaryPublicAreaName();
-  const html = await renderHomeCached(areaName);
+
+  let html: string | null;
+  try {
+    html = await renderHomeCached(areaName);
+  } catch (e) {
+    console.error("[render] home", e);
+    return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  }
 
   if (!html) {
     return Response.redirect(new URL("/admin/pages", publicUrl), 302);

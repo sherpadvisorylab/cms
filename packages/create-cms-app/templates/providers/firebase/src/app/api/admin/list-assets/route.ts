@@ -16,12 +16,16 @@ export async function GET(req: Request) {
 
   const assets = files
     .filter((f) => f.name !== "cms-assets/")
-    .map((f) => ({
-      name:        f.name.replace("cms-assets/", ""),
-      url:         `https://storage.googleapis.com/${bucket.name}/${f.name}`,
-      contentType: f.metadata.contentType ?? "application/octet-stream",
-      size:        Number(f.metadata.size ?? 0),
-    }));
+    .map((f) => {
+      const name = f.name.replace("cms-assets/", "");
+      return {
+        name,
+        url:        `/assets/${name}`,
+        storageUrl: `https://storage.googleapis.com/${bucket.name}/${f.name}`,
+        contentType: f.metadata.contentType ?? "application/octet-stream",
+        size:        Number(f.metadata.size ?? 0),
+      };
+    });
 
   return NextResponse.json({ assets });
 }

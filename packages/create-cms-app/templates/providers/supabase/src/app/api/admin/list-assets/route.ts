@@ -18,8 +18,9 @@ export async function GET() {
   const assets = (data ?? [])
     .filter((f) => f.name && !f.name.endsWith(".emptyFolderPlaceholder"))
     .map((f) => ({
-      name:        f.name,
-      url:         admin.storage.from(BUCKET).getPublicUrl(f.name).data.publicUrl,
+      name:       f.name,
+      url:        `/assets/${f.name}`,
+      storageUrl: admin.storage.from(BUCKET).getPublicUrl(f.name).data.publicUrl,
       contentType: (f.metadata?.mimetype as string) ?? "application/octet-stream",
       size:        (f.metadata?.size as number) ?? 0,
     }));

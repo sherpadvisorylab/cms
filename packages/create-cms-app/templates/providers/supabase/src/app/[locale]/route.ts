@@ -42,27 +42,24 @@ function renderLocaleHomeCached(areaName: string, locale: string) {
         )
         .find(Boolean);
 
-      if (!candidate) throw new Error("Home page not found");
-      const html = await cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), { locale });
-      if (!html) throw new Error("Home page not found");
-      return html;
+      if (!candidate) return null; // no home page configured
+      return cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), { locale });
+      // throws on render errors (not cached); null if no output
     },
     [`render:${areaName}:${locale}:home`],
     { revalidate: false, tags: ["home-page", "pages"] },
-  )().catch(() => null);
+  )();
+  // resolves to string (ok) | null (not configured) | rejects (render error)
 }
 
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
   return unstable_cache(
-    async () => {
-      const html = await cms.renderPage(areaName, normalizedPermalink);
-      if (!html) throw new Error("Page not found: " + normalizedPermalink);
-      return html;
-    },
+    () => cms.renderPage(areaName, normalizedPermalink),
     [`render:${areaName}:${normalizedPermalink}`],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )().catch(() => null);
+  )();
+  // resolves to string (found) | null (not found) | rejects (render error → not cached)
 }
 
 export async function GET(
@@ -80,7 +77,14 @@ export async function GET(
   if (!isValidLocale) {
     // ── Fallback: render as regular permalink ─────────────────────────────────
     const permalink = normalizePermalink(`/${locale}`);
-    const html = await renderPageCached(areaName, permalink).catch(() => null);
+
+    let html: string | null;
+    try {
+      html = await renderPageCached(areaName, permalink);
+    } catch (e) {
+      console.error(`[render] ${areaName}${permalink}`, e);
+      return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
 
     if (!html) {
       const collectionHtml = await cms.renderCollectionDetailPage(areaName, permalink, {
@@ -103,7 +107,13 @@ export async function GET(
   }
 
   // ── Valid locale: render locale home ──────────────────────────────────────
-  const html = await renderLocaleHomeCached(areaName, locale);
+  let html: string | null;
+  try {
+    html = await renderLocaleHomeCached(areaName, locale);
+  } catch (e) {
+    console.error(`[render] ${areaName} locale-home:${locale}`, e);
+    return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  }
 
   if (!html) {
     return Response.redirect(new URL("/admin/pages", publicUrl), 302);

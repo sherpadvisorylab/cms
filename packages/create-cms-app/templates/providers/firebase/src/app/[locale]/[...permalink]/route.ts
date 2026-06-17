@@ -35,14 +35,11 @@ function renderPageCached(areaName: string, permalink: string, locale?: string) 
     ? `render:${areaName}:${locale}:${normalizedPermalink}`
     : `render:${areaName}:${normalizedPermalink}`;
   return unstable_cache(
-    async () => {
-      const html = await cms.renderPage(areaName, normalizedPermalink, locale ? { locale } : undefined);
-      if (!html) throw new Error("Page not found: " + normalizedPermalink);
-      return html;
-    },
+    () => cms.renderPage(areaName, normalizedPermalink, locale ? { locale } : undefined),
     [cacheKey],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )().catch(() => null);
+  )();
+  // resolves to string (found) | null (not found) | rejects (render error → not cached)
 }
 
 function render404Cached(areaName: string, locale?: string) {
@@ -89,9 +86,15 @@ export async function GET(
     // ── Fallback: concatenate segments and render as plain permalink ───────────
     const fullPath = normalizePermalink(`/${locale}/${(permalink ?? []).join("/")}`);
 
-    const html = bypassCache
-      ? await cms.renderPage(areaName, fullPath, { draft: isDraft }).catch(() => null)
-      : await renderPageCached(areaName, fullPath).catch(() => null);
+    let html: string | null;
+    try {
+      html = bypassCache
+        ? await cms.renderPage(areaName, fullPath, { draft: isDraft })
+        : await renderPageCached(areaName, fullPath);
+    } catch (e) {
+      console.error(`[render] ${areaName}${fullPath}`, e);
+      return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
 
     if (!html) {
       const collectionHtml = await cms.renderCollectionDetailPage(areaName, fullPath, {
@@ -134,9 +137,15 @@ export async function GET(
   // ── Valid locale: render locale-aware page ────────────────────────────────
   const normalizedPermalink = normalizePermalink(`/${(permalink ?? []).join("/")}`);
 
-  const html = bypassCache
-    ? await cms.renderPage(areaName, normalizedPermalink, { draft: isDraft, locale })
-    : await renderPageCached(areaName, normalizedPermalink, locale);
+  let html: string | null;
+  try {
+    html = bypassCache
+      ? await cms.renderPage(areaName, normalizedPermalink, { draft: isDraft, locale })
+      : await renderPageCached(areaName, normalizedPermalink, locale);
+  } catch (e) {
+    console.error(`[render] ${areaName}${normalizedPermalink} [${locale}]`, e);
+    return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  }
 
   if (!html) {
     const collectionHtml = await cms.renderCollectionDetailPage(areaName, normalizedPermalink, {

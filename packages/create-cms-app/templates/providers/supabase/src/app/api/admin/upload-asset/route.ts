@@ -76,6 +76,5 @@ export async function POST(req: Request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  const { data } = admin.storage.from(BUCKET).getPublicUrl(path);
-  return Response.json({ url: data.publicUrl });
+  return Response.json({ url: `/assets/${path}` });
 }

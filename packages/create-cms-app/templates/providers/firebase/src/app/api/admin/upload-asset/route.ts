@@ -80,6 +80,5 @@ export async function POST(req: Request) {
   });
   await blob.makePublic();
 
-  const url = `https://storage.googleapis.com/${bucket.name}/cms-assets/${name}`;
-  return NextResponse.json({ url });
+  return NextResponse.json({ url: `/assets/${name}` });
 }

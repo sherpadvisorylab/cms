@@ -23,14 +23,11 @@ function getPublicRequestUrl(request: Request): string {
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
   return unstable_cache(
-    async () => {
-      const html = await cms.renderPage(areaName, normalizedPermalink, {});
-      if (!html) throw new Error("Page not found: " + normalizedPermalink);
-      return html;
-    },
+    () => cms.renderPage(areaName, normalizedPermalink, {}),
     [`render:${areaName}:${normalizedPermalink}`],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )().catch(() => null);
+  )();
+  // resolves to string (found) | null (not found) | rejects (render error → not cached)
 }
 
 function render404Cached(areaName: string) {
@@ -91,9 +88,15 @@ export async function GET(
     }
   }
 
-  const html = bypassCache
-    ? await cms.renderPage(areaName, normalizedPermalink, { draft: isDraft })
-    : await renderPageCached(areaName, normalizedPermalink);
+  let html: string | null;
+  try {
+    html = bypassCache
+      ? await cms.renderPage(areaName, normalizedPermalink, { draft: isDraft })
+      : await renderPageCached(areaName, normalizedPermalink);
+  } catch (e) {
+    console.error(`[render] ${areaName}${normalizedPermalink}`, e);
+    return new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  }
 
   if (!html) {
     const collectionHtml = await cms.renderCollectionDetailPage(areaName, normalizedPermalink, {
