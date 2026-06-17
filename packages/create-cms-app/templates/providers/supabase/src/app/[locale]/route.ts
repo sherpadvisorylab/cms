@@ -5,6 +5,18 @@ import { unstable_cache } from "next/cache";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 import { cookies } from "next/headers";
 
+function getPublicRequestUrl(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost && forwardedProto) {
+    try {
+      const url = new URL(request.url);
+      return `${forwardedProto}://${forwardedHost}${url.pathname}${url.search}`;
+    } catch {}
+  }
+  return request.url;
+}
+
 /** Return the globally configured supported locale codes (from settings.branding.locales). */
 async function getSupportedLocaleCodes(): Promise<{ codes: string[]; multiLanguageEnabled: boolean }> {
   const settings = await cms.settings.get().catch(() => null);
@@ -58,6 +70,7 @@ export async function GET(
   { params }: { params: Promise<{ locale: string }> },
 ) {
   const { locale } = await params;
+  const publicUrl = getPublicRequestUrl(request);
   const areaName = await getPrimaryPublicAreaName();
 
   // Determine if this segment is actually a supported locale code.
@@ -93,7 +106,7 @@ export async function GET(
   const html = await renderLocaleHomeCached(areaName, locale);
 
   if (!html) {
-    return Response.redirect(new URL("/admin/pages", request.url), 302);
+    return Response.redirect(new URL("/admin/pages", publicUrl), 302);
   }
 
   const cookieStore = await cookies();

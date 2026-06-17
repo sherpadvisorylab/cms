@@ -3,6 +3,18 @@ import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
 
+function getPublicRequestUrl(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost && forwardedProto) {
+    try {
+      const url = new URL(request.url);
+      return `${forwardedProto}://${forwardedHost}${url.pathname}${url.search}`;
+    } catch {}
+  }
+  return request.url;
+}
+
 function renderHomeCached(areaName: string) {
   return unstable_cache(
     async () => {
@@ -31,11 +43,12 @@ function renderHomeCached(areaName: string) {
 }
 
 export async function GET(request: Request) {
+  const publicUrl = getPublicRequestUrl(request);
   const areaName = await getPrimaryPublicAreaName();
   const html = await renderHomeCached(areaName);
 
   if (!html) {
-    return Response.redirect(new URL("/admin/pages", request.url), 302);
+    return Response.redirect(new URL("/admin/pages", publicUrl), 302);
   }
 
   return new Response(html, {

@@ -8,6 +8,18 @@ import { isDevModeActive } from "@/lib/devMode";
 
 initAdmin();
 
+function getPublicRequestUrl(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost && forwardedProto) {
+    try {
+      const url = new URL(request.url);
+      return `${forwardedProto}://${forwardedHost}${url.pathname}${url.search}`;
+    } catch {}
+  }
+  return request.url;
+}
+
 /** Return the globally configured supported locale codes (from settings.branding.locales). */
 async function getSupportedLocaleCodes(): Promise<{ codes: string[]; multiLanguageEnabled: boolean }> {
   const settings = await cms.settings.get().catch(() => null);
@@ -51,6 +63,7 @@ export async function GET(
 ) {
   const { locale, permalink } = await params;
   const { searchParams } = new URL(request.url);
+  const publicUrl = getPublicRequestUrl(request);
   const isDraft = searchParams.get("draft") === "1";
 
   if (isDraft) {

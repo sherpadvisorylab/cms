@@ -4,6 +4,18 @@ import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
 
+function getPublicRequestUrl(request: Request): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedHost && forwardedProto) {
+    try {
+      const url = new URL(request.url);
+      return `${forwardedProto}://${forwardedHost}${url.pathname}${url.search}`;
+    } catch {}
+  }
+  return request.url;
+}
+
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
   return unstable_cache(
@@ -35,6 +47,7 @@ export async function GET(
   const { permalink } = await params;
   const normalizedPermalink = normalizePermalink(`/${(permalink ?? []).join("/")}`);
   const { searchParams } = new URL(request.url);
+  const publicUrl = getPublicRequestUrl(request);
   const isDraft = searchParams.get("draft") === "1";
 
   if (isDraft) {
