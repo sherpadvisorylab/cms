@@ -2,6 +2,7 @@ import { cms } from "@/lib/cms";
 import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
+import { matchRedirect } from "@/lib/redirectMatcher";
 
 function getPublicRequestUrl(request: Request): string {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -16,6 +17,12 @@ function getPublicRequestUrl(request: Request): string {
 }
 
 /** Return the globally configured supported locale codes (from settings.branding.locales). */
+const getActiveRedirects = unstable_cache(
+  () => cms.redirects.findAll().catch(() => []),
+  ["active-redirects"],
+  { tags: ["redirects"], revalidate: false },
+);
+
 async function getSupportedLocaleCodes(): Promise<{ codes: string[]; multiLanguageEnabled: boolean }> {
   const settings = await cms.settings.get().catch(() => null);
   const branding = settings?.branding as Record<string, unknown> | undefined;
@@ -54,6 +61,23 @@ export async function GET(
   { params }: { params: Promise<{ locale: string; permalink: string[] }> },
 ) {
   const { locale, permalink } = await params;
+
+  const fullPath = normalizePermalink(`/${locale}/${(permalink ?? []).join("/")}`);
+  const allRedirects = await getActiveRedirects();
+  if (allRedirects.length > 0) {
+    const urlObj = new URL(request.url);
+    const redirectMatch = matchRedirect(fullPath + urlObj.search, allRedirects);
+    if (redirectMatch) {
+      if (redirectMatch.statusCode === 410 || redirectMatch.statusCode === 503) {
+        return new Response(null, { status: redirectMatch.statusCode });
+      }
+      const dest = redirectMatch.destination.startsWith("http")
+        ? redirectMatch.destination
+        : new URL(redirectMatch.destination, request.url).toString();
+      return Response.redirect(dest, redirectMatch.statusCode);
+    }
+  }
+
   const publicUrl = getPublicRequestUrl(request);
   const areaName = await getPrimaryPublicAreaName();
 
