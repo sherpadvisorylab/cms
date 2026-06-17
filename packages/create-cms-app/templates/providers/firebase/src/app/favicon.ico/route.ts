@@ -1,10 +1,9 @@
+import { unstable_cache } from "next/cache";
 import { cms } from "@/lib/cms";
 import { initAdmin } from "@/lib/firebase/admin";
 import { getStorage } from "firebase-admin/storage";
 
 initAdmin();
-
-export const dynamic = "force-dynamic";
 
 const CONTENT_TYPE_MAP: Record<string, string> = {
   ico: "image/x-icon",
@@ -21,39 +20,39 @@ function guessContentType(url: string): string {
   return CONTENT_TYPE_MAP[ext] ?? "image/x-icon";
 }
 
-async function fetchFromStorage(assetPath: string): Promise<Response | null> {
+const getFaviconUrl = unstable_cache(
+  async () => {
+    const settings = await cms.settings.get();
+    return (settings?.branding as Record<string, unknown> | undefined)?.favicon as string | undefined;
+  },
+  ["favicon-url"],
+  { tags: ["favicon"], revalidate: false },
+);
+
+async function fetchFromStorage(assetPath: string): Promise<{ data: Uint8Array; contentType: string } | null> {
   try {
     const file = getStorage().bucket().file(`cms-assets/${assetPath}`);
     const [exists] = await file.exists();
     if (!exists) return null;
     const [buffer] = await file.download();
     const [metadata] = await file.getMetadata();
-    const contentType = (metadata.contentType as string | undefined) ?? guessContentType(assetPath);
-    return new Response(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-      },
-    });
+    return {
+      data: new Uint8Array(buffer),
+      contentType: (metadata.contentType as string | undefined) ?? guessContentType(assetPath),
+    };
   } catch {
     return null;
   }
 }
 
-async function fetchFromUrl(url: string): Promise<Response | null> {
+async function fetchFromUrl(url: string): Promise<{ data: ArrayBuffer; contentType: string } | null> {
   try {
-    const upstream = await fetch(url, { next: { revalidate: 3600 } });
+    const upstream = await fetch(url);
     if (!upstream.ok) return null;
-    const body = await upstream.arrayBuffer();
-    const contentType = upstream.headers.get("content-type") ?? guessContentType(url);
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-      },
-    });
+    return {
+      data: await upstream.arrayBuffer(),
+      contentType: upstream.headers.get("content-type") ?? guessContentType(url),
+    };
   } catch {
     return null;
   }
@@ -61,23 +60,26 @@ async function fetchFromUrl(url: string): Promise<Response | null> {
 
 export async function GET() {
   try {
-    const settings = await cms.settings.get();
-    const faviconUrl = (settings?.branding as Record<string, unknown> | undefined)?.favicon as string | undefined;
+    const faviconUrl = await getFaviconUrl();
+    if (!faviconUrl) return new Response(null, { status: 404 });
 
-    if (!faviconUrl) {
-      return new Response(null, { status: 404 });
-    }
-
-    let response: Response | null = null;
+    let result: { data: Uint8Array | ArrayBuffer; contentType: string } | null = null;
 
     if (faviconUrl.startsWith("/assets/")) {
-      const assetPath = faviconUrl.replace(/^\/assets\//, "");
-      response = await fetchFromStorage(assetPath);
+      result = await fetchFromStorage(faviconUrl.replace(/^\/assets\//, ""));
     } else if (faviconUrl.startsWith("http://") || faviconUrl.startsWith("https://")) {
-      response = await fetchFromUrl(faviconUrl);
+      result = await fetchFromUrl(faviconUrl);
     }
 
-    return response ?? new Response(null, { status: 404 });
+    if (!result) return new Response(null, { status: 404 });
+
+    return new Response(result.data, {
+      status: 200,
+      headers: {
+        "Content-Type": result.contentType,
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      },
+    });
   } catch {
     return new Response(null, { status: 404 });
   }

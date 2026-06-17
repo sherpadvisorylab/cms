@@ -1,7 +1,7 @@
 "use server";
 
 import { cms } from "@/lib/cms";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type { CmsVariableDefinition, CmsLocaleEntry } from "@sherpacms/domain";
 
 export async function saveBranding(formData: FormData) {
@@ -27,6 +27,7 @@ export async function saveBranding(formData: FormData) {
     },
   });
   revalidatePath("/admin/settings");
+  revalidateTag("favicon");
 }
 
 export async function saveSeo(formData: FormData) {
@@ -42,6 +43,7 @@ export async function saveSeo(formData: FormData) {
   });
   revalidatePath("/admin/settings");
   revalidatePath("/robots.txt");
+  revalidateTag("sitemap");
 }
 
 export async function saveAuthentication(formData: FormData) {
