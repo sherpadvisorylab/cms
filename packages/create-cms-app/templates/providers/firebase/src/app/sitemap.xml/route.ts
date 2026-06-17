@@ -75,7 +75,7 @@ const buildSitemap = unstable_cache(
           areaRootPath,
         });
 
-        const lastmod = formatDate((page.publishedAt ?? page.updatedAt) as Date | string | null | undefined);
+        const lastmod = formatDate(page.updatedAt);
 
         let xml = `  <url>\n    <loc>${escapeXml(pageLoc)}</loc>\n`;
         if (lastmod) xml += `    <lastmod>${lastmod}</lastmod>\n`;
