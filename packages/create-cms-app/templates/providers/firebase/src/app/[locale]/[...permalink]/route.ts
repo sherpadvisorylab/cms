@@ -76,9 +76,10 @@ export async function GET(
       if (redirectMatch.statusCode === 410 || redirectMatch.statusCode === 503) {
         return new Response(null, { status: redirectMatch.statusCode });
       }
+      const publicBase = getPublicRequestUrl(request);
       const dest = redirectMatch.destination.startsWith("http")
         ? redirectMatch.destination
-        : new URL(redirectMatch.destination, request.url).toString();
+        : new URL(redirectMatch.destination, publicBase).toString();
       return Response.redirect(dest, redirectMatch.statusCode);
     }
   }

@@ -1,6 +1,6 @@
 {
   "name": "@sherpacms/create-cms-app",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Scaffold a new CMS vertical project",
   "bin": {
     "create-cms-app": "./dist/index.js"
