@@ -1092,7 +1092,7 @@ export class CMS {
       });
 
       // Restore component embeds and resolve them
-      const restoredHtml = rendered.replace(/<!--COMP_EMBED:([^-][^-]*?)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
+      const restoredHtml = rendered.replace(/<!--COMP_EMBED:([a-z0-9_-]+)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
       const collectionKey = `${m.slug}:${m.viewSlug ?? ""}`;
       const componentPropsOverride = collectionPropsMap?.get(collectionKey);
       const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx, componentPropsOverride);

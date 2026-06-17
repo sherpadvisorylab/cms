@@ -20,22 +20,22 @@ function renderHomeCached(areaName: string) {
         )
         .find(Boolean);
 
-      return candidate
-        ? cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), {})
-            .catch(() => null)
-        : null;
+      if (!candidate) throw new Error("Home page not found");
+      const html = await cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), {});
+      if (!html) throw new Error("Home page not found");
+      return html;
     },
     [`render:${areaName}:home`],
     { revalidate: false, tags: ["home-page", "pages"] },
-  )();
+  )().catch(() => null);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const areaName = await getPrimaryPublicAreaName();
   const html = await renderHomeCached(areaName);
 
   if (!html) {
-    return Response.redirect("/admin/pages", 302);
+    return Response.redirect(new URL("/admin/pages", request.url), 302);
   }
 
   return new Response(html, {

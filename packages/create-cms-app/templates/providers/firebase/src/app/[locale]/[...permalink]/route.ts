@@ -23,10 +23,14 @@ function renderPageCached(areaName: string, permalink: string, locale?: string) 
     ? `render:${areaName}:${locale}:${normalizedPermalink}`
     : `render:${areaName}:${normalizedPermalink}`;
   return unstable_cache(
-    () => cms.renderPage(areaName, normalizedPermalink, locale ? { locale } : undefined),
+    async () => {
+      const html = await cms.renderPage(areaName, normalizedPermalink, locale ? { locale } : undefined);
+      if (!html) throw new Error("Page not found: " + normalizedPermalink);
+      return html;
+    },
     [cacheKey],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )();
+  )().catch(() => null);
 }
 
 function render404Cached(areaName: string, locale?: string) {

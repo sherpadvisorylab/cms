@@ -7,10 +7,14 @@ import { unstable_cache } from "next/cache";
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
   return unstable_cache(
-    () => cms.renderPage(areaName, normalizedPermalink, {}),
+    async () => {
+      const html = await cms.renderPage(areaName, normalizedPermalink, {});
+      if (!html) throw new Error("Page not found: " + normalizedPermalink);
+      return html;
+    },
     [`render:${areaName}:${normalizedPermalink}`],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )();
+  )().catch(() => null);
 }
 
 function render404Cached(areaName: string) {

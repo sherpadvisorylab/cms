@@ -30,22 +30,27 @@ function renderLocaleHomeCached(areaName: string, locale: string) {
         )
         .find(Boolean);
 
-      return candidate
-        ? cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), { locale }).catch(() => null)
-        : null;
+      if (!candidate) throw new Error("Home page not found");
+      const html = await cms.renderPage(areaName, normalizePermalink(candidate.permalink ?? candidate.slug), { locale });
+      if (!html) throw new Error("Home page not found");
+      return html;
     },
     [`render:${areaName}:${locale}:home`],
     { revalidate: false, tags: ["home-page", "pages"] },
-  )();
+  )().catch(() => null);
 }
 
 function renderPageCached(areaName: string, permalink: string) {
   const normalizedPermalink = normalizePermalink(permalink);
   return unstable_cache(
-    () => cms.renderPage(areaName, normalizedPermalink),
+    async () => {
+      const html = await cms.renderPage(areaName, normalizedPermalink);
+      if (!html) throw new Error("Page not found: " + normalizedPermalink);
+      return html;
+    },
     [`render:${areaName}:${normalizedPermalink}`],
     { revalidate: false, tags: [`page:${normalizedPermalink}`, "pages"] },
-  )();
+  )().catch(() => null);
 }
 
 export async function GET(
@@ -88,7 +93,7 @@ export async function GET(
   const html = await renderLocaleHomeCached(areaName, locale);
 
   if (!html) {
-    return Response.redirect("/admin/pages", 302);
+    return Response.redirect(new URL("/admin/pages", request.url), 302);
   }
 
   const cookieStore = await cookies();
