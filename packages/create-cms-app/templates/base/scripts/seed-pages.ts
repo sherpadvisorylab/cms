@@ -69,7 +69,7 @@ export async function seedPages(cms: any) {
     if (pageDef.seedComponentName && structure.length === 0) {
       const comp = allComponents.find((c: any) => c.name === pageDef.seedComponentName);
       if (comp) {
-        structure = [{ componentId: comp.id, content: pageDef.defaultContent ?? {} }];
+        structure = [{ componentId: comp.id, props: pageDef.defaultContent ?? {} }];
       } else {
         console.warn(`  warning: component "${pageDef.seedComponentName}" not found for page "${pageDef.title}"`);
       }
