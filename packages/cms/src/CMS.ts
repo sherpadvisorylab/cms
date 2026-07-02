@@ -1199,6 +1199,7 @@ export class CMS {
     hreflangEntries: Array<{ locale: string; url: string; isDefault: boolean }> = [],
   ): string {
     const tags: string[] = [];
+    const title = page.seo?.metaTitle ?? page.seoTitle ?? page.title;
     const desc = page.seo?.metaDescription ?? page.seoDescription;
     const keywords = page.seo?.keywords;
     if (canonicalUrl) {
@@ -1216,7 +1217,42 @@ export class CMS {
         tags.push(`<link rel="alternate" hreflang="x-default" href="${escapeAttr(entry.url)}">`);
       }
     }
+
+    if (title) {
+      tags.push(`<meta property="og:title" content="${escapeAttr(title)}">`);
+      tags.push(`<meta name="twitter:title" content="${escapeAttr(title)}">`);
+    }
+    if (desc) {
+      tags.push(`<meta property="og:description" content="${escapeAttr(desc)}">`);
+      tags.push(`<meta name="twitter:description" content="${escapeAttr(desc)}">`);
+    }
+    if (canonicalUrl) {
+      tags.push(`<meta property="og:url" content="${escapeAttr(canonicalUrl)}">`);
+    }
+    tags.push(`<meta property="og:type" content="website">`);
+
+    const ogImage = this.resolveAbsoluteUrl(page.ogImageUrl, canonicalUrl);
+    if (ogImage) {
+      tags.push(`<meta property="og:image" content="${escapeAttr(ogImage)}">`);
+      tags.push(`<meta name="twitter:card" content="summary_large_image">`);
+      tags.push(`<meta name="twitter:image" content="${escapeAttr(ogImage)}">`);
+    } else {
+      tags.push(`<meta name="twitter:card" content="summary">`);
+    }
+
     return tags.join("\n  ");
+  }
+
+  /** Resolve a possibly-relative asset URL against an absolute base URL. */
+  private resolveAbsoluteUrl(url: string | null | undefined, base: string): string | null {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    if (!base || !/^https?:\/\//i.test(base)) return url;
+    try {
+      return new URL(url, base).toString();
+    } catch {
+      return url;
+    }
   }
 
   /**
