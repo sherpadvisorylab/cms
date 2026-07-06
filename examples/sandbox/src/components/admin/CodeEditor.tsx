@@ -10,13 +10,15 @@ import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
 import { indentOnInput, bracketMatching, syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
-import type { CmsSettings } from "@sherpacms/domain";
+import type { CmsSettings, CmsTranslationEntry } from "@sherpacms/domain";
 import { VariablePickerPopup } from "./VariablePickerPopup";
+import { TranslationUsageModal } from "./TranslationUsageModal";
 import {
   buildVariablePickerSections,
   getPickerContextConfig,
   type VariablePickerContext,
 } from "@/lib/variables/registry";
+import { extractUsedTranslationKeys, resolveConfiguredLocales } from "@/lib/variables/translationUsage";
 
 export type CodeEditorLanguage = "html" | "css" | "js" | "liquid";
 export type FormEmbed = { variable: string; name: string };
@@ -35,6 +37,7 @@ interface CodeEditorProps {
   navEmbeds?: NavEmbed[];
   localVars?: LocalVar[];
   localVarsLabel?: string;
+  translationEntries?: CmsTranslationEntry[];
   minHeight?: number;
 }
 
@@ -60,6 +63,7 @@ export function CodeEditor({
   navEmbeds = [],
   localVars = [],
   localVarsLabel = "Local Variables",
+  translationEntries = [],
   minHeight = 200,
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,7 @@ export function CodeEditor({
   const navEmbedsRef = useRef(navEmbeds);
   const localVarsRef = useRef(localVars);
   const localVarsLabelRef = useRef(localVarsLabel);
+  const translationEntriesRef = useRef(translationEntries);
   const helperConfigRef = useRef(getPickerContextConfig(pickerContext));
 
   onChangeRef.current = onChange;
@@ -82,6 +87,7 @@ export function CodeEditor({
   navEmbedsRef.current = navEmbeds;
   localVarsRef.current = localVars;
   localVarsLabelRef.current = localVarsLabel;
+  translationEntriesRef.current = translationEntries;
   helperConfigRef.current = getPickerContextConfig(pickerContext);
 
   const [picker, setPicker] = useState<{
@@ -94,6 +100,20 @@ export function CodeEditor({
   } | null>(null);
 
   const closePicker = useCallback(() => setPicker(null), []);
+
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const { locales: translationLocales, defaultLocale: translationDefaultLocale } = resolveConfiguredLocales(settings);
+
+  function insertAtCursor(text: string) {
+    const view = viewRef.current;
+    if (!view) return;
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: pos, to: pos, insert: text },
+      selection: { anchor: pos + text.length },
+    });
+    view.focus();
+  }
 
   function buildSections() {
     const currentDoc = viewRef.current?.state.doc.toString() ?? "";
@@ -110,6 +130,7 @@ export function CodeEditor({
       formEmbeds: formEmbedsRef.current,
       navEmbeds: navEmbedsRef.current,
       componentEmbeds: componentEmbedsRef.current,
+      translationEntries: translationEntriesRef.current,
     });
   }
 
@@ -246,6 +267,27 @@ export function CodeEditor({
     <div style={{ position: "relative", minWidth: 0, overflow: "hidden", width: "100%" }}>
       <div ref={containerRef} style={{ width: "100%" }} />
 
+      <button
+        type="button"
+        onClick={() => setUsageModalOpen(true)}
+        title="View translation keys used in this template"
+        style={{
+          position: "absolute",
+          top: 6,
+          right: 6,
+          zIndex: 10,
+          background: "white",
+          border: "1px solid var(--border,#e5e7eb)",
+          borderRadius: 6,
+          padding: "3px 8px",
+          fontSize: "0.72rem",
+          cursor: "pointer",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+        }}
+      >
+        🌍 Translations
+      </button>
+
       {picker?.open && (
         <VariablePickerPopup
           sections={buildSections()}
@@ -253,6 +295,20 @@ export function CodeEditor({
           searchTerm={picker.search}
           onSelect={handlePickerSelect}
           onClose={closePicker}
+        />
+      )}
+
+      {usageModalOpen && (
+        <TranslationUsageModal
+          onClose={() => setUsageModalOpen(false)}
+          onInsert={(token) => {
+            insertAtCursor(token);
+            setUsageModalOpen(false);
+          }}
+          usedKeys={extractUsedTranslationKeys(viewRef.current?.state.doc.toString() ?? value)}
+          entries={translationEntries}
+          locales={translationLocales}
+          defaultLocale={translationDefaultLocale}
         />
       )}
     </div>

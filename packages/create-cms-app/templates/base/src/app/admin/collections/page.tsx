@@ -8,10 +8,11 @@ export const metadata = buildAdminMetadata(
 );
 
 export default async function CollectionsPage() {
-  const [collections, components, settings] = await Promise.all([
+  const [collections, components, settings, translationEntries] = await Promise.all([
     cms.collections.findAll().catch(() => []),
     cms.components.findAll().catch(() => []),
     cms.settings.get().catch(() => null),
+    cms.translations.findAll().catch(() => []),
   ]);
 
   const componentTemplates = await Promise.all(
@@ -40,6 +41,7 @@ export default async function CollectionsPage() {
       initialCollections={collectionsWithRecords}
       componentTemplates={componentTemplates}
       settings={settings}
+      translationEntries={translationEntries}
     />
   );
 }

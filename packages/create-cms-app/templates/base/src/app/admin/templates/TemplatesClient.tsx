@@ -10,6 +10,7 @@ import type {
   CmsRenderTemplate,
   CmsSettings,
   CmsTemplate,
+  CmsTranslationEntry,
   RenderTemplateType,
 } from "@sherpacms/domain";
 import { createTemplate, updateTemplate, deleteTemplate } from "./actions";
@@ -41,6 +42,7 @@ interface Props {
   templates: CmsTemplate[];
   emailTemplates: { id: string; name: string; templateKey: string; subject?: string }[];
   settings: CmsSettings | null;
+  translationEntries?: CmsTranslationEntry[];
 }
 
 function isNewTemplateDraft(
@@ -54,6 +56,7 @@ export function TemplatesClient({
   templates,
   emailTemplates,
   settings,
+  translationEntries = [],
 }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [editing, setEditing] = useState<EditingState>(null);
@@ -70,6 +73,7 @@ export function TemplatesClient({
         template={isNewTemplateDraft(editing) ? null : editing}
         initialType={isNewTemplateDraft(editing) ? editing.type : editing.type}
         settings={settings}
+        translationEntries={translationEntries}
         onClose={() => {
           setEditing(null);
           router.refresh();
@@ -248,11 +252,13 @@ function LayoutEditor({
   initialType,
   settings,
   onClose,
+  translationEntries = [],
 }: {
   template: RenderTemplateWithAssets | null;
   initialType: RenderTemplateType;
   settings: CmsSettings | null;
   onClose: () => void;
+  translationEntries?: CmsTranslationEntry[];
 }) {
   const [name, setName] = useState(template?.name ?? "");
   const [description, setDescription] = useState(template?.description ?? "");
@@ -438,6 +444,7 @@ function LayoutEditor({
             settings={settings}
             localVars={isNavigationTemplate ? NAVIGATION_ITEM_VARS : undefined}
             localVarsLabel={isNavigationTemplate ? "Menu Item" : undefined}
+            translationEntries={translationEntries}
             minHeight={320}
           />
         </div>
@@ -453,6 +460,7 @@ function LayoutEditor({
               language="css"
               pickerContext={pickerContext}
               settings={settings}
+              translationEntries={translationEntries}
               minHeight={180}
             />
           </div>
@@ -469,6 +477,7 @@ function LayoutEditor({
               language="js"
               pickerContext={pickerContext}
               settings={settings}
+              translationEntries={translationEntries}
               minHeight={180}
             />
           </div>

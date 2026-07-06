@@ -8,7 +8,7 @@ import { saveAreaFull } from "../actions";
 import type {
   CmsArea, CmsAreaStyle, CmsAreaDesign, CmsAreaLegal, CmsAreaTracking,
   CmsAreaAccessPolicy, CmsColorSchema, CmsLegalPage, CmsSettings, CmsTrackingScript,
-  CmsLocaleEntry,
+  CmsLocaleEntry, CmsTranslationEntry,
 } from "@sherpacms/domain";
 import type { ComponentEmbed } from "@/components/admin/CodeEditor";
 
@@ -42,6 +42,7 @@ interface Props {
   uiComponents?:  ComponentEmbed[];
   headTemplates?: AreaHtmlTemplate[];
   bodyTemplates?: AreaHtmlTemplate[];
+  translationEntries?: CmsTranslationEntry[];
 }
 
 type Tab = "basic" | "style" | "design" | "legal" | "tracking" | "access" | "localization";
@@ -57,7 +58,7 @@ const TAB_LABELS: Record<Tab, string> = {
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function AreaEditor({ area, settings, navigations, forms, uiComponents = [], headTemplates: headTemplatesProp = [], bodyTemplates: bodyTemplatesProp = [] }: Props) {
+export function AreaEditor({ area, settings, navigations, forms, uiComponents = [], headTemplates: headTemplatesProp = [], bodyTemplates: bodyTemplatesProp = [], translationEntries = [] }: Props) {
   const [tab,     setTab]     = useState<Tab>("basic");
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
@@ -448,6 +449,7 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
                 language="html"
                 pickerContext="area_head"
                 settings={settings}
+                translationEntries={translationEntries}
                 minHeight={200}
               />
             </div>
@@ -510,6 +512,7 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
                 formEmbeds={forms}
                 navEmbeds={navigations}
                 componentEmbeds={uiComponents}
+                translationEntries={translationEntries}
               />
             </div>
             <div className="card">
@@ -517,14 +520,14 @@ export function AreaEditor({ area, settings, navigations, forms, uiComponents = 
               <span className="form-hint" style={{ display:"block", marginBottom:8 }}>
                 Injected in every page of this area.
               </span>
-              <CodeEditor value={areaCss} onChange={setAreaCss} language="css" pickerContext="area_body" settings={settings} minHeight={180} />
+              <CodeEditor value={areaCss} onChange={setAreaCss} language="css" pickerContext="area_body" settings={settings} translationEntries={translationEntries} minHeight={180} />
             </div>
             <div className="card">
               <label className="form-label" style={{ marginBottom:4 }}>Additional JavaScript</label>
               <span className="form-hint" style={{ display:"block", marginBottom:8 }}>
                 Runs on every page of this area.
               </span>
-              <CodeEditor value={areaJs} onChange={setAreaJs} language="js" pickerContext="area_body" settings={settings} minHeight={180} />
+              <CodeEditor value={areaJs} onChange={setAreaJs} language="js" pickerContext="area_body" settings={settings} translationEntries={translationEntries} minHeight={180} />
             </div>
           </div>
 

@@ -28,6 +28,8 @@ type BuiltInStyleVariable = {
   defaultValue: string;
 };
 
+export type TranslationEmbed = { key: string; description?: string };
+
 type PickerSources = {
   settings?: CmsSettings | null;
   localVars?: LocalVar[];
@@ -35,6 +37,7 @@ type PickerSources = {
   formEmbeds?: FormEmbed[];
   navEmbeds?: NavEmbed[];
   componentEmbeds?: ComponentEmbed[];
+  translationEntries?: TranslationEmbed[];
 };
 
 type PickerContextConfig = {
@@ -262,6 +265,20 @@ function normalizeComponentEmbedLabel(component: ComponentEmbed) {
 export function buildVariablePickerSections(context: VariablePickerContext, sources: PickerSources): PickerSection[] {
   const config = getPickerContextConfig(context);
   const sections: PickerSection[] = [];
+
+  const translationEntries = sources.translationEntries ?? [];
+  if (translationEntries.length > 0) {
+    sections.push({
+      id: "translations",
+      icon: "🌍",
+      label: "Translations",
+      items: translationEntries.map((entry) => ({
+        label: `{{t.${entry.key}}}`,
+        apply: `{{t.${entry.key}}}`,
+        detail: entry.description || entry.key,
+      })),
+    });
+  }
 
   if (config.allowLocalVariables && (sources.localVars?.length ?? 0) > 0) {
     sections.push(

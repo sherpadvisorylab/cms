@@ -24,13 +24,14 @@ export async function generateMetadata({
 
 export default async function EditAreaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [areas, navigations, forms, settings, components, templates] = await Promise.all([
+  const [areas, navigations, forms, settings, components, templates, translationEntries] = await Promise.all([
     cms.areas.findAll(),
     cms.navigations.findAll().catch(() => []),
     cms.forms.findAll().catch(() => []),
     cms.settings.get().catch(() => null),
     cms.components.findAll().catch(() => []),
     cms.templates.findAll().catch(() => []),
+    cms.translations.findAll().catch(() => []),
   ]);
   const area = areas.find((a) => a.id === id);
   if (!area) notFound();
@@ -43,6 +44,7 @@ export default async function EditAreaPage({ params }: { params: Promise<{ id: s
     <AreaEditor
       area={area}
       settings={settings}
+      translationEntries={translationEntries}
       navigations={navigations.map((n) => ({ id: n.id, name: n.name }))}
       forms={forms.map((f) => ({ variable: f.variable, name: f.name }))}
       uiComponents={components

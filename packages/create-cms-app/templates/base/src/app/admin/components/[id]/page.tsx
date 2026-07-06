@@ -16,6 +16,7 @@ import {
   type SchemaFieldType,
   type ComponentType,
   type CmsSettings,
+  type CmsTranslationEntry,
 } from "@sherpacms/domain";
 
 type Tab = "template" | "css" | "js" | "schema" | "settings";
@@ -666,6 +667,7 @@ export default function ComponentEditorPage() {
   const [formEmbeds,        setFormEmbeds]        = useState<FormEmbed[]>([]);
   const [settings,          setSettings]          = useState<CmsSettings | null>(null);
   const [componentEmbeds,   setComponentEmbeds]   = useState<ComponentEmbed[]>([]);
+  const [translationEntries, setTranslationEntries] = useState<CmsTranslationEntry[]>([]);
   const [schemaOrgTemplate, setSchemaOrgTemplate] = useState("");
 
   const [showImport, setShowImport] = useState(false);
@@ -703,6 +705,7 @@ export default function ComponentEditorPage() {
       setFormEmbeds(data.forms ?? []);
       setSettings(data.settings ?? null);
       setComponentEmbeds(data.components ?? []);
+      setTranslationEntries(data.translationEntries ?? []);
       setSchemaOrgTemplate(data.schemaOrgTemplate ?? "");
       setLoading(false);
     });
@@ -948,6 +951,7 @@ export default function ComponentEditorPage() {
               formEmbeds={formEmbeds}
               componentEmbeds={componentEmbeds}
               localVars={fields.map((f) => ({ key: f.key, label: f.label, type: f.type }))}
+              translationEntries={translationEntries}
               minHeight={420}
             />
           </div>
@@ -1045,7 +1049,7 @@ export default function ComponentEditorPage() {
       {tab === "css" && (
         <div className="card">
           <label className="form-label" style={{ display: "block", marginBottom: 8 }}>Component CSS</label>
-          <CodeEditor value={css} onChange={setCss} language="css" pickerContext="component_template" settings={settings} minHeight={320} />
+          <CodeEditor value={css} onChange={setCss} language="css" pickerContext="component_template" settings={settings} translationEntries={translationEntries} minHeight={320} />
         </div>
       )}
 
@@ -1053,7 +1057,7 @@ export default function ComponentEditorPage() {
       {tab === "js" && (
         <div className="card">
           <label className="form-label" style={{ display: "block", marginBottom: 8 }}>Component JavaScript</label>
-          <CodeEditor value={js} onChange={setJs} language="js" pickerContext="component_template" settings={settings} minHeight={320} />
+          <CodeEditor value={js} onChange={setJs} language="js" pickerContext="component_template" settings={settings} translationEntries={translationEntries} minHeight={320} />
         </div>
       )}
 
@@ -1066,6 +1070,7 @@ export default function ComponentEditorPage() {
           settings={settings}
           onSave={handleSaveVersion}
           saving={saving}
+          translationEntries={translationEntries}
         />
       )}
 
@@ -1259,6 +1264,7 @@ function ComponentSchemaOrgTab({
   settings,
   onSave,
   saving,
+  translationEntries = [],
 }: {
   value:     string;
   onChange:  (v: string) => void;
@@ -1266,6 +1272,7 @@ function ComponentSchemaOrgTab({
   settings:  CmsSettings | null;
   onSave:    () => void;
   saving:    boolean;
+  translationEntries?: CmsTranslationEntry[];
 }) {
   const [showPresets, setShowPresets] = useState(false);
 
@@ -1346,6 +1353,7 @@ function ComponentSchemaOrgTab({
           pickerContext="component_schema"
           settings={settings}
           localVars={localVars}
+          translationEntries={translationEntries}
           minHeight={320}
         />
       </div>

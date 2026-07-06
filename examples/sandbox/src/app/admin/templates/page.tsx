@@ -38,10 +38,11 @@ export default async function TemplatesPage({
 }) {
   const { tab = "layouts" } = await searchParams;
 
-  const [templates, emailTemplates, settings] = await Promise.all([
+  const [templates, emailTemplates, settings, translationEntries] = await Promise.all([
     cms.templates.findAll().catch(() => []),
     cms.emailTemplates.findAll().catch(() => []),
     cms.settings.get().catch(() => null),
+    cms.translations.findAll().catch(() => []),
   ]);
 
   return (
@@ -50,6 +51,7 @@ export default async function TemplatesPage({
       templates={templates}
       emailTemplates={emailTemplates}
       settings={settings}
+      translationEntries={translationEntries}
     />
   );
 }

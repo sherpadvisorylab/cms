@@ -12,12 +12,13 @@ export const metadata = buildAdminMetadata(
 type RenderTemplateWithAssets = CmsRenderTemplate & { css?: string | null; js?: string | null };
 
 export default async function NavigationPage() {
-  const [navs, templates, allPages, areas, settings] = await Promise.all([
+  const [navs, templates, allPages, areas, settings, translationEntries] = await Promise.all([
     cms.navigations.findAll().catch(() => []),
     cms.templates.findAll().catch(() => []),
     cms.pages.findAll().catch(() => []),
     cms.areas.findAll().catch(() => []),
     cms.settings.get().catch(() => null),
+    cms.translations.findAll().catch(() => []),
   ]);
   const renderTemplates = templates.filter(
     (template): template is RenderTemplateWithAssets => template.type !== "page",
@@ -42,6 +43,7 @@ export default async function NavigationPage() {
       settings={settings}
       defaultLocale={defaultLocale}
       supportedLocales={multiLanguageEnabled ? supportedLocales : [defaultLocale]}
+      translationEntries={translationEntries}
       navTemplates={renderTemplates
         .filter((template) => template.type === "navigation")
         .map((template) => ({

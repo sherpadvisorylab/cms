@@ -4,7 +4,7 @@ import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CodeEditor, type LocalVar } from "@/components/admin/CodeEditor";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
-import type { CmsNavigation, CmsNavigationItem, CmsSettings } from "@sherpacms/domain";
+import type { CmsNavigation, CmsNavigationItem, CmsSettings, CmsTranslationEntry } from "@sherpacms/domain";
 import { createNavigationDirect, deleteNavigation, saveNavigationFull } from "./actions";
 
 type NavigationItemPath = number[];
@@ -29,6 +29,7 @@ interface Props {
   defaultLocale: string;
   /** All locales enabled in Settings. Languages are enabled there, not from this screen. */
   supportedLocales: string[];
+  translationEntries?: CmsTranslationEntry[];
 }
 
 interface NavEditState {
@@ -46,6 +47,7 @@ export function NavigationManagerClient({
   pages,
   defaultLocale,
   supportedLocales,
+  translationEntries = [],
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -755,6 +757,7 @@ export function NavigationManagerClient({
                     language="html"
                     pickerContext="navigation_template"
                     settings={settings}
+                    translationEntries={translationEntries}
                     minHeight={280}
                     localVars={navigationLocalVars}
                     localVarsLabel="Menu Variables"
@@ -768,6 +771,7 @@ export function NavigationManagerClient({
                     language="css"
                     pickerContext="navigation_template"
                     settings={settings}
+                    translationEntries={translationEntries}
                     minHeight={140}
                   />
                 </CollapsibleSection>
@@ -779,6 +783,7 @@ export function NavigationManagerClient({
                     language="js"
                     pickerContext="navigation_template"
                     settings={settings}
+                    translationEntries={translationEntries}
                     minHeight={140}
                   />
                 </CollapsibleSection>

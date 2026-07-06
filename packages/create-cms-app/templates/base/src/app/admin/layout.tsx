@@ -45,6 +45,7 @@ const NAV: NavGroup[] = [
   {
     group: "Platform",
     items: [
+      { href: "/admin/translations", label: "Translations", icon: "🌍" },
       { href: "/admin/redirects", label: "Redirects", icon: "↪" },
       { href: "/admin/users",    label: "Users",    icon: "👥" },
       { href: "/admin/settings", label: "Settings", icon: "⚙️" },

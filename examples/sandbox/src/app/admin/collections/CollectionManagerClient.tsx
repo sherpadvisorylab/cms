@@ -13,6 +13,7 @@ import {
   type CmsCollectionView,
   type ComponentSchemaField,
   type CmsSettings,
+  type CmsTranslationEntry,
 } from "@sherpacms/domain";
 import {
   createCollectionDirect,
@@ -33,6 +34,7 @@ interface Props {
   initialCollections: CollectionWithRecords[];
   componentTemplates: ComponentTemplate[];
   settings: CmsSettings | null;
+  translationEntries?: CmsTranslationEntry[];
 }
 
 interface EditState {
@@ -68,7 +70,7 @@ function generateId() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CollectionManagerClient({ initialCollections, componentTemplates, settings }: Props) {
+export function CollectionManagerClient({ initialCollections, componentTemplates, settings, translationEntries = [] }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -457,6 +459,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                     minHeight={240}
                     localVars={state.schema.map((f) => ({ key: `record.${f.key}`, label: f.label, type: "text" as const }))}
                     localVarsLabel="Record fields"
+                    translationEntries={translationEntries}
                   />
                 </div>
 
@@ -479,10 +482,10 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                 })}
 
                 <CollapsibleSection title="CSS">
-                  <CodeEditor value={state.detailCss} onChange={(v) => patch(selectedId!, { detailCss: v })} language="css" pickerContext="collection_template" settings={settings} minHeight={120} />
+                  <CodeEditor value={state.detailCss} onChange={(v) => patch(selectedId!, { detailCss: v })} language="css" pickerContext="collection_template" settings={settings} translationEntries={translationEntries} minHeight={120} />
                 </CollapsibleSection>
                 <CollapsibleSection title="JavaScript">
-                  <CodeEditor value={state.detailJs} onChange={(v) => patch(selectedId!, { detailJs: v })} language="js" pickerContext="collection_template" settings={settings} minHeight={120} />
+                  <CodeEditor value={state.detailJs} onChange={(v) => patch(selectedId!, { detailJs: v })} language="js" pickerContext="collection_template" settings={settings} translationEntries={translationEntries} minHeight={120} />
                 </CollapsibleSection>
               </div>
             )}
@@ -498,6 +501,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                 onPatch={(partial) => patchView(currentView.id, partial)}
                 onLoadTemplate={() => setLoadModal(currentView.id)}
                 onRemove={() => removeView(currentView.id)}
+                translationEntries={translationEntries}
               />
             )}
 
@@ -900,6 +904,7 @@ function ViewTabContent({
   onPatch,
   onLoadTemplate,
   onRemove,
+  translationEntries = [],
 }: {
   view: CmsCollectionView;
   schema: ComponentSchemaField[];
@@ -909,6 +914,7 @@ function ViewTabContent({
   onPatch: (partial: Partial<CmsCollectionView>) => void;
   onLoadTemplate: () => void;
   onRemove: () => void;
+  translationEntries?: CmsTranslationEntry[];
 }) {
   const [delConfirm, setDelConfirm] = useState(false);
 
@@ -1000,14 +1006,15 @@ function ViewTabContent({
           minHeight={240}
           localVars={[...localVars, ...paginationVars]}
           localVarsLabel="Collection variables"
+          translationEntries={translationEntries}
         />
       </div>
 
       <CollapsibleSection title="CSS">
-        <CodeEditor value={view.css ?? ""} onChange={(v) => onPatch({ css: v })} language="css" pickerContext="collection_template" settings={settings} minHeight={120} />
+        <CodeEditor value={view.css ?? ""} onChange={(v) => onPatch({ css: v })} language="css" pickerContext="collection_template" settings={settings} translationEntries={translationEntries} minHeight={120} />
       </CollapsibleSection>
       <CollapsibleSection title="JavaScript">
-        <CodeEditor value={view.js ?? ""} onChange={(v) => onPatch({ js: v })} language="js" pickerContext="collection_template" settings={settings} minHeight={120} />
+        <CodeEditor value={view.js ?? ""} onChange={(v) => onPatch({ js: v })} language="js" pickerContext="collection_template" settings={settings} translationEntries={translationEntries} minHeight={120} />
       </CollapsibleSection>
 
       {/* Embed + delete */}

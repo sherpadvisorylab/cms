@@ -4,12 +4,13 @@ import { cms } from "@/lib/cms";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [component, version, settings, forms, components] = await Promise.all([
+  const [component, version, settings, forms, components, translationEntries] = await Promise.all([
     cms.components.findById(id),
     cms.componentVersions.getLatest(id),
     cms.settings.get().catch(() => null),
     cms.forms.findAll().catch(() => []),
     cms.components.findAll().catch(() => []),
+    cms.translations.findAll().catch(() => []),
   ]);
 
   if (!component) {
@@ -37,5 +38,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       namespace: entry.namespace ?? null,
       type: entry.type ?? "page",
     })),
+    translationEntries,
   });
 }
