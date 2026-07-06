@@ -13,6 +13,7 @@ import {
   FormRepository,
   RedirectRepository,
   CollectionRepository,
+  TranslationDictionaryRepository,
   LiquidRenderEngine,
   LocalStorageAdapter,
   type StorageAdapter,
@@ -37,6 +38,8 @@ import {
   IFormRepository,
   IRedirectRepository,
   ICollectionRepository,
+  ITranslationDictionaryRepository,
+  CmsTranslationEntry,
   IRenderEngine,
 } from "@sherpacms/domain";
 import { FormRenderer } from "@sherpacms/form-generator";
@@ -112,6 +115,7 @@ export class CMS {
   readonly forms: IFormRepository;
   readonly redirects: IRedirectRepository;
   readonly collections: ICollectionRepository;
+  readonly translations: ITranslationDictionaryRepository;
 
   // Render engine
   readonly render: IRenderEngine;
@@ -135,6 +139,7 @@ export class CMS {
     this.forms = new FormRepository(storage);
     this.redirects = new RedirectRepository(storage);
     this.collections = new CollectionRepository(storage);
+    this.translations = new TranslationDictionaryRepository(storage);
     this.render = new LiquidRenderEngine();
   }
 
@@ -366,6 +371,7 @@ export class CMS {
 
     const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
     const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
+    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
 
     const basePage = this.buildPageContext(page, "", translations, area);
     const baseSite = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);
@@ -431,6 +437,7 @@ export class CMS {
           page: basePage,
           site: baseSite,
           styles: baseStyles,
+          t,
           component: {
             name: component.name,
             namespace: component.namespace ?? "",
@@ -473,6 +480,7 @@ export class CMS {
       page: basePage,
       site: this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale),
       styles: baseStyles,
+      t,
     };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext);
     contentHtml = await this.resolveNavigations(contentHtml, contentContext);
@@ -509,13 +517,14 @@ export class CMS {
         page: pageContext,
         site: siteContext,
         styles: baseStyles,
+        t,
         ...bodyElementsGlobals,
       },
     }).then(restoreCmsPlaceholders);
 
-    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
-    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
-    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles }, opts?.searchParams);
+    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t });
+    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t });
+    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t }, opts?.searchParams);
     bodyHtml = await this.resolveForms(bodyHtml);
 
     // 11. Render head template with namespaced globals
@@ -529,6 +538,7 @@ export class CMS {
         page: pageContext,
         site: siteContext,
         styles: baseStyles,
+        t,
       },
     }).then(restoreCmsPlaceholders);
 
@@ -618,6 +628,25 @@ export class CMS {
     if (colors.border) styles.borderPrimary = colors.border;
 
     return styles;
+  }
+
+  /**
+   * Resolves the whole UI-string dictionary into a flat `{ key: text }` map for `locale`,
+   * falling back to `defaultLocale` and then to any available value. Exposed to every Liquid
+   * render as the `t` global — `{{t.key}}` — covering hardcoded "chrome" text (nav templates,
+   * component templates, collection views) that has no natural home as a page/component field.
+   */
+  private async buildTranslationGlobals(locale: string, defaultLocale: string): Promise<Record<string, string>> {
+    const entries = await this.translations.findAll().catch(() => []);
+    const map: Record<string, string> = {};
+    for (const entry of entries) {
+      map[entry.key] =
+        (locale && entry.values[locale]) ||
+        entry.values[defaultLocale] ||
+        Object.values(entry.values).find((value) => value) ||
+        "";
+    }
+    return map;
   }
 
   private buildSiteContext(
@@ -756,7 +785,7 @@ export class CMS {
    */
   private async resolveNavigations(
     html: string,
-    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
   ): Promise<string> {
     const navPattern = /\{\{navigation:([^}]+)\}\}/g;
     let match;
@@ -767,9 +796,15 @@ export class CMS {
     while ((match = navPattern.exec(html)) !== null) {
       matches.push({ full: match[0], id: match[1] });
     }
+    if (!matches.length) return html;
 
     // Load all navs once for name-based lookup
     const allNavs = await this.navigations.findAll().catch(() => []);
+    const locale = (ctx.site?.locale as string) || "";
+
+    const linkedPageIds = new Set<string>();
+    collectNavigationPageIds(allNavs.flatMap((n) => n.items ?? []), linkedPageIds);
+    const linkCtx = linkedPageIds.size ? await this.buildNavigationPageLinkContext() : null;
 
     for (const m of matches) {
       // Try by ID first (backward compat), then by normalized name
@@ -777,11 +812,12 @@ export class CMS {
         ?? allNavs.find((n) => n.name.toLowerCase().replace(/\s+/g, "-") === m.id.toLowerCase())
         ?? null;
         if (nav && nav.template) {
-          const menuData = buildNavigationTemplateData(nav.items ?? []);
+          const localizedItems = this.resolveNavigationItemsForLocale(nav.items ?? [], locale, linkCtx);
+          const menuData = buildNavigationTemplateData(localizedItems);
           const rendered = await this.render.render({
             template: normalizeVariableAliases(nav.template),
             data:    { menu: menuData },
-            globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
+            globals: { site: ctx.site, page: ctx.page, styles: ctx.styles, t: ctx.t ?? {} },
           });
         let navHtml = rendered;
         if (nav.additionalCss) {
@@ -797,6 +833,97 @@ export class CMS {
     }
 
     return result;
+  }
+
+  /**
+   * Fetches everything needed to resolve `page`-type nav items to a locale-specific URL:
+   * the linked page, its area (for the URL prefix/rootPath), and its translation siblings.
+   * Only built when at least one navigation item actually references a page by id.
+   */
+  private async buildNavigationPageLinkContext(): Promise<NavigationPageLinkContext> {
+    const [allPages, allAreas, settings] = await Promise.all([
+      this.pages.findAll().catch(() => []),
+      this.areas.findAll().catch(() => []),
+      this.settings.get().catch(() => null),
+    ]);
+    return {
+      allPages,
+      pagesById: new Map(allPages.map((p) => [p.id, p])),
+      areasByKey: new Map(allAreas.map((a) => [a.name || a.id, a])),
+      settings,
+    };
+  }
+
+  /**
+   * Resolves label/description for `locale` (falling back to the item's default text). For items
+   * linked to a page via `pageId`, re-resolves the URL to that page's translation for `locale` — if
+   * none is published, the item (and its subtree) is omitted rather than showing a broken or
+   * wrong-language link. For "custom" items (no `pageId`), the URL instead uses the per-locale
+   * `translations[locale].url` override when set, falling back to the item's default URL.
+   */
+  private resolveNavigationItemsForLocale(
+    items: CmsNavigationItem[],
+    locale: string,
+    linkCtx: NavigationPageLinkContext | null,
+  ): CmsNavigationItem[] {
+    const resolved: CmsNavigationItem[] = [];
+
+    for (const item of items) {
+      let url = item.url;
+      const translation = locale ? item.translations?.[locale] : undefined;
+
+      if (item.pageId) {
+        if (!linkCtx) continue;
+        const resolvedUrl = this.resolveNavigationPageLinkUrl(item.pageId, locale, linkCtx);
+        if (resolvedUrl === null) continue;
+        url = resolvedUrl;
+      } else if (translation?.url) {
+        // Custom (non-page) links have no page to resolve from — the translated URL is manual/AI-set.
+        url = translation.url;
+      }
+
+      resolved.push({
+        ...item,
+        label: translation?.label || item.label,
+        description: translation?.description ?? item.description,
+        url,
+        items: item.items ? this.resolveNavigationItemsForLocale(item.items, locale, linkCtx) : item.items,
+      });
+    }
+
+    return resolved;
+  }
+
+  /** Returns the locale-specific public URL for a linked page, or null if no published translation exists for `locale`. */
+  private resolveNavigationPageLinkUrl(
+    pageId: string,
+    locale: string,
+    linkCtx: NavigationPageLinkContext,
+  ): string | null {
+    const page = linkCtx.pagesById.get(pageId);
+    if (!page) return null;
+
+    const pageArea = linkCtx.areasByKey.get(page.area || "") ?? null;
+    const fallbackDefaultLocale = pageArea?.defaultLocale || linkCtx.settings?.branding?.defaultLanguage || "";
+    const pageLocale = page.locale || fallbackDefaultLocale;
+
+    let targetPage = page;
+    let targetArea = pageArea;
+
+    if (locale && pageLocale !== locale) {
+      if (!page.translationKey) return null;
+      const sibling = linkCtx.allPages.find(
+        (candidate) =>
+          candidate.translationKey === page.translationKey &&
+          candidate.status === "published" &&
+          (candidate.locale || fallbackDefaultLocale) === locale,
+      );
+      if (!sibling) return null;
+      targetPage = sibling;
+      targetArea = linkCtx.areasByKey.get(sibling.area || "") ?? pageArea;
+    }
+
+    return this.buildPublicPageUrl(targetArea, linkCtx.settings, targetPage, locale, targetArea?.defaultLocale ?? fallbackDefaultLocale);
   }
 
   // ── Collection pattern helpers ─────────────────────────────────────────────
@@ -910,6 +1037,8 @@ export class CMS {
     const baseSite = this.buildSiteContext(area, settingsObj, virtualPage);
     const basePage = this.buildPageContext(virtualPage);
     const baseStyles = this.buildStylesContext(area, settingsObj);
+    const detailLocale = area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const t = await this.buildTranslationGlobals(detailLocale, detailLocale);
 
     // Build merged component props: collection defaults + per-record overrides
     const recordComponentProps = (matchedRecord.data.__componentProps__ ?? {}) as Record<string, Record<string, unknown>>;
@@ -926,13 +1055,13 @@ export class CMS {
     let contentHtml = await this.render.render({
       template: detailTemplate,
       data: { record: recordContext },
-      globals: { site: baseSite, page: basePage, styles: baseStyles },
+      globals: { site: baseSite, page: basePage, styles: baseStyles, t },
     }).then(restoreCmsPlaceholders);
 
     const detailCss = matchedCollection.detailCss ?? "";
     const detailJs = matchedCollection.detailJs ?? "";
 
-    const contentContext = { site: baseSite, page: basePage, styles: baseStyles };
+    const contentContext = { site: baseSite, page: basePage, styles: baseStyles, t };
     contentHtml = await this.resolveComponentEmbeds(contentHtml, contentContext, propsMap);
     contentHtml = await this.resolveNavigations(contentHtml, contentContext);
     contentHtml = await this.resolveCollections(contentHtml, contentContext, opts?.searchParams);
@@ -955,7 +1084,7 @@ export class CMS {
     let bodyHtml = await this.render.render({
       template: bodyTemplate,
       data: {},
-      globals: { page: pageContext, site: siteContext, styles: baseStyles },
+      globals: { page: pageContext, site: siteContext, styles: baseStyles, t },
     }).then(restoreCmsPlaceholders);
 
     if (area?.design?.bodyElements) {
@@ -963,15 +1092,15 @@ export class CMS {
         bodyHtml = bodyHtml.replace(new RegExp(escapeRegex(el.variable), "g"), el.content);
       }
     }
-    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
-    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles });
-    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles }, opts?.searchParams);
+    bodyHtml = await this.resolveComponentEmbeds(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t });
+    bodyHtml = await this.resolveNavigations(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t });
+    bodyHtml = await this.resolveCollections(bodyHtml, { page: pageContext, site: siteContext, styles: baseStyles, t }, opts?.searchParams);
 
     const headTemplate = protectCmsPlaceholders(normalizeVariableAliases(area?.design?.headTemplate ?? "<head><title>{{page.metaTitle}}</title></head>"));
     const headHtml = await this.render.render({
       template: headTemplate,
       data: {},
-      globals: { page: pageContext, site: siteContext, styles: baseStyles },
+      globals: { page: pageContext, site: siteContext, styles: baseStyles, t },
     }).then(restoreCmsPlaceholders);
 
     const bodyTopTracking = this.buildTrackingScripts(area, "body-top");
@@ -984,7 +1113,7 @@ export class CMS {
    */
   private async resolveCollections(
     html: string,
-    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
     searchParams?: Record<string, string>,
     collectionPropsMap?: Map<string, Record<string, Record<string, unknown>>>,
   ): Promise<string> {
@@ -1109,7 +1238,7 @@ export class CMS {
 
   private async resolveComponentEmbeds(
     html: string,
-    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown> },
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
     propsMap?: Record<string, Record<string, unknown>>,
   ): Promise<string> {
     let result = html;
@@ -1147,6 +1276,7 @@ export class CMS {
             site: ctx.site,
             page: ctx.page,
             styles: ctx.styles,
+            t: ctx.t ?? {},
             component: {
               name: component.name,
               namespace: component.namespace ?? "",
@@ -1320,6 +1450,7 @@ export class CMS {
 
     const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
     const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
+    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
 
     const pageContext = this.buildPageContext(page, "", translations, area);
     const siteContext = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);
@@ -1385,6 +1516,7 @@ export class CMS {
           page: pageContext,
           site: siteContext,
           styles: stylesContext,
+          t,
           component: {
             name: component.name,
             namespace: component.namespace ?? "",
@@ -1403,9 +1535,9 @@ export class CMS {
     }
 
     // 5. Resolve component, navigation, collection and form embeds
-    contentHtml = await this.resolveComponentEmbeds(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
-    contentHtml = await this.resolveNavigations(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext });
-    contentHtml = await this.resolveCollections(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext }, opts?.searchParams, collectionPropsMap);
+    contentHtml = await this.resolveComponentEmbeds(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext, t });
+    contentHtml = await this.resolveNavigations(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext, t });
+    contentHtml = await this.resolveCollections(contentHtml, { site: siteContext, page: pageContext, styles: stylesContext, t }, opts?.searchParams, collectionPropsMap);
     contentHtml = await this.resolveForms(contentHtml);
 
     // 6. Append area-level CSS/JS
@@ -1506,6 +1638,20 @@ type NavigationTemplateNode = {
   items: NavigationTemplateNode[];
   [key: string]: unknown;
 };
+
+type NavigationPageLinkContext = {
+  allPages: CmsPage[];
+  pagesById: Map<string, CmsPage>;
+  areasByKey: Map<string, CmsArea>;
+  settings: CmsSettings | null;
+};
+
+function collectNavigationPageIds(items: CmsNavigationItem[], into: Set<string>) {
+  for (const item of items) {
+    if (item.pageId) into.add(item.pageId);
+    if (item.items?.length) collectNavigationPageIds(item.items, into);
+  }
+}
 
 function buildNavigationTemplateData(items: CmsNavigationItem[]) {
   const normalizedItems = normalizeNavigationItems(items);

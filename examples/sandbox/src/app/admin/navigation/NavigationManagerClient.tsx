@@ -9,11 +9,26 @@ import { createNavigationDirect, deleteNavigation, saveNavigationFull } from "./
 
 type NavigationItemPath = number[];
 
+interface NavigationPageOption {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  areaName: string;
+  locale: string | null;
+  translationKey: string | null;
+  status: string;
+}
+
 interface Props {
   initialNavs: CmsNavigation[];
   settings: CmsSettings | null;
   navTemplates: { id: string; name: string; html: string; css: string; js: string }[];
-  pages: { id: string; title: string; slug: string; url: string; areaName: string }[];
+  pages: NavigationPageOption[];
+  /** Default/source locale — labels/descriptions live here as the base (non-localized) fields. */
+  defaultLocale: string;
+  /** All locales enabled in Settings. Languages are enabled there, not from this screen. */
+  supportedLocales: string[];
 }
 
 interface NavEditState {
@@ -24,7 +39,14 @@ interface NavEditState {
   js: string;
 }
 
-export function NavigationManagerClient({ initialNavs, settings, navTemplates, pages }: Props) {
+export function NavigationManagerClient({
+  initialNavs,
+  settings,
+  navTemplates,
+  pages,
+  defaultLocale,
+  supportedLocales,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -32,11 +54,16 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
   const [selectedId, setSelectedId] = useState<string | null>(initialNavs[0]?.id ?? null);
   const [tab, setTab] = useState<"items" | "template" | "settings">("items");
 
+  const otherLocales = supportedLocales.filter((locale) => locale !== defaultLocale);
+  const showLocaleTabs = otherLocales.length > 0;
+  const [activeLocale, setActiveLocale] = useState(defaultLocale);
+  const isTranslating = showLocaleTabs && activeLocale !== defaultLocale;
+
   const [adding, setAdding] = useState(false);
   const [newNavName, setNewNavName] = useState("");
 
   const [editState, setEditState] = useState<Record<string, NavEditState>>(() =>
-    Object.fromEntries(initialNavs.map((navigation) => [navigation.id, navToState(navigation)])),
+    Object.fromEntries(initialNavs.map((navigation) => [navigation.id, navToState(navigation, pages)])),
   );
 
   const [loadModal, setLoadModal] = useState(false);
@@ -47,6 +74,25 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
   const [newUrl, setNewUrl] = useState("");
   const [newTarget, setNewTarget] = useState<"_self" | "_blank">("_self");
   const [newDescription, setNewDescription] = useState("");
+  const [linkType, setLinkType] = useState<"page" | "custom">("custom");
+  const [newPageId, setNewPageId] = useState<string | null>(null);
+
+  // Pages the "Page" picker offers — the default-locale version of each logical page.
+  // Its translation for other locales is resolved automatically at render time.
+  const pagesForPicker = pages.filter((p) => !p.locale || p.locale === defaultLocale);
+
+  function isPageLinkAvailableForLocale(pageId: string, locale: string): boolean {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return false;
+    if (!locale || (page.locale ?? defaultLocale) === locale) return true;
+    if (!page.translationKey) return false;
+    return pages.some(
+      (candidate) =>
+        candidate.translationKey === page.translationKey &&
+        candidate.status === "published" &&
+        (candidate.locale ?? defaultLocale) === locale,
+    );
+  }
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -65,7 +111,7 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
     startTransition(async () => {
       const navigation = await createNavigationDirect(newNavName.trim());
       setNavs((previous) => [...previous, navigation]);
-      setEditState((previous) => ({ ...previous, [navigation.id]: navToState(navigation) }));
+      setEditState((previous) => ({ ...previous, [navigation.id]: navToState(navigation, pages) }));
       setSelectedId(navigation.id);
       setAdding(false);
       setNewNavName("");
@@ -118,6 +164,8 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
     setNewUrl("");
     setNewTarget("_self");
     setNewDescription("");
+    setLinkType("custom");
+    setNewPageId(null);
   }
 
   function openEditItem(path: NavigationItemPath) {
@@ -127,10 +175,19 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
     setItemModalOpen(true);
     setEditItemPath(path);
     setCreateParentPath(null);
-    setNewLabel(item.label);
     setNewUrl(item.url);
     setNewTarget(item.target === "_blank" ? "_blank" : "_self");
-    setNewDescription(typeof item.description === "string" ? item.description : "");
+    setLinkType(item.pageId ? "page" : "custom");
+    setNewPageId(item.pageId ?? null);
+    if (isTranslating) {
+      const translation = item.translations?.[activeLocale];
+      setNewLabel(translation?.label ?? "");
+      setNewDescription(translation?.description ?? "");
+      if (!item.pageId) setNewUrl(translation?.url ?? "");
+    } else {
+      setNewLabel(item.label);
+      setNewDescription(typeof item.description === "string" ? item.description : "");
+    }
   }
 
   function closeItemModal() {
@@ -141,12 +198,36 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
     setNewUrl("");
     setNewTarget("_self");
     setNewDescription("");
+    setLinkType("custom");
+    setNewPageId(null);
   }
 
   function addOrUpdateItem() {
     if (!selectedId || !state || !newLabel.trim()) return;
-    const normalizedUrl = newUrl.trim();
-    const type = inferNavigationItemType(normalizedUrl, pages);
+
+    if (isTranslating) {
+      if (!editItemPath) return;
+      const existing = getItemAtPath(state.items, editItemPath);
+      if (!existing) return;
+      const nextItems = replaceItemAtPath(state.items, editItemPath, {
+        ...existing,
+        translations: {
+          ...existing.translations,
+          [activeLocale]: {
+            label: newLabel.trim(),
+            description: newDescription.trim(),
+            ...(existing.pageId ? {} : { url: newUrl.trim() }),
+          },
+        },
+      });
+      patch(selectedId, { items: nextItems });
+      closeItemModal();
+      return;
+    }
+
+    const linkedPage = linkType === "page" && newPageId ? pages.find((p) => p.id === newPageId) : null;
+    const normalizedUrl = linkedPage ? linkedPage.url : newUrl.trim();
+    const type: "page" | "custom" = linkedPage ? "page" : inferNavigationItemType(normalizedUrl, pages);
     const normalizedItems = normalizeNavigationItems(state.items);
     const siblingKeys = getSiblingKeySet(
       editItemPath ? normalizedItems : normalizedItems,
@@ -162,6 +243,7 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
       type,
       label: newLabel.trim(),
       url: normalizedUrl,
+      pageId: linkedPage ? linkedPage.id : null,
       target: newTarget,
       description: newDescription.trim(),
       items: [],
@@ -419,11 +501,65 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
                 <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: 12 }}>
                   Add CMS pages or custom links. Use indent and outdent to build nested groups for mega menus, footer columns, or sidebars.
                 </p>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateModal()}>
-                    Add
-                  </button>
-                </div>
+
+                {showLocaleTabs && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 12,
+                      padding: "8px 10px",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginRight: 4 }}>
+                      Editing labels for:
+                    </span>
+                    {[defaultLocale, ...otherLocales].map((locale) => (
+                      <button
+                        key={locale}
+                        type="button"
+                        onClick={() => setActiveLocale(locale)}
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 6,
+                          border: "1px solid var(--border)",
+                          background: activeLocale === locale ? "var(--primary)" : "white",
+                          color: activeLocale === locale ? "white" : "var(--text)",
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {locale.toUpperCase()}
+                        {locale === defaultLocale ? " (default)" : ""}
+                      </button>
+                    ))}
+                    {isTranslating && (
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 4 }}>
+                        {flatItems.filter((f) => f.item.translations?.[activeLocale]?.label).length}/{flatItems.length} translated
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {isTranslating && (
+                  <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12 }}>
+                    Editing the {activeLocale.toUpperCase()} translation. Structure, URLs, and ordering are shared
+                    across languages and can only be changed from the default locale ({defaultLocale.toUpperCase()}).
+                  </p>
+                )}
+
+                {!isTranslating && (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateModal()}>
+                      Add
+                    </button>
+                  </div>
+                )}
 
                 {flatItems.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-muted)" }}>
@@ -459,7 +595,55 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
                         >
                           {item.type}
                         </span>
-                        <span style={{ fontWeight: 600, fontSize: "0.9rem", flex: 1 }}>{item.label}</span>
+                        {(() => {
+                          const translation = item.translations?.[activeLocale];
+                          const displayLabel = isTranslating ? translation?.label || item.label : item.label;
+                          const untranslated = isTranslating && !translation?.label;
+                          return (
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                fontSize: "0.9rem",
+                                flex: 1,
+                                fontStyle: untranslated ? "italic" : "normal",
+                                color: untranslated ? "var(--text-muted)" : "inherit",
+                              }}
+                            >
+                              {displayLabel}
+                              {untranslated && (
+                                <span
+                                  style={{
+                                    marginLeft: 8,
+                                    fontSize: "0.68rem",
+                                    fontStyle: "normal",
+                                    fontWeight: 600,
+                                    padding: "1px 6px",
+                                    borderRadius: 8,
+                                    background: "#fff7ed",
+                                    color: "#c2410c",
+                                  }}
+                                >
+                                  not translated
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
+                        {isTranslating && item.pageId && !isPageLinkAvailableForLocale(item.pageId, activeLocale) && (
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 600,
+                              padding: "1px 6px",
+                              borderRadius: 8,
+                              background: "#fef2f2",
+                              color: "var(--danger)",
+                            }}
+                            title="No published translation for this page — the item will be omitted from the menu in this locale."
+                          >
+                            no page in {activeLocale.toUpperCase()}
+                          </span>
+                        )}
                         <span
                           style={{
                             fontSize: "0.78rem",
@@ -470,61 +654,72 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
                           {item.url}
                         </span>
                         <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                          {!isTranslating && (
+                            <>
+                              <button
+                                type="button"
+                                style={iconBtn}
+                                onClick={() => moveItem(path, -1)}
+                                disabled={siblingIndex === 0}
+                                title="Move up"
+                              >
+                                Up
+                              </button>
+                              <button
+                                type="button"
+                                style={iconBtn}
+                                onClick={() => moveItem(path, 1)}
+                                disabled={siblingIndex === siblingCount - 1}
+                                title="Move down"
+                              >
+                                Down
+                              </button>
+                              <button
+                                type="button"
+                                style={iconBtn}
+                                onClick={() => indentItem(path)}
+                                disabled={siblingIndex === 0}
+                                title="Indent under previous sibling"
+                              >
+                                Indent
+                              </button>
+                              <button
+                                type="button"
+                                style={iconBtn}
+                                onClick={() => outdentItem(path)}
+                                disabled={depth === 0}
+                                title="Outdent one level"
+                              >
+                                Outdent
+                              </button>
+                              <button
+                                type="button"
+                                style={iconBtn}
+                                onClick={() => openCreateModal(path)}
+                                title="Add child item"
+                              >
+                                Child
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             style={iconBtn}
-                            onClick={() => moveItem(path, -1)}
-                            disabled={siblingIndex === 0}
-                            title="Move up"
+                            onClick={() => openEditItem(path)}
+                            title={isTranslating ? "Edit translation" : "Edit item"}
                           >
-                            Up
+                            {isTranslating ? "Translate" : "Edit"}
                           </button>
-                          <button
-                            type="button"
-                            style={iconBtn}
-                            onClick={() => moveItem(path, 1)}
-                            disabled={siblingIndex === siblingCount - 1}
-                            title="Move down"
-                          >
-                            Down
-                          </button>
-                          <button
-                            type="button"
-                            style={iconBtn}
-                            onClick={() => indentItem(path)}
-                            disabled={siblingIndex === 0}
-                            title="Indent under previous sibling"
-                          >
-                            Indent
-                          </button>
-                          <button
-                            type="button"
-                            style={iconBtn}
-                            onClick={() => outdentItem(path)}
-                            disabled={depth === 0}
-                            title="Outdent one level"
-                          >
-                            Outdent
-                          </button>
-                          <button
-                            type="button"
-                            style={iconBtn}
-                            onClick={() => openCreateModal(path)}
-                            title="Add child item"
-                          >
-                            Child
-                          </button>
-                          <button type="button" style={iconBtn} onClick={() => openEditItem(path)} title="Edit item">
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            style={{ ...iconBtn, color: "var(--danger)" }}
-                            onClick={() => removeItem(path)}
-                            title="Remove item"
-                          >
-                            Remove
-                          </button>
+                          {!isTranslating && (
+                            <button
+                              type="button"
+                              style={{ ...iconBtn, color: "var(--danger)" }}
+                              onClick={() => removeItem(path)}
+                              title="Remove item"
+                            >
+                              Remove
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -715,11 +910,13 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
           onClose={closeItemModal}
           width={760}
           title={
-            editItemPath
-              ? "Edit item"
-              : createParentPath
-                ? "Add child item"
-                : "Add item"
+            isTranslating
+              ? `Translate item (${activeLocale.toUpperCase()})`
+              : editItemPath
+                ? "Edit item"
+                : createParentPath
+                  ? "Add child item"
+                  : "Add item"
           }
         >
           <div className="form-group">
@@ -728,34 +925,95 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
               className="form-control"
               value={newLabel}
               onChange={(event) => setNewLabel(event.target.value)}
-              placeholder="For example: Home"
+              placeholder={
+                isTranslating && editItemPath && state
+                  ? getItemAtPath(state.items, editItemPath)?.label
+                  : "For example: Home"
+              }
               autoFocus
             />
             <span className="form-hint" style={{ fontSize: "0.72rem" }}>
-              The internal key is generated from the label on creation and then stays stable for Liquid access.
+              {isTranslating
+                ? `Default (${defaultLocale.toUpperCase()}) label: "${(editItemPath && state && getItemAtPath(state.items, editItemPath)?.label) || ""}"`
+                : "The internal key is generated from the label on creation and then stays stable for Liquid access."}
             </span>
           </div>
-          <div className="form-group">
-            <label className="form-label">URL</label>
-            <input
-              className="form-control"
-              value={newUrl}
-              onChange={(event) => setNewUrl(event.target.value)}
-              placeholder="/path or https://..."
-              list="navigation-page-paths"
-            />
-            <datalist id="navigation-page-paths">
-              <option value="/">Home</option>
-              {pages.map((page) => (
-                <option key={page.id} value={page.url}>
-                  {page.title}
-                </option>
-              ))}
-            </datalist>
-            <span className="form-hint" style={{ fontSize: "0.72rem" }}>
-              Optional. Leave empty for parent/group items that only organize child links.
-            </span>
-          </div>
+          {!isTranslating && (
+            <div className="form-group">
+              <label className="form-label">Link</label>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${linkType === "page" ? "btn-primary" : "btn-secondary"}`}
+                  onClick={() => setLinkType("page")}
+                >
+                  Page
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${linkType === "custom" ? "btn-primary" : "btn-secondary"}`}
+                  onClick={() => {
+                    setLinkType("custom");
+                    setNewPageId(null);
+                  }}
+                >
+                  Custom URL
+                </button>
+              </div>
+              {linkType === "page" ? (
+                <>
+                  <select
+                    className="form-control"
+                    value={newPageId ?? ""}
+                    onChange={(event) => setNewPageId(event.target.value || null)}
+                  >
+                    <option value="">Select a page...</option>
+                    {pagesForPicker.map((page) => (
+                      <option key={page.id} value={page.id}>
+                        {page.title} ({page.areaName})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="form-hint" style={{ fontSize: "0.72rem" }}>
+                    Links to this page. If a locale has no published translation of it, the item is
+                    simply omitted from that locale&apos;s menu instead of showing a broken link.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <input
+                    className="form-control"
+                    value={newUrl}
+                    onChange={(event) => setNewUrl(event.target.value)}
+                    placeholder="/path or https://..."
+                  />
+                  <span className="form-hint" style={{ fontSize: "0.72rem" }}>
+                    Optional. Leave empty for parent/group items that only organize child links. A fixed
+                    URL is the same for every locale — use &quot;Page&quot; instead if it should adapt per language.
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+          {isTranslating && editItemPath && state && !getItemAtPath(state.items, editItemPath)?.pageId && (
+            <div className="form-group">
+              <label className="form-label">URL</label>
+              <input
+                className="form-control"
+                value={newUrl}
+                onChange={(event) => setNewUrl(event.target.value)}
+                placeholder={getItemAtPath(state.items, editItemPath)?.url || "/path or https://..."}
+              />
+              <span className="form-hint" style={{ fontSize: "0.72rem" }}>
+                {`Default (${defaultLocale.toUpperCase()}) URL: "${getItemAtPath(state.items, editItemPath)?.url || ""}". Leave empty to reuse it unchanged for ${activeLocale.toUpperCase()}.`}
+              </span>
+            </div>
+          )}
+          {isTranslating && editItemPath && state && getItemAtPath(state.items, editItemPath)?.pageId && (
+            <p className="form-hint" style={{ fontSize: "0.72rem", margin: "-4px 0 8px" }}>
+              This item links to a page — its URL resolves automatically to that page&apos;s {activeLocale.toUpperCase()} translation.
+            </p>
+          )}
           <div className="form-group">
             <label className="form-label">Description</label>
             <RichTextEditor
@@ -765,24 +1023,26 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
               minHeight={180}
             />
           </div>
-          <div className="form-group">
-            <label
-              className="form-label"
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
-            >
-              <span>Open in new tab</span>
-            </label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={newTarget === "_blank"}
-                onChange={(event) => setNewTarget(event.target.checked ? "_blank" : "_self")}
-              />
-              <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                {newTarget === "_blank" ? "Enabled: _blank" : "Disabled: _self"}
-              </span>
-            </label>
-          </div>
+          {!isTranslating && (
+            <div className="form-group">
+              <label
+                className="form-label"
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+              >
+                <span>Open in new tab</span>
+              </label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={newTarget === "_blank"}
+                  onChange={(event) => setNewTarget(event.target.checked ? "_blank" : "_self")}
+                />
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  {newTarget === "_blank" ? "Enabled: _blank" : "Disabled: _self"}
+                </span>
+              </label>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={closeItemModal}>
               Cancel
@@ -802,14 +1062,31 @@ export function NavigationManagerClient({ initialNavs, settings, navTemplates, p
   );
 }
 
-function navToState(navigation: CmsNavigation): NavEditState {
+function navToState(navigation: CmsNavigation, pages: NavigationPageOption[]): NavEditState {
   return {
     name: navigation.name,
-    items: normalizeNavigationItems(navigation.items ?? []),
+    items: backfillPageIds(normalizeNavigationItems(navigation.items ?? []), pages),
     template: navigation.template ?? "",
     css: navigation.additionalCss ?? "",
     js: navigation.additionalJs ?? "",
   };
+}
+
+/**
+ * Migrates legacy "page" items created before the page picker existed: they only stored a static
+ * `url` matching a page's URL at the time, with no stable `pageId`. Matches by URL once so the item
+ * gains a real page reference and its link starts resolving per-locale instead of staying fixed.
+ */
+function backfillPageIds(items: CmsNavigationItem[], pages: NavigationPageOption[]): CmsNavigationItem[] {
+  return items.map((item) => {
+    const inferredPageId =
+      item.pageId ?? (item.type === "page" ? pages.find((p) => p.url === item.url)?.id ?? null : item.pageId ?? null);
+    return {
+      ...item,
+      pageId: inferredPageId,
+      items: item.items ? backfillPageIds(item.items, pages) : item.items,
+    };
+  });
 }
 
 function cloneNavigationItems(items: CmsNavigationItem[]): CmsNavigationItem[] {

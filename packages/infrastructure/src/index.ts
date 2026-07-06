@@ -17,6 +17,7 @@ export { UserRepository } from "./repositories/UserRepository";
 export { FormRepository } from "./repositories/FormRepository";
 export { RedirectRepository } from "./repositories/RedirectRepository";
 export { CollectionRepository } from "./repositories/CollectionRepository";
+export { TranslationDictionaryRepository } from "./repositories/TranslationDictionaryRepository";
 
 // Email system
 export type { IEmailSender, EmailMessage, EmailAttachment } from "./email/IEmailSender";

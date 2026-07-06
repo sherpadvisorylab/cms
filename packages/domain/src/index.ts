@@ -12,6 +12,7 @@ export * from "./entities/Form";
 export * from "./entities/SystemVars";
 export * from "./entities/Redirect";
 export * from "./entities/Collection";
+export * from "./entities/TranslationEntry";
 
 // Ports
 export * from "./ports/IPageRepository";
@@ -27,3 +28,4 @@ export * from "./ports/IUserRepository";
 export * from "./ports/IFormRepository";
 export * from "./ports/IRedirectRepository";
 export * from "./ports/ICollectionRepository";
+export * from "./ports/ITranslationDictionaryRepository";

@@ -24,10 +24,24 @@ export default async function NavigationPage() {
   ) as RenderTemplateWithAssets[];
   const permalinkMap = buildPermalinkMap(allPages);
 
+  const branding = settings?.branding;
+  const multiLanguageEnabled = branding?.multiLanguageEnabled ?? false;
+  const globalLocales = branding?.locales ?? [];
+  const defaultLocale =
+    (globalLocales.find((l) => l.isDefault) ?? globalLocales[0])?.code ??
+    branding?.defaultLanguage ??
+    "en";
+  const supportedLocales =
+    multiLanguageEnabled && globalLocales.length > 0
+      ? globalLocales.map((l) => l.code)
+      : branding?.supportedLocales ?? [defaultLocale];
+
   return (
     <NavigationManagerClient
       initialNavs={navs}
       settings={settings}
+      defaultLocale={defaultLocale}
+      supportedLocales={multiLanguageEnabled ? supportedLocales : [defaultLocale]}
       navTemplates={renderTemplates
         .filter((template) => template.type === "navigation")
         .map((template) => ({
@@ -48,7 +62,16 @@ export default async function NavigationPage() {
           const url = permalink === "/"
             ? (normalizedRootPath || "/")
             : `${normalizedRootPath}${permalink}`;
-          return { id: p.id, title: p.title, slug: permalink, url, areaName: area?.displayName ?? p.area };
+          return {
+            id: p.id,
+            title: p.title,
+            slug: permalink,
+            url,
+            areaName: area?.displayName ?? p.area,
+            locale: p.locale ?? null,
+            translationKey: p.translationKey ?? null,
+            status: p.status,
+          };
         })}
     />
   );
