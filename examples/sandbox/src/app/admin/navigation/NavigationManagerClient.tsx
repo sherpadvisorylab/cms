@@ -65,7 +65,7 @@ export function NavigationManagerClient({
   const [newNavName, setNewNavName] = useState("");
 
   const [editState, setEditState] = useState<Record<string, NavEditState>>(() =>
-    Object.fromEntries(initialNavs.map((navigation) => [navigation.id, navToState(navigation, pages)])),
+    Object.fromEntries(initialNavs.map((navigation) => [navigation.id, navToState(navigation, pages, defaultLocale)])),
   );
 
   const [loadModal, setLoadModal] = useState(false);
@@ -113,7 +113,7 @@ export function NavigationManagerClient({
     startTransition(async () => {
       const navigation = await createNavigationDirect(newNavName.trim());
       setNavs((previous) => [...previous, navigation]);
-      setEditState((previous) => ({ ...previous, [navigation.id]: navToState(navigation, pages) }));
+      setEditState((previous) => ({ ...previous, [navigation.id]: navToState(navigation, pages, defaultLocale) }));
       setSelectedId(navigation.id);
       setAdding(false);
       setNewNavName("");
@@ -1067,10 +1067,10 @@ export function NavigationManagerClient({
   );
 }
 
-function navToState(navigation: CmsNavigation, pages: NavigationPageOption[]): NavEditState {
+function navToState(navigation: CmsNavigation, pages: NavigationPageOption[], defaultLocale: string): NavEditState {
   return {
     name: navigation.name,
-    items: backfillPageIds(normalizeNavigationItems(navigation.items ?? []), pages),
+    items: backfillPageIds(normalizeNavigationItems(navigation.items ?? []), pages, defaultLocale),
     template: navigation.template ?? "",
     css: navigation.additionalCss ?? "",
     js: navigation.additionalJs ?? "",
@@ -1081,15 +1081,32 @@ function navToState(navigation: CmsNavigation, pages: NavigationPageOption[]): N
  * Migrates legacy "page" items created before the page picker existed: they only stored a static
  * `url` matching a page's URL at the time, with no stable `pageId`. Matches by URL once so the item
  * gains a real page reference and its link starts resolving per-locale instead of staying fixed.
+ *
+ * Only matches against default-locale (or locale-less) pages — matching against ANY locale risked
+ * picking a translated sibling that happens to share the same computed URL, which would make the
+ * item resolve as "wrong locale" and disappear even for the default locale. Also self-heals any
+ * previously-backfilled pageId that points to a non-default-locale page for the same reason.
  */
-function backfillPageIds(items: CmsNavigationItem[], pages: NavigationPageOption[]): CmsNavigationItem[] {
+function backfillPageIds(
+  items: CmsNavigationItem[],
+  pages: NavigationPageOption[],
+  defaultLocale: string,
+): CmsNavigationItem[] {
+  const defaultLocalePages = pages.filter((p) => !p.locale || p.locale === defaultLocale);
+
   return items.map((item) => {
-    const inferredPageId =
-      item.pageId ?? (item.type === "page" ? pages.find((p) => p.url === item.url)?.id ?? null : item.pageId ?? null);
+    let pageId = item.pageId ?? null;
+    if (item.type === "page") {
+      const currentPage = pageId ? pages.find((p) => p.id === pageId) : null;
+      const pointsToWrongLocale = Boolean(currentPage?.locale && currentPage.locale !== defaultLocale);
+      if (!pageId || pointsToWrongLocale) {
+        pageId = defaultLocalePages.find((p) => p.url === item.url)?.id ?? (pointsToWrongLocale ? null : pageId);
+      }
+    }
     return {
       ...item,
-      pageId: inferredPageId,
-      items: item.items ? backfillPageIds(item.items, pages) : item.items,
+      pageId,
+      items: item.items ? backfillPageIds(item.items, pages, defaultLocale) : item.items,
     };
   });
 }
