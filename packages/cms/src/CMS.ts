@@ -846,10 +846,17 @@ export class CMS {
       this.areas.findAll().catch(() => []),
       this.settings.get().catch(() => null),
     ]);
+    // CmsPage.area may store either the area's name or its id depending on how the page was
+    // created — index by both so the lookup in resolveNavigationPageLinkUrl always finds it.
+    const areasByKey = new Map<string, CmsArea>();
+    for (const area of allAreas) {
+      if (area.name) areasByKey.set(area.name, area);
+      areasByKey.set(area.id, area);
+    }
     return {
       allPages,
       pagesById: new Map(allPages.map((p) => [p.id, p])),
-      areasByKey: new Map(allAreas.map((a) => [a.name || a.id, a])),
+      areasByKey,
       settings,
     };
   }
