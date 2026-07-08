@@ -1,7 +1,13 @@
 import type { CmsPage, PageVersion } from "../entities/Page";
 
 export interface IPageRepository {
-  findByPermalink(area: string, permalink: string): Promise<CmsPage | null>;
+  /**
+   * Finds the published page at `permalink` in `area`. If multiple pages share the same
+   * permalink (locale variants of the same logical page, e.g. Home in every language served
+   * at "/"), pass `locale` to disambiguate — falls back to the locale-less variant, then the
+   * first match, when no exact locale match exists.
+   */
+  findByPermalink(area: string, permalink: string, locale?: string): Promise<CmsPage | null>;
   findBySlug(area: string, slug: string): Promise<CmsPage | null>;
   /** Returns all pages, optionally filtered by area and/or locale. */
   findAll(area?: string, locale?: string): Promise<CmsPage[]>;

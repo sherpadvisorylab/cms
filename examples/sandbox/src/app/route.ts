@@ -3,6 +3,25 @@ import { getPrimaryPublicAreaName } from "@/lib/publicPageResolver";
 import { normalizePermalink } from "@/lib/pagePermalinks";
 import { unstable_cache } from "next/cache";
 
+type PublishedPage = Awaited<ReturnType<typeof cms.pages.findAll>>[number];
+
+// Multiple published pages can share a permalink as locale variants of the same logical
+// page (e.g. Home served at "/" in every language, disambiguated by the locale prefix at
+// the URL level, not by permalink) — prefer the exact locale match, then the locale-less
+// variant, then just the first, mirroring PageRepository.findByPermalink.
+function findLocaleAwarePage(pages: PublishedPage[], permalink: string, locale?: string) {
+  const normalized = normalizePermalink(permalink);
+  const matches = pages.filter(
+    (page) => normalizePermalink(page.permalink ?? page.slug) === normalized,
+  );
+  if (matches.length <= 1) return matches[0];
+  if (locale) {
+    const exact = matches.find((page) => page.locale === locale);
+    if (exact) return exact;
+  }
+  return matches.find((page) => !page.locale) ?? matches[0];
+}
+
 function renderHomeCached(areaName: string) {
   return unstable_cache(
     async () => {
@@ -12,12 +31,7 @@ function renderHomeCached(areaName: string) {
       const pages = await cms.pages.findAll(areaName).catch(() => []);
       const published = pages.filter((page) => page.status === "published");
       const candidate = ["/", "/home", "/index", "", "home", "index"]
-        .map((permalink) =>
-          published.find(
-            (page) =>
-              normalizePermalink(page.permalink ?? page.slug) === normalizePermalink(permalink),
-          ),
-        )
+        .map((permalink) => findLocaleAwarePage(published, permalink))
         .find(Boolean);
 
       return candidate

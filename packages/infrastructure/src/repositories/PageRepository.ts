@@ -6,13 +6,23 @@ import { generateId } from "../utils/storage";
 export class PageRepository implements IPageRepository {
   constructor(private adapter: StorageAdapter) {}
 
-  async findByPermalink(area: string, permalink: string): Promise<CmsPage | null> {
+  async findByPermalink(area: string, permalink: string, locale?: string): Promise<CmsPage | null> {
     const normalizedPermalink = normalizePermalink(permalink);
     const pages = await this.adapter.getAll<CmsPage>("pages", { area, status: "published" });
-    return (
-      pages.find((page) => normalizePermalink(page.permalink ?? page.slug) === normalizedPermalink)
-      ?? null
+    const matches = pages.filter(
+      (page) => normalizePermalink(page.permalink ?? page.slug) === normalizedPermalink,
     );
+    if (matches.length <= 1) return matches[0] ?? null;
+
+    // Multiple published pages share this permalink — they're locale variants of the same
+    // logical page (e.g. Home in every language served at "/", disambiguated by the locale
+    // prefix at the URL level, not by permalink). Prefer the exact locale match, then the
+    // variant with no explicit locale (treated as the area's default), then just the first.
+    if (locale) {
+      const exact = matches.find((page) => page.locale === locale);
+      if (exact) return exact;
+    }
+    return matches.find((page) => !page.locale) ?? matches[0];
   }
 
   async findBySlug(area: string, slug: string): Promise<CmsPage | null> {

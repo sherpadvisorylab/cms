@@ -25,6 +25,31 @@ describe("PageRepository", () => {
     expect(found!.title).toBe("Home Page");
   });
 
+  it("findByPermalink returns the single published match when only one page has that permalink", async () => {
+    await repo.create({ area: "public", slug: "about", permalink: "/about", title: "About", status: "published", structure: [] });
+
+    const found = await repo.findByPermalink("public", "/about");
+    expect(found?.title).toBe("About");
+  });
+
+  it("findByPermalink disambiguates by locale when multiple pages share a permalink (e.g. Home in every locale)", async () => {
+    await repo.create({ area: "public", slug: "", permalink: "/", title: "Home IT", locale: "it", status: "published", structure: [] });
+    await repo.create({ area: "public", slug: "", permalink: "/", title: "Home EN", locale: "en", status: "published", structure: [] });
+    await repo.create({ area: "public", slug: "", permalink: "/", title: "Home FR", locale: "fr", status: "published", structure: [] });
+
+    expect((await repo.findByPermalink("public", "/", "en"))?.title).toBe("Home EN");
+    expect((await repo.findByPermalink("public", "/", "fr"))?.title).toBe("Home FR");
+    expect((await repo.findByPermalink("public", "/", "it"))?.title).toBe("Home IT");
+  });
+
+  it("findByPermalink falls back to the locale-less variant, then the first match, when the requested locale has no exact match", async () => {
+    await repo.create({ area: "public", slug: "", permalink: "/", title: "Home Default", status: "published", structure: [] });
+    await repo.create({ area: "public", slug: "", permalink: "/", title: "Home EN", locale: "en", status: "published", structure: [] });
+
+    expect((await repo.findByPermalink("public", "/", "de"))?.title).toBe("Home Default");
+    expect((await repo.findByPermalink("public", "/"))?.title).toBe("Home Default");
+  });
+
   it("returns null for unpublished pages", async () => {
     await repo.create({
       area: "public",
