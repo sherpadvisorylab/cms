@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CodeEditor } from "@/components/admin/CodeEditor";
 import { SchemaFieldEditor } from "@/components/admin/SchemaFieldEditor";
@@ -24,7 +24,12 @@ import {
   createRecord,
   updateRecord,
   deleteRecord,
+  importCollectionRecords,
+  getCollectionRecordsForRelationPicker,
+  type ImportRecordRow,
+  type ImportResult,
 } from "./actions";
+import { parseCsv, toCsvRow, fieldValueToCsvString, csvStringToFieldValue, isCsvSupportedField, normalizeHeader } from "@/lib/csv";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -94,6 +99,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
   const [saved, setSaved] = useState(false);
   const [delConfirm, setDelConfirm] = useState(false);
   const [loadModal, setLoadModal] = useState<"detail" | string | null>(null); // string = view id
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // Record modal
   const [recordModal, setRecordModal] = useState<{ mode: "create" | "edit"; record?: CmsCollectionRecord } | null>(null);
@@ -257,6 +263,12 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
     });
   }
 
+  function handleImported(result: ImportResult) {
+    if (!selectedId) return;
+    patch(selectedId, { records: result.records });
+    setCollections((prev) => prev.map((c) => (c.id === selectedId ? { ...c, records: result.records } : c)));
+  }
+
   // ── Embed helpers ─────────────────────────────────────────────────────────
 
   function embedCode(viewSlug?: string) {
@@ -389,8 +401,9 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                   </div>
                 ) : (
                   <>
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={openCreateRecord}>Add record</button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setImportModalOpen(true)}>Import</button>
                     </div>
                     {state.records.length === 0 ? (
                       <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No records yet.</p>
@@ -673,6 +686,17 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
             </div>
           )}
         </Modal>
+      )}
+
+      {/* Import records modal */}
+      {importModalOpen && selected && state && (
+        <ImportRecordsModal
+          collection={selected}
+          schema={state.schema}
+          records={state.records}
+          onClose={() => setImportModalOpen(false)}
+          onImported={handleImported}
+        />
       )}
 
       {/* Record create/edit modal */}
@@ -1161,6 +1185,319 @@ function Modal({ title, children, onClose, width = 520 }: { title: string; child
         {children}
       </div>
     </div>
+  );
+}
+
+type RowIssue = { row: number; message: string };
+
+function ImportRecordsModal({
+  collection,
+  schema,
+  records,
+  onClose,
+  onImported,
+}: {
+  collection: CollectionWithRecords;
+  schema: ComponentSchemaField[];
+  records: CmsCollectionRecord[];
+  onClose: () => void;
+  onImported: (result: ImportResult) => void;
+}) {
+  const importableFields = schema.filter(isCsvSupportedField);
+  const skippedFields = schema.filter((f) => !isCsvSupportedField(f));
+  const relationFields = importableFields.filter((f) => f.type === "relation" && f.relationTarget);
+
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [csvHeader, setCsvHeader] = useState<string[]>([]);
+  const [csvDataRows, setCsvDataRows] = useState<string[][]>([]);
+  const [idColumn, setIdColumn] = useState("");
+  const [columnMap, setColumnMap] = useState<Record<string, string>>({});
+  const [relationIdSets, setRelationIdSets] = useState<Record<string, Set<string>>>({});
+  const [mode, setMode] = useState<"merge" | "override">("merge");
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Preload the valid record ids of every relation field's target collection, once, so the
+  // preview can flag CSV values that don't point at a real record (schema is static for the
+  // lifetime of this modal, so a mount-only fetch is intentional here).
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(relationFields.map(async (f) => {
+      const data = await getCollectionRecordsForRelationPicker(f.relationTarget!);
+      return [f.key, new Set(data.records.map((r) => r.id))] as const;
+    })).then((entries) => {
+      if (!cancelled) setRelationIdSets(Object.fromEntries(entries));
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function downloadCsv(withData: boolean) {
+    const headers = ["id", ...importableFields.map((f) => f.key)];
+    const lines = [toCsvRow(headers)];
+    if (withData) {
+      for (const r of records) {
+        lines.push(toCsvRow([r.id, ...importableFields.map((f) => fieldValueToCsvString(r.data[f.key], f))]));
+      }
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${collection.slug}${withData ? "" : "-struttura"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleFile(file: File) {
+    setFileName(file.name);
+    setResult(null);
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (rows.length === 0) {
+      setCsvHeader([]);
+      setCsvDataRows([]);
+      return;
+    }
+
+    const [header, ...dataRows] = rows;
+    setCsvHeader(header);
+    setCsvDataRows(dataRows);
+
+    // Default mapping: normalized exact match against the field's key or label.
+    const normalizedHeader = header.map((h) => ({ raw: h, norm: normalizeHeader(h) }));
+    const nextMap: Record<string, string> = {};
+    for (const field of importableFields) {
+      const match = normalizedHeader.find((h) => h.norm === normalizeHeader(field.key) || h.norm === normalizeHeader(field.label));
+      nextMap[field.key] = match?.raw ?? "";
+    }
+    setColumnMap(nextMap);
+    setIdColumn(normalizedHeader.find((h) => h.norm === "id")?.raw ?? "");
+  }
+
+  function resetFile() {
+    setFileName(null);
+    setCsvHeader([]);
+    setCsvDataRows([]);
+    setColumnMap({});
+    setIdColumn("");
+  }
+
+  /** Recomputed from the raw CSV + the current column mapping on every render — cheap for typical CSV sizes. */
+  function buildPreview(): { rows: ImportRecordRow[]; errors: RowIssue[]; warnings: RowIssue[] } {
+    if (csvHeader.length === 0) return { rows: [], errors: [], warnings: [] };
+
+    const idIdx = idColumn ? csvHeader.indexOf(idColumn) : -1;
+    const fieldIdxByKey = new Map(importableFields.map((f) => [f.key, columnMap[f.key] ? csvHeader.indexOf(columnMap[f.key]) : -1]));
+
+    const errors: RowIssue[] = [];
+    const warnings: RowIssue[] = [];
+    for (const field of importableFields) {
+      if (field.required && (fieldIdxByKey.get(field.key) ?? -1) < 0) {
+        errors.push({ row: 0, message: `Il campo obbligatorio "${field.label}" non è abbinato a nessuna colonna` });
+      }
+    }
+
+    const rows: ImportRecordRow[] = [];
+    csvDataRows.forEach((cells, i) => {
+      if (cells.every((c) => c.trim() === "")) return;
+      const rowNum = i + 2; // 1-based, +1 for the header row
+      const data: Record<string, unknown> = {};
+      for (const field of importableFields) {
+        const idx = fieldIdxByKey.get(field.key) ?? -1;
+        if (idx < 0) continue;
+        const raw = cells[idx] ?? "";
+        const value = csvStringToFieldValue(raw, field);
+        const isEmpty = value === undefined || (Array.isArray(value) ? value.length === 0 : String(value).trim() === "");
+        if (field.required && isEmpty) {
+          errors.push({ row: rowNum, message: `Riga ${rowNum}: campo obbligatorio "${field.label}" mancante` });
+        }
+        if (field.type === "number" && raw.trim() !== "" && Number.isNaN(value as number)) {
+          errors.push({ row: rowNum, message: `Riga ${rowNum}: "${field.label}" non è un numero valido ("${raw}")` });
+        }
+        if (field.type === "select" && raw.trim() && !(field.options ?? []).some((o) => o.value === raw.trim())) {
+          warnings.push({ row: rowNum, message: `Riga ${rowNum}: valore "${raw}" non tra le opzioni di "${field.label}"` });
+        }
+        if (field.type === "toggle" && raw.trim() && !["true", "false"].includes(raw.trim().toLowerCase())) {
+          warnings.push({ row: rowNum, message: `Riga ${rowNum}: valore "${raw}" per "${field.label}" non è true/false, verrà trattato come false` });
+        }
+        if (field.type === "relation" && Array.isArray(value)) {
+          const validIds = relationIdSets[field.key];
+          const unknownIds = validIds ? (value as string[]).filter((id) => !validIds.has(id)) : [];
+          if (unknownIds.length > 0) {
+            warnings.push({ row: rowNum, message: `Riga ${rowNum}: id non trovati in "${field.label}": ${unknownIds.join(", ")}` });
+          }
+        }
+        data[field.key] = value;
+      }
+      const id = idIdx >= 0 ? (cells[idIdx]?.trim() || undefined) : undefined;
+      rows.push({ id, data });
+    });
+
+    return { rows, errors, warnings };
+  }
+
+  const preview = buildPreview();
+
+  async function handleConfirm() {
+    setImporting(true);
+    try {
+      const res = await importCollectionRecords(collection.id, preview.rows, mode);
+      setResult(res);
+      onImported(res);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <Modal title={`Import records — ${collection.name}`} onClose={onClose} width={640}>
+      {result ? (
+        <div>
+          <p style={{ fontSize: "0.88rem" }}>
+            Import completato: <strong>{result.created}</strong> creati, <strong>{result.updated}</strong> aggiornati
+            {mode === "override" ? <>, <strong>{result.deleted}</strong> eliminati</> : null}.
+          </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>Chiudi</button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 8px" }}>
+              Esporta struttura per un CSV vuoto con solo le intestazioni attese, o esporta dati per un CSV precompilato con i record esistenti. Modificalo e ricaricalo qui sotto.
+              {skippedFields.length > 0 && (
+                <> I campi {skippedFields.map((f) => `"${f.label}"`).join(", ")} non sono supportati via CSV e restano sempre invariati.</>
+              )}
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadCsv(false)}>⬇ Esporta struttura</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadCsv(true)}>⬇ Esporta dati</button>
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">Carica CSV</label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleFile(file);
+              }}
+              style={{
+                border: `2px dashed ${dragOver ? "var(--primary)" : "var(--border)"}`,
+                borderRadius: 10,
+                padding: "28px 20px",
+                textAlign: "center",
+                cursor: "pointer",
+                background: dragOver ? "rgba(46,90,151,0.06)" : "var(--bg-light, #f8fafc)",
+                transition: "background 0.12s, border-color 0.12s",
+              }}
+            >
+              <div style={{ fontSize: "1.8rem", marginBottom: 6, opacity: 0.7 }}>📄</div>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600 }}>
+                {fileName ?? "Trascina qui il file CSV"}
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: "0.76rem", color: "var(--text-muted)" }}>
+                {fileName ? `${csvDataRows.length} righe trovate — clicca per cambiare file` : "oppure clicca per selezionarlo"}
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv"
+                style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+              />
+            </div>
+          </div>
+
+          {csvHeader.length > 0 && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <label className="form-label" style={{ margin: 0 }}>Abbina le colonne del CSV ai campi</label>
+                <button type="button" className="btn-icon" onClick={resetFile} style={{ fontSize: "0.72rem" }}>Cambia file</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, padding: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "center" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-muted)" }}>ID (per abbinare i record esistenti)</span>
+                  <select className="form-control" value={idColumn} onChange={(e) => setIdColumn(e.target.value)}>
+                    <option value="">— Nessuna: crea sempre nuovo —</option>
+                    {csvHeader.map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                {importableFields.map((field) => (
+                  <div key={field.key} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: "0.82rem" }}>
+                      {field.label}{field.required && <span style={{ color: "var(--danger)", marginLeft: 2 }}>*</span>}
+                    </span>
+                    <select
+                      className="form-control"
+                      value={columnMap[field.key] ?? ""}
+                      onChange={(e) => setColumnMap((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    >
+                      <option value="">— Non importare —</option>
+                      {csvHeader.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {preview.errors.length > 0 && (
+            <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 6, padding: 10 }}>
+              <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: "0.8rem", color: "var(--danger)" }}>
+                {preview.errors.length} errori — correggi il file o l'abbinamento colonne:
+              </p>
+              {preview.errors.slice(0, 10).map((e, i) => (
+                <p key={i} style={{ margin: 0, fontSize: "0.76rem", color: "var(--danger)" }}>{e.message}</p>
+              ))}
+            </div>
+          )}
+
+          {preview.warnings.length > 0 && (
+            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: 10 }}>
+              {preview.warnings.slice(0, 10).map((w, i) => (
+                <p key={i} style={{ margin: 0, fontSize: "0.76rem", color: "#92400e" }}>{w.message}</p>
+              ))}
+            </div>
+          )}
+
+          {preview.rows.length > 0 && preview.errors.length === 0 && (
+            <div>
+              <label className="form-label">Modalità</label>
+              <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.85rem" }}>
+                  <input type="radio" name="importMode" checked={mode === "merge"} onChange={() => setMode("merge")} />
+                  Merge — aggiorna/crea, non cancella nulla
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.85rem" }}>
+                  <input type="radio" name="importMode" checked={mode === "override"} onChange={() => setMode("override")} />
+                  Override — il CSV sostituisce tutta la collection
+                </label>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Annulla</button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={preview.rows.length === 0 || preview.errors.length > 0 || importing}
+              onClick={handleConfirm}
+            >
+              {importing ? "Importazione…" : `Importa ${preview.rows.length} record`}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

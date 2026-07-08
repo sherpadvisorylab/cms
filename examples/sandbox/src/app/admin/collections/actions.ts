@@ -2,7 +2,7 @@
 
 import { cms } from "@/lib/cms";
 import { revalidatePath } from "next/cache";
-import type { CmsCollection, CmsCollectionView, ComponentSchemaField } from "@sherpacms/domain";
+import type { CmsCollection, CmsCollectionRecord, CmsCollectionView, ComponentSchemaField } from "@sherpacms/domain";
 
 // ── Collections ───────────────────────────────────────────────────────────────
 
@@ -82,4 +82,61 @@ export async function getCollectionRecordsForRelationPicker(collectionSlug: stri
     records: records.map((r) => ({ id: r.id, data: r.data })),
     schema: collection.schema,
   };
+}
+
+// ── CSV import ───────────────────────────────────────────────────────────────
+
+export interface ImportRecordRow {
+  /** Existing record id to update, or undefined/unmatched to create a new record. */
+  id?: string;
+  data: Record<string, unknown>;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  deleted: number;
+  records: CmsCollectionRecord[];
+}
+
+/**
+ * Bulk-imports parsed CSV rows into a collection. Each row's fields are merged into the
+ * existing record's data (not a full replace) so columns absent from the CSV — e.g. `list`
+ * fields, which can't round-trip through a flat CSV — are preserved. In "override" mode,
+ * any existing record whose id isn't touched by the import is deleted afterward.
+ */
+export async function importCollectionRecords(
+  collectionId: string,
+  rows: ImportRecordRow[],
+  mode: "merge" | "override",
+): Promise<ImportResult> {
+  const existing = await cms.collections.findRecords(collectionId);
+  const existingById = new Map(existing.map((r) => [r.id, r]));
+  const touchedIds = new Set<string>();
+
+  let created = 0;
+  let updated = 0;
+  for (const row of rows) {
+    const existingRecord = row.id ? existingById.get(row.id) : undefined;
+    if (existingRecord) {
+      await cms.collections.updateRecord(collectionId, existingRecord.id, { ...existingRecord.data, ...row.data });
+      touchedIds.add(existingRecord.id);
+      updated++;
+    } else {
+      const record = await cms.collections.createRecord({ collectionId, data: row.data });
+      touchedIds.add(record.id);
+      created++;
+    }
+  }
+
+  let deleted = 0;
+  if (mode === "override") {
+    const toDelete = existing.filter((r) => !touchedIds.has(r.id));
+    await Promise.all(toDelete.map((r) => cms.collections.deleteRecord(collectionId, r.id)));
+    deleted = toDelete.length;
+  }
+
+  const records = await cms.collections.findRecords(collectionId);
+  revalidatePath("/admin/collections");
+  return { created, updated, deleted, records };
 }
