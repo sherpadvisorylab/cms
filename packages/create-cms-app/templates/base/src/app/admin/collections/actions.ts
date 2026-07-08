@@ -66,3 +66,20 @@ export async function deleteRecord(collectionId: string, recordId: string) {
   await cms.collections.deleteRecord(collectionId, recordId);
   revalidatePath("/admin/collections");
 }
+
+// ── Relation fields ────────────────────────────────────────────────────────────
+
+/** Records + schema of a collection, for the `relation` field's autocomplete picker. */
+export async function getCollectionRecordsForRelationPicker(collectionSlug: string): Promise<{
+  records: { id: string; data: Record<string, unknown> }[];
+  schema: ComponentSchemaField[];
+}> {
+  const collection = await cms.collections.findBySlug(collectionSlug).catch(() => null);
+  if (!collection) return { records: [], schema: [] };
+
+  const records = await cms.collections.findRecords(collection.id).catch(() => []);
+  return {
+    records: records.map((r) => ({ id: r.id, data: r.data })),
+    schema: collection.schema,
+  };
+}

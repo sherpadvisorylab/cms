@@ -41,6 +41,9 @@ import {
   ITranslationDictionaryRepository,
   CmsTranslationEntry,
   IRenderEngine,
+  CmsCollection,
+  CmsCollectionView,
+  CmsCollectionRecord,
 } from "@sherpacms/domain";
 import { FormRenderer } from "@sherpacms/form-generator";
 import type { FormSchema } from "@sherpacms/form-generator";
@@ -343,7 +346,7 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
 
     // 1. Resolve page
-    let page = await this.pages.findByPermalink(areaKey, permalink);
+    let page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale);
     if (!page) {
       page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink);
     }
@@ -429,7 +432,13 @@ export class CMS {
         }
       }
 
-      const expandedProps = this.expandImageProps(resolvedProps, componentVersion.schema);
+      const propsWithRelations = await this.resolveRelationFields(
+        resolvedProps,
+        componentVersion.schema,
+        { site: baseSite, page: basePage, styles: baseStyles, t },
+        new Set(),
+      );
+      const expandedProps = this.expandImageProps(propsWithRelations, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,
@@ -1025,15 +1034,6 @@ export class CMS {
 
     if (!matchedCollection || !matchedRecord || !matchedComputed) return null;
 
-    const recordContext = {
-      id: matchedRecord.id,
-      ...matchedRecord.data,
-      slug: matchedComputed.slug,
-      permalink: matchedComputed.permalink,
-      metaTitle: matchedComputed.metaTitle,
-      metaDescription: matchedComputed.metaDescription,
-    };
-
     const virtualPage = {
       title: matchedComputed.metaTitle,
       slug: matchedComputed.slug,
@@ -1046,6 +1046,21 @@ export class CMS {
     const baseStyles = this.buildStylesContext(area, settingsObj);
     const detailLocale = area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
     const t = await this.buildTranslationGlobals(detailLocale, detailLocale);
+
+    const resolvedRecordData = await this.resolveRelationFields(
+      matchedRecord.data,
+      matchedCollection.schema,
+      { site: baseSite, page: basePage, styles: baseStyles, t },
+      new Set(),
+    );
+    const recordContext = {
+      id: matchedRecord.id,
+      ...resolvedRecordData,
+      slug: matchedComputed.slug,
+      permalink: matchedComputed.permalink,
+      metaTitle: matchedComputed.metaTitle,
+      metaDescription: matchedComputed.metaDescription,
+    };
 
     // Build merged component props: collection defaults + per-record overrides
     const recordComponentProps = (matchedRecord.data.__componentProps__ ?? {}) as Record<string, Record<string, unknown>>;
@@ -1123,6 +1138,7 @@ export class CMS {
     ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
     searchParams?: Record<string, string>,
     collectionPropsMap?: Map<string, Record<string, Record<string, unknown>>>,
+    ancestorChain: Set<string> = new Set(),
   ): Promise<string> {
     const pattern = /\{\{collection:([^}:]+)(?::([^}]*))?\}\}/g;
     const matches: { full: string; slug: string; viewSlug?: string; filteredRecordIds?: string[] }[] = [];
@@ -1201,43 +1217,142 @@ export class CMS {
         next_page: Math.min(totalPages, currentPage + 1),
       };
 
-      const siteNameForPattern = (ctx.site["name"] as string | undefined) ?? "";
-      const hasDetail = collection.hasDetailPage !== false;
-      const collectionContext = {
-        id: collection.id,
-        name: collection.name,
-        slug: collection.slug,
-        records: paginatedRecords.map((r) => {
-          if (!hasDetail) return { id: r.id, ...r.data };
-          const computed = this.buildRecordComputedFields(r, collection, siteNameForPattern);
-          return { id: r.id, ...r.data, slug: computed.slug, permalink: computed.permalink, metaTitle: computed.metaTitle, metaDescription: computed.metaDescription };
-        }),
-        pagination,
-      };
-
-      // Temporarily escape {{component:...}} so LiquidJS doesn't choke on the colon syntax
-      const escapedTemplate = normalizeVariableAliases(view.template).replace(
-        /\{\{component:([^}]+)\}\}/g,
-        (_: string, slug: string) => `<!--COMP_EMBED:${slug}-->`,
-      );
-
-      const rendered = await this.render.render({
-        template: escapedTemplate,
-        data: { collection: collectionContext },
-        globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
-      });
-
-      // Restore component embeds and resolve them
-      const restoredHtml = rendered.replace(/<!--COMP_EMBED:([a-z0-9_-]+)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
       const collectionKey = `${m.slug}:${m.viewSlug ?? ""}`;
       const componentPropsOverride = collectionPropsMap?.get(collectionKey);
-      const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx, componentPropsOverride);
-
-      let html = resolvedHtml;
-      if (view.css) html = `<style>${view.css}</style>` + html;
-      if (view.js) html = html + `<script>${view.js}</script>`;
+      const html = await this.renderCollectionViewHtml(collection, view, paginatedRecords, ctx, ancestorChain, {
+        collectionPropsOverride: componentPropsOverride,
+        pagination,
+      });
 
       result = result.replace(m.full, html);
+    }
+
+    return result;
+  }
+
+  /**
+   * Render `view.template` for an already selected/ordered set of `collection` records.
+   * Shared by `resolveCollections` (view embedded in a page via a `{{collection:...}}`
+   * token) and `resolveRelationFields`'s "view" mode (view embedded via a `relation`
+   * field). `ancestorChain` carries `collectionSlug:viewSlug` keys already rendered in
+   * this chain, so a relation field looping back to a view already in progress renders
+   * as empty instead of recursing forever.
+   */
+  private async renderCollectionViewHtml(
+    collection: CmsCollection,
+    view: CmsCollectionView,
+    records: CmsCollectionRecord[],
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
+    ancestorChain: Set<string>,
+    opts?: {
+      collectionPropsOverride?: Record<string, Record<string, unknown>>;
+      pagination?: { page: number; page_size: number; total_count: number; total_pages: number; has_prev: boolean; has_next: boolean; prev_page: number; next_page: number };
+    },
+  ): Promise<string> {
+    const nextChain = new Set(ancestorChain);
+    nextChain.add(`${collection.slug}:${view.slug}`);
+
+    const siteNameForPattern = (ctx.site["name"] as string | undefined) ?? "";
+    const hasDetail = collection.hasDetailPage !== false;
+    const recordContexts = await Promise.all(records.map(async (r) => {
+      const resolvedData = await this.resolveRelationFields(r.data, collection.schema, ctx, nextChain);
+      if (!hasDetail) return { id: r.id, ...resolvedData };
+      const computed = this.buildRecordComputedFields(r, collection, siteNameForPattern);
+      return { id: r.id, ...resolvedData, slug: computed.slug, permalink: computed.permalink, metaTitle: computed.metaTitle, metaDescription: computed.metaDescription };
+    }));
+
+    const collectionContext = {
+      id: collection.id,
+      name: collection.name,
+      slug: collection.slug,
+      records: recordContexts,
+      pagination: opts?.pagination ?? {
+        page: 1, page_size: 0, total_count: records.length, total_pages: 1,
+        has_prev: false, has_next: false, prev_page: 1, next_page: 1,
+      },
+    };
+
+    // Temporarily escape {{component:...}} so LiquidJS doesn't choke on the colon syntax
+    const escapedTemplate = normalizeVariableAliases(view.template).replace(
+      /\{\{component:([^}]+)\}\}/g,
+      (_: string, slug: string) => `<!--COMP_EMBED:${slug}-->`,
+    );
+
+    const rendered = await this.render.render({
+      template: escapedTemplate,
+      data: { collection: collectionContext },
+      globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
+    });
+
+    // Restore component embeds and resolve them
+    const restoredHtml = rendered.replace(/<!--COMP_EMBED:([a-z0-9_-]+)-->/g, (_: string, slug: string) => `{{component:${slug}}}`);
+    const resolvedHtml = await this.resolveComponentEmbeds(restoredHtml, ctx, opts?.collectionPropsOverride);
+
+    let html = resolvedHtml;
+    if (view.css) html = `<style>${view.css}</style>` + html;
+    if (view.js) html = html + `<script>${view.js}</script>`;
+    return html;
+  }
+
+  /**
+   * Resolve `relation` fields in a record/prop data object into their target data.
+   * "fields" mode projects the linked records into plain objects containing only
+   * `relationFields` (iterable in Liquid with `{% for %}`). "view" mode pre-renders
+   * `relationViewSlug` of the target collection for the linked records into an HTML
+   * string, usable directly as `{{ field_key }}`. IDs pointing at deleted records are
+   * silently dropped. `ancestorChain` guards "view" mode against A→B→C→A loops.
+   */
+  private async resolveRelationFields(
+    data: Record<string, unknown>,
+    schema: ComponentSchemaField[] | null | undefined,
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
+    ancestorChain: Set<string>,
+  ): Promise<Record<string, unknown>> {
+    const relationFields = (schema ?? []).filter((f) => f.type === "relation" && f.relationTarget);
+    if (relationFields.length === 0) return data;
+
+    const result: Record<string, unknown> = { ...data };
+
+    for (const field of relationFields) {
+      const isViewMode = field.relationMode === "view";
+      const emptyValue: unknown = isViewMode ? "" : [];
+
+      const ids = Array.isArray(data[field.key])
+        ? (data[field.key] as unknown[]).filter((v): v is string => typeof v === "string")
+        : [];
+      if (ids.length === 0) { result[field.key] = emptyValue; continue; }
+
+      const targetCollection = await this.collections.findBySlug(field.relationTarget!).catch(() => null);
+      if (!targetCollection) { result[field.key] = emptyValue; continue; }
+
+      const allRecords = await this.collections.findRecords(targetCollection.id).catch(() => []);
+      const byId = new Map(allRecords.map((r) => [r.id, r]));
+      // Orphan IDs (record deleted since the relation was set) are silently dropped.
+      const linkedRecords = ids.map((id) => byId.get(id)).filter((r): r is CmsCollectionRecord => r !== undefined);
+      if (linkedRecords.length === 0) { result[field.key] = emptyValue; continue; }
+
+      if (isViewMode) {
+        const view = field.relationViewSlug
+          ? targetCollection.views.find((v) => v.slug === field.relationViewSlug)
+          : targetCollection.views.slice().sort((a, b) => a.order - b.order)[0];
+        const chainKey = `${targetCollection.slug}:${view?.slug ?? ""}`;
+        if (!view?.template || ancestorChain.has(chainKey)) { result[field.key] = ""; continue; }
+        result[field.key] = await this.renderCollectionViewHtml(targetCollection, view, linkedRecords, ctx, ancestorChain);
+      } else {
+        const exposedKeys = field.relationFields?.length ? field.relationFields : targetCollection.schema.map((f) => f.key);
+        const hasDetail = targetCollection.hasDetailPage !== false;
+        const siteName = (ctx.site["name"] as string | undefined) ?? "";
+        result[field.key] = linkedRecords.map((r) => {
+          const projected: Record<string, unknown> = { id: r.id };
+          for (const key of exposedKeys) projected[key] = r.data[key];
+          if (hasDetail) {
+            const computed = this.buildRecordComputedFields(r, targetCollection, siteName);
+            projected.slug = computed.slug;
+            projected.permalink = computed.permalink;
+          }
+          return projected;
+        });
+      }
     }
 
     return result;
@@ -1275,10 +1390,11 @@ export class CMS {
         }
 
         const componentProps = propsMap?.[ref.toLowerCase()] ?? propsMap?.[normalizeComponentReference(component.name)] ?? {};
+        const resolvedComponentProps = await this.resolveRelationFields(componentProps, version.schema, ctx, new Set());
 
         const rendered = await this.render.render({
           template: protectCmsPlaceholders(normalizeVariableAliases(version.templateLiquid)),
-          data: componentProps,
+          data: resolvedComponentProps,
           globals: {
             site: ctx.site,
             page: ctx.page,
@@ -1437,7 +1553,7 @@ export class CMS {
 
     // 1. Resolve page — findByPermalink only returns published rows, so for draft
     //    preview we fall back to a full scan filtered by area + permalink.
-    let page = await this.pages.findByPermalink(areaKey, permalink);
+    let page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale);
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
       const normalizedPermalink = normalizePermalink(permalink);
@@ -1515,7 +1631,13 @@ export class CMS {
         }
       }
 
-      const expandedProps = this.expandImageProps(resolvedProps, componentVersion.schema);
+      const propsWithRelations = await this.resolveRelationFields(
+        resolvedProps,
+        componentVersion.schema,
+        { site: siteContext, page: pageContext, styles: stylesContext, t },
+        new Set(),
+      );
+      const expandedProps = this.expandImageProps(propsWithRelations, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,

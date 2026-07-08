@@ -48,8 +48,11 @@ export interface ComponentVersion {
   createdAt: Date;
 }
 
-export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "color" | "toggle" | "number" | "select" | "list";
-export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "color", "toggle", "number", "select", "list"];
+export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "color" | "toggle" | "number" | "select" | "list" | "relation";
+export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "color", "toggle", "number", "select", "list", "relation"];
+
+/** How a `relation` field exposes the related records to the Liquid template. */
+export type RelationFieldMode = "fields" | "view";
 
 export interface ComponentSchemaField {
   key: string;
@@ -73,4 +76,21 @@ export interface ComponentSchemaField {
    * The stored prop value is `Array<Record<string, unknown>>`.
    */
   childSchema?: ComponentSchemaField[];
+  /**
+   * For `relation` fields: slug of the target collection whose records can be linked.
+   * The stored prop value is always `string[]` of related record IDs, in display order.
+   */
+  relationTarget?: string;
+  /**
+   * For `relation` fields: how the linked records are exposed at render time.
+   * - "fields": the resolved value is an array of plain objects containing only
+   *   `relationFields`, iterable in Liquid with `{% for item in field_key %}`.
+   * - "view": the resolved value is the already-rendered HTML of `relationViewSlug`
+   *   for the linked records, usable directly as `{{ field_key }}`.
+   */
+  relationMode?: RelationFieldMode;
+  /** For `relation` fields in "fields" mode: which target-collection field keys to expose per item. */
+  relationFields?: string[];
+  /** For `relation` fields in "view" mode: slug of the target collection's view to render. */
+  relationViewSlug?: string;
 }

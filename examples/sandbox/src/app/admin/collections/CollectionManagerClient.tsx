@@ -6,6 +6,8 @@ import { CodeEditor } from "@/components/admin/CodeEditor";
 import { SchemaFieldEditor } from "@/components/admin/SchemaFieldEditor";
 import { PatternInput } from "@/components/admin/PatternInput";
 import { ComponentPropsSection } from "@/components/admin/ComponentPropsSection";
+import { ValidatedFieldInput } from "@/components/admin/SchemaFieldInput";
+import { getImageUrl, type ImageValue } from "@/components/admin/ImageUploadField";
 import {
   SCHEMA_FIELD_TYPES,
   type CmsCollection,
@@ -103,7 +105,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
   const state = selectedId ? editState[selectedId] : null;
 
   function saveableKey(s: EditState) {
-    const { records: _r, schema: _s, ...rest } = s;
+    const { records: _r, ...rest } = s;
     return JSON.stringify(rest);
   }
   const isDirty = !!(state && selectedId && saveableKey(state) !== saveableKey(savedStateMap[selectedId] ?? state));
@@ -150,7 +152,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
       });
       setCollections((prev) =>
         prev.map((c) =>
-          c.id === selectedId ? { ...c, name: state.name, slug: state.slug } : c,
+          c.id === selectedId ? { ...c, ...state } : c,
         ),
       );
       setSavedStateMap((prev) => ({ ...prev, [selectedId]: { ...state } }));
@@ -400,12 +402,19 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                           return (
                           <div key={rec.id} style={recordRowStyle}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              {state.schema.slice(0, 3).map((f) => (
-                                <span key={f.key} style={{ marginRight: 16, fontSize: "0.82rem" }}>
-                                  <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>{f.label}: </span>
-                                  <span style={{ fontWeight: 500 }}>{truncate(String(displayData[f.key] ?? ""), 40)}</span>
-                                </span>
-                              ))}
+                              {state.schema.slice(0, 3).map((f) => {
+                                const raw = f.type === "image_url" || f.type === "video_url"
+                                  ? getImageUrl(displayData[f.key] as ImageValue)
+                                  : f.type === "list" || f.type === "relation"
+                                    ? `${Array.isArray(displayData[f.key]) ? (displayData[f.key] as unknown[]).length : 0} item(s)`
+                                    : String(displayData[f.key] ?? "");
+                                return (
+                                  <span key={f.key} style={{ marginRight: 16, fontSize: "0.82rem" }}>
+                                    <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>{f.label}: </span>
+                                    <span style={{ fontWeight: 500 }}>{truncate(raw, 40)}</span>
+                                  </span>
+                                );
+                              })}
                               {hasComponentOverrides && <span style={{ fontSize: "0.68rem", color: "var(--primary)", marginLeft: 8, background: "#eff6ff", padding: "1px 5px", borderRadius: 4 }}>custom props</span>}
                             </div>
                             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -434,6 +443,7 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
               <SchemaEditor
                 fields={state.schema}
                 onChange={(schema) => patch(selectedId!, { schema })}
+                collections={collections}
               />
             )}
 
@@ -672,43 +682,11 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
           {state.schema.map((field) => (
             <div key={field.key} className="form-group" style={{ gridColumn: colWidthSpan(field.colWidth) }}>
               <label className="form-label">{field.label}{field.required && <span style={{ color: "var(--danger)", marginLeft: 2 }}>*</span>}</label>
-              {field.type === "textarea" || field.type === "richtext" ? (
-                <textarea
-                  className="form-control"
-                  rows={4}
-                  value={String(recordFields[field.key] ?? "")}
-                  onChange={(e) => setRecordFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                />
-              ) : field.type === "toggle" ? (
-                <input
-                  type="checkbox"
-                  checked={Boolean(recordFields[field.key])}
-                  onChange={(e) => setRecordFields((prev) => ({ ...prev, [field.key]: e.target.checked }))}
-                />
-              ) : field.type === "number" ? (
-                <input
-                  type="number"
-                  className="form-control"
-                  value={String(recordFields[field.key] ?? "")}
-                  onChange={(e) => setRecordFields((prev) => ({ ...prev, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
-                />
-              ) : field.type === "select" ? (
-                <select
-                  className="form-control"
-                  value={String(recordFields[field.key] ?? "")}
-                  onChange={(e) => setRecordFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                >
-                  <option value="">— Select —</option>
-                  {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  className="form-control"
-                  value={String(recordFields[field.key] ?? "")}
-                  onChange={(e) => setRecordFields((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                />
-              )}
+              <ValidatedFieldInput
+                field={field}
+                value={recordFields[field.key]}
+                onChange={(val) => setRecordFields((prev) => ({ ...prev, [field.key]: val }))}
+              />
             </div>
           ))}
           </div>
@@ -750,17 +728,28 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
 
 // ── Schema Editor ─────────────────────────────────────────────────────────────
 
-function SchemaEditor({ fields, onChange }: { fields: ComponentSchemaField[]; onChange: (fields: ComponentSchemaField[]) => void }) {
+function SchemaEditor({ fields, onChange, collections }: { fields: ComponentSchemaField[]; onChange: (fields: ComponentSchemaField[]) => void; collections: CollectionWithRecords[] }) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [draft, setDraft] = useState<Partial<ComponentSchemaField>>({});
+  // Mirrors the "Options" textarea verbatim (including blank lines being typed) — kept
+  // separate from draft.options so an in-progress newline/blank line isn't swallowed by
+  // re-deriving the textarea's value from the parsed (and filtered) options array.
+  const [optionsText, setOptionsText] = useState("");
+  const relationTargetCollection = collections.find((c) => c.slug === draft.relationTarget) ?? null;
+
+  function optionsToText(options: ComponentSchemaField["options"]) {
+    return (options ?? []).map((o) => `${o.value}|${o.label}`).join("\n");
+  }
 
   function openAdd() {
     setDraft({ key: "", label: "", type: "text" });
+    setOptionsText("");
     setEditingIdx(-1);
   }
 
   function openEdit(idx: number) {
     setDraft({ ...fields[idx] });
+    setOptionsText(optionsToText(fields[idx].options));
     setEditingIdx(idx);
   }
 
@@ -789,6 +778,10 @@ function SchemaEditor({ fields, onChange }: { fields: ComponentSchemaField[]; on
       required: draft.required,
       colWidth: draft.colWidth,
       validator: draft.validator,
+      relationTarget: draft.relationTarget,
+      relationMode: draft.relationMode,
+      relationFields: draft.relationFields,
+      relationViewSlug: draft.relationViewSlug,
     };
     if (editingIdx === -1) {
       onChange([...fields, field]);
@@ -864,15 +857,108 @@ function SchemaEditor({ fields, onChange }: { fields: ComponentSchemaField[]; on
               <textarea
                 className="form-control"
                 rows={3}
-                value={(draft.options ?? []).map((o) => `${o.value}|${o.label}`).join("\n")}
+                value={optionsText}
                 onChange={(e) => {
-                  const options = e.target.value.split("\n").filter(Boolean).map((line) => {
+                  setOptionsText(e.target.value);
+                  const options = e.target.value.split("\n").filter((line) => line.trim()).map((line) => {
                     const [value, ...rest] = line.split("|");
                     return { value: value.trim(), label: rest.join("|").trim() || value.trim() };
                   });
                   setDraft((p) => ({ ...p, options }));
                 }}
               />
+            </div>
+          )}
+          {draft.type === "relation" && (
+            <div className="form-group">
+              <label className="form-label">Related collection</label>
+              <select
+                className="form-control"
+                value={draft.relationTarget ?? ""}
+                onChange={(e) => setDraft((p) => ({
+                  ...p,
+                  relationTarget: e.target.value || undefined,
+                  relationFields: undefined,
+                  relationViewSlug: undefined,
+                }))}
+              >
+                <option value="">— Select a collection —</option>
+                {collections.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+          {draft.type === "relation" && draft.relationTarget && (
+            <div className="form-group">
+              <label className="form-label">Display mode</label>
+              <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.85rem" }}>
+                  <input
+                    type="radio"
+                    name="relationMode"
+                    checked={(draft.relationMode ?? "fields") === "fields"}
+                    onChange={() => setDraft((p) => ({ ...p, relationMode: "fields" }))}
+                  />
+                  Expose fields (loop with <code>{"{% for %}"}</code> in the template)
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "0.85rem" }}>
+                  <input
+                    type="radio"
+                    name="relationMode"
+                    checked={draft.relationMode === "view"}
+                    onChange={() => setDraft((p) => ({ ...p, relationMode: "view" }))}
+                  />
+                  Render a view of the related collection
+                </label>
+              </div>
+            </div>
+          )}
+          {draft.type === "relation" && draft.relationTarget && (draft.relationMode ?? "fields") === "fields" && (
+            <div className="form-group">
+              <label className="form-label">Exposed fields (default: all)</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {(relationTargetCollection?.schema ?? []).length === 0 ? (
+                  <span className="form-hint">The related collection has no fields defined.</span>
+                ) : (
+                  relationTargetCollection!.schema.map((f) => {
+                    const checked = draft.relationFields ? draft.relationFields.includes(f.key) : true;
+                    return (
+                      <label key={f.key} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8rem", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const allKeys = relationTargetCollection!.schema.map((sf) => sf.key);
+                            const current = draft.relationFields ?? allKeys;
+                            const next = e.target.checked
+                              ? allKeys.filter((k) => k === f.key || current.includes(k))
+                              : current.filter((k) => k !== f.key);
+                            setDraft((p) => ({ ...p, relationFields: next }));
+                          }}
+                        />
+                        {f.label}
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+          {draft.type === "relation" && draft.relationTarget && draft.relationMode === "view" && (
+            <div className="form-group">
+              <label className="form-label">View to render</label>
+              <select
+                className="form-control"
+                value={draft.relationViewSlug ?? ""}
+                onChange={(e) => setDraft((p) => ({ ...p, relationViewSlug: e.target.value || undefined }))}
+              >
+                <option value="">— Default (first view) —</option>
+                {(relationTargetCollection?.views ?? []).slice().sort((a, b) => a.order - b.order).map((v) => (
+                  <option key={v.id} value={v.slug}>{v.name}</option>
+                ))}
+              </select>
+              {(relationTargetCollection?.views ?? []).length === 0 && (
+                <span className="form-hint">The related collection has no views defined.</span>
+              )}
             </div>
           )}
           <div style={{ marginBottom: 14 }}>
