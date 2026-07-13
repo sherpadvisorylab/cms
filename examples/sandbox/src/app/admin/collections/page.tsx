@@ -36,12 +36,26 @@ export default async function CollectionsPage() {
     })),
   );
 
+  const branding = settings?.branding;
+  const multiLanguageEnabled = branding?.multiLanguageEnabled ?? false;
+  const globalLocales = branding?.locales ?? [];
+  const defaultLocale =
+    (globalLocales.find((l) => l.isDefault) ?? globalLocales[0])?.code ??
+    branding?.defaultLanguage ??
+    "en";
+  const supportedLocales =
+    multiLanguageEnabled && globalLocales.length > 0
+      ? globalLocales.map((l) => l.code)
+      : branding?.supportedLocales ?? [defaultLocale];
+
   return (
     <CollectionManagerClient
       initialCollections={collectionsWithRecords}
       componentTemplates={componentTemplates}
       settings={settings}
       translationEntries={translationEntries}
+      defaultLocale={defaultLocale}
+      supportedLocales={multiLanguageEnabled ? supportedLocales : [defaultLocale]}
     />
   );
 }

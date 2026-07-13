@@ -26,6 +26,7 @@ import {
   deleteRecord,
   importCollectionRecords,
   getCollectionRecordsForRelationPicker,
+  updateCollectionRecordTranslation,
   type ImportRecordRow,
   type ImportResult,
 } from "./actions";
@@ -42,6 +43,8 @@ interface Props {
   componentTemplates: ComponentTemplate[];
   settings: CmsSettings | null;
   translationEntries?: CmsTranslationEntry[];
+  defaultLocale: string;
+  supportedLocales: string[];
 }
 
 interface EditState {
@@ -77,7 +80,8 @@ function generateId() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CollectionManagerClient({ initialCollections, componentTemplates, settings, translationEntries = [] }: Props) {
+export function CollectionManagerClient({ initialCollections, componentTemplates, settings, translationEntries = [], defaultLocale, supportedLocales }: Props) {
+  const otherLocales = supportedLocales.filter((l) => l !== defaultLocale);
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -106,6 +110,9 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
   const [recordFields, setRecordFields] = useState<Record<string, unknown>>({});
   const [recordComponentProps, setRecordComponentProps] = useState<Record<string, Record<string, unknown>>>({});
   const [recordDelConfirm, setRecordDelConfirm] = useState<string | null>(null);
+  const [recordActiveLocale, setRecordActiveLocale] = useState(defaultLocale);
+  const [recordTranslations, setRecordTranslations] = useState<Record<string, Record<string, unknown>>>({});
+  const [recordsViewLocale, setRecordsViewLocale] = useState<string>(defaultLocale);
 
   const selected = collections.find((c) => c.id === selectedId) ?? null;
   const state = selectedId ? editState[selectedId] : null;
@@ -219,6 +226,8 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
     state?.schema.forEach((f) => { defaults[f.key] = f.defaultValue ?? ""; });
     setRecordFields(defaults);
     setRecordComponentProps({});
+    setRecordTranslations({});
+    setRecordActiveLocale(recordsViewLocale);
     setRecordModal({ mode: "create" });
   }
 
@@ -226,6 +235,8 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
     const { __componentProps__, ...schemaData } = record.data;
     setRecordFields(schemaData);
     setRecordComponentProps((__componentProps__ as Record<string, Record<string, unknown>>) ?? {});
+    setRecordTranslations(record.translations ?? {});
+    setRecordActiveLocale(recordsViewLocale);
     setRecordModal({ mode: "edit", record });
   }
 
@@ -241,15 +252,26 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
       }
       if (Object.keys(nonEmptyComponentProps).length > 0) dataToSave.__componentProps__ = nonEmptyComponentProps;
 
+      let rec: CmsCollectionRecord;
       if (recordModal.mode === "create") {
-        const rec = await createRecord(selectedId, dataToSave);
-        patch(selectedId, { records: [...state.records, rec] });
+        rec = await createRecord(selectedId, dataToSave);
       } else if (recordModal.record) {
-        const rec = await updateRecord(selectedId, recordModal.record.id, dataToSave);
-        patch(selectedId, {
-          records: state.records.map((r) => (r.id === rec.id ? rec : r)),
-        });
+        rec = await updateRecord(selectedId, recordModal.record.id, dataToSave);
+      } else {
+        return;
       }
+
+      // Persist any manually-entered locale overrides typed in the modal's non-default tabs.
+      for (const [locale, values] of Object.entries(recordTranslations)) {
+        if (locale === defaultLocale || !values || !Object.keys(values).length) continue;
+        rec = await updateCollectionRecordTranslation(selectedId, rec.id, locale, values);
+      }
+
+      patch(selectedId, {
+        records: recordModal.mode === "create"
+          ? [...state.records, rec]
+          : state.records.map((r) => (r.id === rec.id ? rec : r)),
+      });
       setRecordModal(null);
     });
   }
@@ -401,30 +423,80 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                   </div>
                 ) : (
                   <>
-                    <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={openCreateRecord}>Add record</button>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setImportModalOpen(true)}>Import</button>
+                    <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {otherLocales.length > 0 && (
+                        <>
+                          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginRight: 4 }}>Viewing:</span>
+                          {[defaultLocale, ...otherLocales].map((locale) => (
+                            <button
+                              key={locale}
+                              type="button"
+                              onClick={() => setRecordsViewLocale(locale)}
+                              style={{
+                                padding: "4px 10px",
+                                borderRadius: 6,
+                                border: "1px solid var(--border)",
+                                background: recordsViewLocale === locale ? "var(--primary)" : "white",
+                                color: recordsViewLocale === locale ? "white" : "var(--text)",
+                                fontSize: "0.78rem",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {locale.toUpperCase()}{locale === defaultLocale ? " (default)" : ""}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={openCreateRecord}>Add record</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setImportModalOpen(true)}>Import</button>
+                      </div>
                     </div>
-                    {state.records.length === 0 ? (
-                      <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No records yet.</p>
-                    ) : (
+                    {(() => {
+                      const isDefaultLocaleList = recordsViewLocale === defaultLocale;
+                      const listFields = (isDefaultLocaleList ? state.schema : state.schema.filter((f) => f.translatable)).slice(0, 3);
+                      if (!isDefaultLocaleList && listFields.length === 0) {
+                        return (
+                          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            No fields are marked &quot;Translatable&quot; for this collection. Mark at least one in the Schema tab.
+                          </p>
+                        );
+                      }
+                      if (state.records.length === 0) {
+                        return <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>No records yet.</p>;
+                      }
+                      return (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {state.records.map((rec) => {
                           const { __componentProps__, ...displayData } = rec.data;
                           const hasComponentOverrides = !!__componentProps__ && Object.keys(__componentProps__).length > 0;
+                          const isDefaultLocale = isDefaultLocaleList;
                           return (
                           <div key={rec.id} style={recordRowStyle}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              {state.schema.slice(0, 3).map((f) => {
+                              {listFields.map((f) => {
+                                const translatedValue = !isDefaultLocale && f.translatable
+                                  ? rec.translations?.[recordsViewLocale]?.[f.key]
+                                  : undefined;
+                                const hasSource = displayData[f.key] !== undefined && displayData[f.key] !== null && displayData[f.key] !== "";
+                                const notTranslated = !isDefaultLocale && f.translatable && hasSource && (translatedValue === undefined || translatedValue === "");
                                 const raw = f.type === "image_url" || f.type === "video_url"
                                   ? getImageUrl(displayData[f.key] as ImageValue)
                                   : f.type === "list" || f.type === "relation"
                                     ? `${Array.isArray(displayData[f.key]) ? (displayData[f.key] as unknown[]).length : 0} item(s)`
-                                    : String(displayData[f.key] ?? "");
+                                    : String((translatedValue ?? displayData[f.key]) ?? "");
                                 return (
                                   <span key={f.key} style={{ marginRight: 16, fontSize: "0.82rem" }}>
                                     <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>{f.label}: </span>
-                                    <span style={{ fontWeight: 500 }}>{truncate(raw, 40)}</span>
+                                    <span style={{ fontWeight: 500, fontStyle: notTranslated ? "italic" : "normal", color: notTranslated ? "var(--text-muted)" : "inherit" }}>
+                                      {truncate(raw, 40)}
+                                    </span>
+                                    {notTranslated && (
+                                      <span style={{ marginLeft: 6, fontSize: "0.68rem", fontWeight: 600, padding: "1px 6px", borderRadius: 8, background: "#fff7ed", color: "#c2410c" }}>
+                                        not translated
+                                      </span>
+                                    )}
                                   </span>
                                 );
                               })}
@@ -445,7 +517,8 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
                           );
                         })}
                       </div>
-                    )}
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -702,18 +775,65 @@ export function CollectionManagerClient({ initialCollections, componentTemplates
       {/* Record create/edit modal */}
       {recordModal && state && (
         <Modal title={recordModal.mode === "create" ? "Add record" : "Edit record"} onClose={() => setRecordModal(null)} width={580}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "0 12px" }}>
-          {state.schema.map((field) => (
-            <div key={field.key} className="form-group" style={{ gridColumn: colWidthSpan(field.colWidth) }}>
-              <label className="form-label">{field.label}{field.required && <span style={{ color: "var(--danger)", marginLeft: 2 }}>*</span>}</label>
-              <ValidatedFieldInput
-                field={field}
-                value={recordFields[field.key]}
-                onChange={(val) => setRecordFields((prev) => ({ ...prev, [field.key]: val }))}
-              />
+          {otherLocales.length > 0 && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {[defaultLocale, ...otherLocales].map((locale) => (
+                <button
+                  key={locale}
+                  type="button"
+                  className={`btn btn-sm ${recordActiveLocale === locale ? "btn-primary" : "btn-secondary"}`}
+                  onClick={() => setRecordActiveLocale(locale)}
+                >
+                  {locale.toUpperCase()}{locale === defaultLocale ? " (default)" : ""}
+                </button>
+              ))}
             </div>
-          ))}
-          </div>
+          )}
+          {(() => {
+            const isDefaultLocale = recordActiveLocale === defaultLocale;
+            const modalFields = isDefaultLocale ? state.schema : state.schema.filter((f) => f.translatable);
+            if (!isDefaultLocale && modalFields.length === 0) {
+              return (
+                <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  No fields are marked &quot;Translatable&quot; for this collection. Mark at least one in the Schema tab.
+                </p>
+              );
+            }
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "0 12px" }}>
+                {modalFields.map((field) => {
+                  const value = isDefaultLocale
+                    ? recordFields[field.key]
+                    : recordTranslations[recordActiveLocale]?.[field.key];
+                  const hasSource = recordFields[field.key] !== undefined && recordFields[field.key] !== null && recordFields[field.key] !== "";
+                  const notTranslated = !isDefaultLocale && hasSource && (value === undefined || value === "");
+                  return (
+                    <div key={field.key} className="form-group" style={{ gridColumn: colWidthSpan(field.colWidth) }}>
+                      <label className="form-label">
+                        {field.label}
+                        {field.required && isDefaultLocale && <span style={{ color: "var(--danger)", marginLeft: 2 }}>*</span>}
+                        {notTranslated && (
+                          <span style={{ marginLeft: 6, fontSize: "0.68rem", fontWeight: 600, color: "var(--danger)" }}>not translated</span>
+                        )}
+                      </label>
+                      <ValidatedFieldInput
+                        field={field}
+                        value={value}
+                        onChange={(val) =>
+                          isDefaultLocale
+                            ? setRecordFields((prev) => ({ ...prev, [field.key]: val }))
+                            : setRecordTranslations((prev) => ({
+                                ...prev,
+                                [recordActiveLocale]: { ...prev[recordActiveLocale], [field.key]: val },
+                              }))
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           {/* Component prop overrides — one collapsible section per embedded component */}
           {extractComponentSlugs(state.detailTemplate).map((slug) => {
             const tpl = findComponentTemplate(slug, componentTemplates);
@@ -806,6 +926,7 @@ function SchemaEditor({ fields, onChange, collections }: { fields: ComponentSche
       relationMode: draft.relationMode,
       relationFields: draft.relationFields,
       relationViewSlug: draft.relationViewSlug,
+      translatable: draft.translatable,
     };
     if (editingIdx === -1) {
       onChange([...fields, field]);

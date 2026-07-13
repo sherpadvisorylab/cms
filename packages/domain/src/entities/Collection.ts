@@ -82,8 +82,14 @@ export interface CmsCollection {
 export interface CmsCollectionRecord {
   id: string;
   collectionId: string;
-  /** Field values keyed by schema field key */
+  /** Field values keyed by schema field key, in the collection's/site's default locale */
   data: Record<string, unknown>;
+  /**
+   * Per-locale overrides for fields marked `translatable` in the collection schema.
+   * Keyed by locale, then by schema field key. Missing locale/key = not yet translated,
+   * falls back to `data[key]`. The default locale is never a key here — `data` is the source.
+   */
+  translations?: Record<string, Record<string, unknown>>;
   order?: number;
   createdAt: Date;
   updatedAt: Date;

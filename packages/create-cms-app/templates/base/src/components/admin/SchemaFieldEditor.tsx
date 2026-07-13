@@ -35,6 +35,7 @@ export function SchemaFieldEditor({ field, onChange }: Props) {
   const validatorSelectValue = isCustomValidator ? "__custom__" : (field.validator ?? "");
   const isList = field.type === "list";
   const isRelation = field.type === "relation";
+  const isTranslatableType = field.type === "text" || field.type === "textarea" || field.type === "richtext";
   // Neither a free-text placeholder nor a regex validator makes sense on an array value.
   const hidePlaceholder = isList || isRelation;
   const hideValidator = isList || isRelation;
@@ -92,6 +93,32 @@ export function SchemaFieldEditor({ field, onChange }: Props) {
             </div>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Required</span>
           </label>
+
+          {/* Translatable toggle — only makes sense for free-text field types */}
+          {isTranslatableType && (
+            <label
+              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none", flexShrink: 0 }}
+              title="Editors can enter a per-locale override for this field on non-default languages"
+            >
+              <div
+                onClick={() => onChange({ translatable: !field.translatable })}
+                style={{
+                  width: 28, height: 16, borderRadius: 8,
+                  background: field.translatable ? "var(--primary)" : "var(--border)",
+                  position: "relative", cursor: "pointer", transition: "background 0.15s",
+                }}
+              >
+                <div style={{
+                  position: "absolute", top: 2,
+                  left: field.translatable ? 14 : 2,
+                  width: 12, height: 12, borderRadius: "50%",
+                  background: "white", transition: "left 0.15s",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                }} />
+              </div>
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Translatable</span>
+            </label>
+          )}
 
           {/* Validator select */}
           {!hideValidator && (

@@ -76,4 +76,45 @@ export class CollectionRepository implements ICollectionRepository {
   async deleteRecord(collectionId: string, recordId: string): Promise<void> {
     return this.adapter.delete("collection_records", recordId);
   }
+
+  async findRecordsPage(
+    collectionId: string,
+    opts: { cursor?: string | null; limit: number; translatableKeys?: string[]; locale?: string },
+  ): Promise<{ items: CmsCollectionRecord[]; nextCursor: string | null }> {
+    let records = await this.adapter.getAll<CmsCollectionRecord>("collection_records", { collectionId });
+    records = records.sort((a, b) => a.id.localeCompare(b.id));
+
+    if (opts.translatableKeys?.length && opts.locale) {
+      const { translatableKeys, locale } = opts;
+      records = records.filter((record) => {
+        const translated = record.translations?.[locale];
+        return translatableKeys.some((key) => !translated || translated[key] === undefined);
+      });
+    }
+
+    const startIndex = opts.cursor ? records.findIndex((r) => r.id === opts.cursor) + 1 : 0;
+    const page = records.slice(startIndex, startIndex + opts.limit);
+    const nextCursor = startIndex + opts.limit < records.length ? page[page.length - 1]?.id ?? null : null;
+
+    return { items: page, nextCursor };
+  }
+
+  async updateRecordTranslations(
+    collectionId: string,
+    recordId: string,
+    locale: string,
+    patch: Record<string, unknown>,
+  ): Promise<CmsCollectionRecord> {
+    const record = await this.findRecordById(collectionId, recordId);
+    if (!record) throw new Error(`Record ${recordId} not found in collection ${collectionId}`);
+
+    const translations = {
+      ...record.translations,
+      [locale]: { ...record.translations?.[locale], ...patch },
+    };
+    return this.adapter.update<CmsCollectionRecord>("collection_records", recordId, {
+      translations,
+      updatedAt: new Date(),
+    });
+  }
 }

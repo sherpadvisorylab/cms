@@ -140,3 +140,17 @@ export async function importCollectionRecords(
   revalidatePath("/admin/collections");
   return { created, updated, deleted, records };
 }
+
+// ── Record translations ───────────────────────────────────────────────────────
+
+/** Persists a single locale's field overrides for one record. */
+export async function updateCollectionRecordTranslation(
+  collectionId: string,
+  recordId: string,
+  locale: string,
+  patch: Record<string, unknown>,
+): Promise<CmsCollectionRecord> {
+  const record = await cms.collections.updateRecordTranslations(collectionId, recordId, locale, patch);
+  revalidatePath("/admin/collections");
+  return record;
+}

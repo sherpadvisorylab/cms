@@ -15,4 +15,23 @@ export interface ICollectionRepository {
   createRecord(record: Omit<CmsCollectionRecord, "id" | "createdAt" | "updatedAt">): Promise<CmsCollectionRecord>;
   updateRecord(collectionId: string, recordId: string, data: Record<string, unknown>): Promise<CmsCollectionRecord>;
   deleteRecord(collectionId: string, recordId: string): Promise<void>;
+
+  /**
+   * Paginated lookup used by AI bulk-translation: returns records ordered by a stable cursor (id),
+   * optionally filtered to only those still missing a translation for `locale` on at least one of
+   * `translatableKeys`. The repository does not read the collection schema itself — callers compute
+   * `translatableKeys` from `CmsCollection.schema` and pass them in.
+   */
+  findRecordsPage(
+    collectionId: string,
+    opts: { cursor?: string | null; limit: number; translatableKeys?: string[]; locale?: string },
+  ): Promise<{ items: CmsCollectionRecord[]; nextCursor: string | null }>;
+
+  /** Merges `patch` into `record.translations[locale]` without touching `data` or other locales. */
+  updateRecordTranslations(
+    collectionId: string,
+    recordId: string,
+    locale: string,
+    patch: Record<string, unknown>,
+  ): Promise<CmsCollectionRecord>;
 }

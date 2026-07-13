@@ -956,20 +956,60 @@ export class CMS {
     });
   }
 
+  /**
+   * Merges a record's `translations[locale]` overrides on top of `data` for URL/metadata
+   * purposes (slug, permalink, meta title/description): falls back to the default-locale value
+   * when untranslated, so links and page metadata stay valid even before a field is translated.
+   * Content shown in templates uses `mergeRecordLocaleContent` instead, which never falls back to
+   * the wrong language.
+   */
+  private mergeRecordLocaleForUrl(
+    record: { data: Record<string, unknown>; translations?: Record<string, Record<string, unknown>> },
+    locale: string,
+  ): Record<string, unknown> {
+    const overrides = locale ? record.translations?.[locale] : undefined;
+    return overrides ? { ...record.data, ...overrides } : record.data;
+  }
+
+  /**
+   * Merges a record's `translations[locale]` overrides on top of `data` for display in templates.
+   * Fields marked `translatable` in `schema` are blanked out (never fall back to the default
+   * locale) when no override exists for `locale` — showing nothing is preferable to showing text
+   * in the wrong language. Non-translatable fields always come from `data` (locale-agnostic).
+   * Returns `data` unchanged when `locale` is empty or is the site's default locale.
+   */
+  private mergeRecordLocaleContent(
+    record: { data: Record<string, unknown>; translations?: Record<string, Record<string, unknown>> },
+    locale: string,
+    defaultLocale: string,
+    schema: ComponentSchemaField[],
+  ): Record<string, unknown> {
+    if (!locale || locale === defaultLocale) return record.data;
+    const overrides = record.translations?.[locale];
+    const result: Record<string, unknown> = { ...record.data };
+    for (const field of schema) {
+      if (!field.translatable) continue;
+      result[field.key] = overrides?.[field.key] ?? "";
+    }
+    return result;
+  }
+
   /** Build the computed fields (slug, permalink, metaTitle, metaDescription) for a record. */
   private buildRecordComputedFields(
-    record: { id: string; data: Record<string, unknown> },
+    record: { id: string; data: Record<string, unknown>; translations?: Record<string, Record<string, unknown>> },
     collection: import("@sherpacms/domain").CmsCollection,
     siteName: string,
+    locale = "",
   ): { slug: string; permalink: string; metaTitle: string; metaDescription: string } {
     const slugPattern = collection.slugPattern || "{id}";
     const permalinkPattern = collection.permalinkPattern || `/{collection.slug}/{record.slug}`;
+    const localizedData = this.mergeRecordLocaleForUrl(record, locale);
 
-    const slugVars = { ...record.data, id: record.id };
+    const slugVars = { ...localizedData, id: record.id };
     const slug = this.resolvePattern(slugPattern, slugVars, true);
 
     const permalinkVars = {
-      ...record.data,
+      ...localizedData,
       id: record.id,
       "record.slug": slug,
       "collection.slug": collection.slug,
@@ -977,10 +1017,10 @@ export class CMS {
     };
     const permalink = this.resolvePattern(permalinkPattern, permalinkVars, false);
 
-    const metaVars = { ...record.data, id: record.id, "record.slug": slug, "record.permalink": permalink, "site.name": siteName };
+    const metaVars = { ...localizedData, id: record.id, "record.slug": slug, "record.permalink": permalink, "site.name": siteName };
     const metaTitle = collection.detailMetaTitle
       ? this.resolvePattern(collection.detailMetaTitle, metaVars, false)
-      : String(record.data[collection.schema[0]?.key ?? ""] ?? record.id);
+      : String(localizedData[collection.schema[0]?.key ?? ""] ?? record.id);
     const metaDescription = collection.detailMetaDescription
       ? this.resolvePattern(collection.detailMetaDescription, metaVars, false)
       : "";
@@ -1000,11 +1040,13 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
     const siteName = settingsObj?.branding?.projectName ?? area?.name ?? "";
+    const siteDefaultLocale = area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const effectiveLocale = opts?.locale ?? siteDefaultLocale;
 
     // Find the collection and record matching this permalink
     const allCollections = await this.collections.findAll().catch(() => []);
     let matchedCollection: import("@sherpacms/domain").CmsCollection | null = null;
-    let matchedRecord: { id: string; data: Record<string, unknown> } | null = null;
+    let matchedRecord: { id: string; data: Record<string, unknown>; translations?: Record<string, Record<string, unknown>> } | null = null;
     let matchedComputed: ReturnType<typeof this.buildRecordComputedFields> | null = null;
 
     for (const col of allCollections) {
@@ -1021,7 +1063,7 @@ export class CMS {
 
       const records = await this.collections.findRecords(col.id).catch(() => []);
       for (const rec of records) {
-        const computed = this.buildRecordComputedFields(rec, col, siteName);
+        const computed = this.buildRecordComputedFields(rec, col, siteName, effectiveLocale);
         if (computed.permalink === permalink || normalizePermalink(computed.permalink) === normalizePermalink(permalink)) {
           matchedCollection = col;
           matchedRecord = rec;
@@ -1041,14 +1083,14 @@ export class CMS {
       seo: { metaTitle: matchedComputed.metaTitle, metaDescription: matchedComputed.metaDescription },
     } as import("@sherpacms/domain").CmsPage;
 
-    const baseSite = this.buildSiteContext(area, settingsObj, virtualPage);
+    const baseSite = this.buildSiteContext(area, settingsObj, virtualPage, "", "", "", "", effectiveLocale);
     const basePage = this.buildPageContext(virtualPage);
     const baseStyles = this.buildStylesContext(area, settingsObj);
-    const detailLocale = area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
-    const t = await this.buildTranslationGlobals(detailLocale, detailLocale);
+    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
 
+    const localizedRecordData = this.mergeRecordLocaleContent(matchedRecord, effectiveLocale, siteDefaultLocale, matchedCollection.schema);
     const resolvedRecordData = await this.resolveRelationFields(
-      matchedRecord.data,
+      localizedRecordData,
       matchedCollection.schema,
       { site: baseSite, page: basePage, styles: baseStyles, t },
       new Set(),
@@ -1253,11 +1295,14 @@ export class CMS {
     nextChain.add(`${collection.slug}:${view.slug}`);
 
     const siteNameForPattern = (ctx.site["name"] as string | undefined) ?? "";
+    const locale = (ctx.site?.locale as string) || "";
+    const defaultLocale = (ctx.site?.default_locale as string) || "";
     const hasDetail = collection.hasDetailPage !== false;
     const recordContexts = await Promise.all(records.map(async (r) => {
-      const resolvedData = await this.resolveRelationFields(r.data, collection.schema, ctx, nextChain);
+      const localizedData = this.mergeRecordLocaleContent(r, locale, defaultLocale, collection.schema);
+      const resolvedData = await this.resolveRelationFields(localizedData, collection.schema, ctx, nextChain);
       if (!hasDetail) return { id: r.id, ...resolvedData };
-      const computed = this.buildRecordComputedFields(r, collection, siteNameForPattern);
+      const computed = this.buildRecordComputedFields(r, collection, siteNameForPattern, locale);
       return { id: r.id, ...resolvedData, slug: computed.slug, permalink: computed.permalink, metaTitle: computed.metaTitle, metaDescription: computed.metaDescription };
     }));
 
@@ -1342,11 +1387,14 @@ export class CMS {
         const exposedKeys = field.relationFields?.length ? field.relationFields : targetCollection.schema.map((f) => f.key);
         const hasDetail = targetCollection.hasDetailPage !== false;
         const siteName = (ctx.site["name"] as string | undefined) ?? "";
+        const locale = (ctx.site?.locale as string) || "";
+        const defaultLocale = (ctx.site?.default_locale as string) || "";
         result[field.key] = linkedRecords.map((r) => {
+          const localizedData = this.mergeRecordLocaleContent(r, locale, defaultLocale, targetCollection.schema);
           const projected: Record<string, unknown> = { id: r.id };
-          for (const key of exposedKeys) projected[key] = r.data[key];
+          for (const key of exposedKeys) projected[key] = localizedData[key];
           if (hasDetail) {
-            const computed = this.buildRecordComputedFields(r, targetCollection, siteName);
+            const computed = this.buildRecordComputedFields(r, targetCollection, siteName, locale);
             projected.slug = computed.slug;
             projected.permalink = computed.permalink;
           }

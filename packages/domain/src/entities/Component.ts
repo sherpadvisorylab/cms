@@ -93,4 +93,9 @@ export interface ComponentSchemaField {
   relationFields?: string[];
   /** For `relation` fields in "view" mode: slug of the target collection's view to render. */
   relationViewSlug?: string;
+  /**
+   * Whether this field's value can have per-locale overrides (Collection records only).
+   * Only meaningful for `text` | `textarea` | `richtext` fields.
+   */
+  translatable?: boolean;
 }
