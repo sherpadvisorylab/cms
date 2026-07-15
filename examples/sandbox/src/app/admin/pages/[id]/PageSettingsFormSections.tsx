@@ -300,6 +300,31 @@ export function PageSettingsFormSections({
         </div>
 
         <div className="form-group" style={{ marginBottom: 12 }}>
+          <label className="form-label">Robots</label>
+          <div style={{ display: "flex", gap: 16 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.83rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                name="robotsIndex"
+                defaultChecked={initialPage.seo?.robotsIndex ?? true}
+              />
+              Indicizzabile (index)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.83rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                name="robotsFollow"
+                defaultChecked={initialPage.seo?.robotsFollow ?? true}
+              />
+              Segui i link (follow)
+            </label>
+          </div>
+          <span className="form-hint">
+            Di default ogni pagina è indicizzabile e i link vengono seguiti. Disattiva per escludere questa specifica versione/lingua della pagina.
+          </span>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 12 }}>
           <label className="form-label">OG Image URL</label>
           <input
             name="ogImageUrl"

@@ -171,6 +171,8 @@ export async function createPage(formData: FormData) {
       metaTitle: seoTitle || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
       keywords: (formData.get("keywords") as string) || undefined,
+      robotsIndex: formData.get("robotsIndex") === "on",
+      robotsFollow: formData.get("robotsFollow") === "on",
     },
     ogImageUrl: (formData.get("ogImageUrl") as string) || undefined,
   });
@@ -282,6 +284,8 @@ export async function updatePage(id: string, formData: FormData) {
       metaTitle: (formData.get("seoTitle") as string) || undefined,
       metaDescription: (formData.get("seoDescription") as string) || undefined,
       keywords: (formData.get("keywords") as string) || undefined,
+      robotsIndex: formData.get("robotsIndex") === "on",
+      robotsFollow: formData.get("robotsFollow") === "on",
     },
     ogImageUrl: (formData.get("ogImageUrl") as string) || undefined,
   });

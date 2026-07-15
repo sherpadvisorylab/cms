@@ -5,6 +5,10 @@ export interface CmsPageSeo {
   metaTitle?: string;
   metaDescription?: string;
   keywords?: string;
+  /** Whether search engines may index this page. Defaults to true (indexable) when unset. */
+  robotsIndex?: boolean;
+  /** Whether search engines may follow links on this page. Defaults to true (followable) when unset. */
+  robotsFollow?: boolean;
 }
 
 export interface CmsPageStyle {

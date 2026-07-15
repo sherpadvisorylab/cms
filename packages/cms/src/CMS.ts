@@ -1503,6 +1503,10 @@ export class CMS {
     const title = page.seo?.metaTitle ?? page.seoTitle ?? page.title;
     const desc = page.seo?.metaDescription ?? page.seoDescription;
     const keywords = page.seo?.keywords;
+    const robotsIndex = page.seo?.robotsIndex ?? true;
+    const robotsFollow = page.seo?.robotsFollow ?? true;
+    const robotsContent = `${robotsIndex ? "index" : "noindex"}, ${robotsFollow ? "follow" : "nofollow"}`;
+    tags.push(`<meta name="robots" content="${escapeAttr(robotsContent)}">`);
     if (canonicalUrl) {
       tags.push(`<link rel="canonical" href="${escapeAttr(canonicalUrl)}">`);
     }

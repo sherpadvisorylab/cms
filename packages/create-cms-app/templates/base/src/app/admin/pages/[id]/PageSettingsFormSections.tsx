@@ -300,6 +300,31 @@ export function PageSettingsFormSections({
         </div>
 
         <div className="form-group" style={{ marginBottom: 12 }}>
+          <label className="form-label">Robots</label>
+          <div style={{ display: "flex", gap: 16 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.83rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                name="robotsIndex"
+                defaultChecked={initialPage.seo?.robotsIndex ?? true}
+              />
+              Indexable (index)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.83rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                name="robotsFollow"
+                defaultChecked={initialPage.seo?.robotsFollow ?? true}
+              />
+              Follow links (follow)
+            </label>
+          </div>
+          <span className="form-hint">
+            Pages are indexable and followable by default. Disable to exclude this specific page/locale version.
+          </span>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 12 }}>
           <label className="form-label">OG Image URL</label>
           <input
             name="ogImageUrl"

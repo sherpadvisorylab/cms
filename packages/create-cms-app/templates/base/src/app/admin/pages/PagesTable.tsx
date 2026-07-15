@@ -565,6 +565,30 @@ export function PagesTable({ pages, areas, search, areaFilter, systemPageMap = {
                           <span style={{ color: "var(--primary)", fontWeight: 600, fontSize: "0.875rem" }}>
                             {page.title}
                           </span>
+                          {(page.seo?.robotsIndex === false || page.seo?.robotsFollow === false) && (
+                            <div style={{ display: "flex", gap: 4, marginTop: 3 }}>
+                              {page.seo?.robotsIndex === false && (
+                                <span style={{
+                                  fontSize: "0.66rem", fontWeight: 700,
+                                  background: "#fee2e2", color: "#b91c1c",
+                                  border: "1px solid #fecaca",
+                                  padding: "1px 7px", borderRadius: 999,
+                                }}>
+                                  noindex
+                                </span>
+                              )}
+                              {page.seo?.robotsFollow === false && (
+                                <span style={{
+                                  fontSize: "0.66rem", fontWeight: 700,
+                                  background: "#ffedd5", color: "#c2410c",
+                                  border: "1px solid #fed7aa",
+                                  padding: "1px 7px", borderRadius: 999,
+                                }}>
+                                  nofollow
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {depth > 0 && (
                             <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: 2 }}>
                               Child page
