@@ -61,6 +61,8 @@ export function FieldInput({
       return <ImageUploadField value={value as ImageValue} onChange={onChange} withAlt accept="image" placeholder={ph} />;
     case "video_url":
       return <ImageUploadField value={value as ImageValue} onChange={onChange} withAlt accept="video" placeholder={ph} />;
+    case "file_url":
+      return <ImageUploadField value={value as ImageValue} onChange={onChange} accept="file" placeholder={ph ?? "https://example.com/file.html"} />;
     case "color":
       return (
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -171,7 +173,7 @@ export function ValidatedFieldInput({
 /** Returns a short preview string from the first non-empty scalar field of an item. */
 export function itemPreview(item: Record<string, unknown>, schema: ComponentSchemaField[]): string {
   for (const f of schema) {
-    if (f.type === "list" || f.type === "image_url" || f.type === "video_url" || f.type === "richtext" || f.type === "relation") continue;
+    if (f.type === "list" || f.type === "image_url" || f.type === "video_url" || f.type === "file_url" || f.type === "richtext" || f.type === "relation") continue;
     const v = String(item[f.key] ?? "").trim();
     if (v) return v.length > 48 ? v.slice(0, 48) + "…" : v;
   }

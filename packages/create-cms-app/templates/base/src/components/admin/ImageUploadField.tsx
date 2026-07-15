@@ -37,8 +37,8 @@ interface ImageUploadFieldProps {
   hint?: string;
   /** When true renders on a dark background (for dark logo preview) */
   dark?: boolean;
-  /** "image" | "video" | "all" — defaults to "image" */
-  accept?: "image" | "video" | "all";
+  /** "image" | "video" | "file" | "all" — defaults to "image" */
+  accept?: "image" | "video" | "file" | "all";
   /** When true, renders an alt-text input and emits {url, alt} objects */
   withAlt?: boolean;
 }
@@ -63,7 +63,7 @@ export function ImageUploadField({
   const url      = getImageUrl(value);
   const alt      = getImageAlt(value);
   const isVideo  = url && /\.(mp4|webm|mov)/i.test(url);
-  const acceptAttr = accept === "video" ? "video/*" : accept === "all" ? "image/*,video/*" : "image/*";
+  const acceptAttr = accept === "video" ? "video/*" : accept === "file" ? "" : accept === "all" ? "image/*,video/*" : "image/*";
 
   function emitUrl(nextUrl: string, suggestedAlt?: string) {
     if (withAlt) onChange(buildImageValue(nextUrl, suggestedAlt ?? alt));
@@ -89,6 +89,7 @@ export function ImageUploadField({
   function isAcceptable(file: File) {
     if (accept === "image") return file.type.startsWith("image/");
     if (accept === "video") return file.type.startsWith("video/");
+    if (accept === "file") return true;
     return file.type.startsWith("image/") || file.type.startsWith("video/");
   }
 
@@ -203,7 +204,14 @@ export function ImageUploadField({
       )}
 
       {/* Preview */}
-      {url && !error && (url.startsWith("http") || url.startsWith("/")) && (
+      {url && !error && accept === "file" && (
+        <div style={{ marginTop: 8 }}>
+          <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: "0.82rem", wordBreak: "break-all" }}>
+            {url}
+          </a>
+        </div>
+      )}
+      {url && !error && accept !== "file" && (url.startsWith("http") || url.startsWith("/")) && (
         <div style={{ marginTop: 8 }}>
           {isVideo ? (
             <video src={url} controls style={{ maxWidth: 280, maxHeight: 100, borderRadius: 4, border: "1px solid var(--border)", display: "block" }} />

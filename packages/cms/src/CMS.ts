@@ -578,7 +578,7 @@ export class CMS {
     const expanded: Record<string, unknown> = { ...props };
     for (const field of schema) {
       const value = expanded[field.key];
-      if (field.type === "image_url" || field.type === "video_url") {
+      if (field.type === "image_url" || field.type === "video_url" || field.type === "file_url") {
         if (value && typeof value === "object" && !Array.isArray(value) && "url" in (value as object)) {
           const obj = value as { url?: unknown; alt?: unknown };
           expanded[field.key] = typeof obj.url === "string" ? obj.url : "";

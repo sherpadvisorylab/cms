@@ -48,8 +48,8 @@ export interface ComponentVersion {
   createdAt: Date;
 }
 
-export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "color" | "toggle" | "number" | "select" | "list" | "relation";
-export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "color", "toggle", "number", "select", "list", "relation"];
+export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "file_url" | "color" | "toggle" | "number" | "select" | "list" | "relation";
+export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "file_url", "color", "toggle", "number", "select", "list", "relation"];
 
 /** How a `relation` field exposes the related records to the Liquid template. */
 export type RelationFieldMode = "fields" | "view";
