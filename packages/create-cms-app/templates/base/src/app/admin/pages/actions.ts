@@ -703,6 +703,21 @@ export async function removeTranslationKey(pageId: string) {
   revalidatePath(`/admin/pages/${pageId}`);
 }
 
+/**
+ * Finds the id of pageId's translation sibling in `targetLocale` (same translationKey),
+ * for the admin locale switcher to jump straight to the equivalent page when editing.
+ * Returns null if the page has no translationKey or no sibling exists in that locale.
+ */
+export async function getTranslationSiblingId(pageId: string, targetLocale: string): Promise<string | null> {
+  const allPages = await cms.pages.findAll();
+  const page = allPages.find((p) => p.id === pageId);
+  if (!page?.translationKey) return null;
+  const sibling = allPages.find(
+    (p) => p.id !== pageId && p.translationKey === page.translationKey && p.locale === targetLocale,
+  );
+  return sibling?.id ?? null;
+}
+
 // ── Collection entry picker ───────────────────────────────────────────────────
 
 export async function getCollectionRecordsForPicker(collectionSlug: string): Promise<{

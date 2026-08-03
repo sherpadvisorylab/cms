@@ -48,8 +48,20 @@ export interface ComponentVersion {
   createdAt: Date;
 }
 
-export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "file_url" | "color" | "toggle" | "number" | "select" | "list" | "relation";
-export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "file_url", "color", "toggle", "number", "select", "list", "relation"];
+export type SchemaFieldType = "text" | "textarea" | "richtext" | "image_url" | "video_url" | "file_url" | "color" | "toggle" | "number" | "select" | "list" | "relation" | "link";
+export const SCHEMA_FIELD_TYPES: SchemaFieldType[] = ["text", "textarea", "richtext", "image_url", "video_url", "file_url", "color", "toggle", "number", "select", "list", "relation", "link"];
+
+/** Stored value shape for a `link` field. */
+export interface CmsLinkValue {
+  kind: "entry" | "url";
+  /** For kind "entry": id of the originally-picked page. Resolved to the current
+   * locale's translation (same translationKey) at render/edit time — never rewritten
+   * automatically, so authoring the link once carries over to every translation. */
+  pageId?: string;
+  /** For kind "url": a custom, non-page URL. */
+  url?: string;
+  openInNewTab?: boolean;
+}
 
 /** How a `relation` field exposes the related records to the Liquid template. */
 export type RelationFieldMode = "fields" | "view";
@@ -99,3 +111,11 @@ export interface ComponentSchemaField {
    */
   translatable?: boolean;
 }
+
+/**
+ * `link` fields have no extra schema config — the stored prop value is always a
+ * `CmsLinkValue`. At render time it resolves to a plain URL string plus a companion
+ * `<key>_openInNewTab` boolean (see CMS.resolveLinkFields), so `{{ field_key }}` in a
+ * Liquid template already gives the URL — the same convention `image_url`/`video_url`/
+ * `file_url` fields use for their companion `<key>_alt`.
+ */

@@ -36,9 +36,11 @@ export function SchemaFieldEditor({ field, onChange }: Props) {
   const isList = field.type === "list";
   const isRelation = field.type === "relation";
   const isTranslatableType = field.type === "text" || field.type === "textarea" || field.type === "richtext";
-  // Neither a free-text placeholder nor a regex validator makes sense on an array value.
+  // Neither a free-text placeholder nor a regex validator makes sense on an array or
+  // relation value. A `link` field's placeholder is still meaningful (used on its
+  // custom-URL input), but a regex validator doesn't apply to its compound value.
   const hidePlaceholder = isList || isRelation;
-  const hideValidator = isList || isRelation;
+  const hideValidator = isList || isRelation || field.type === "link";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

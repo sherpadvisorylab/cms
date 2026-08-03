@@ -26,6 +26,7 @@ import {
   CmsSettings,
   CmsVariableDefinition,
   ComponentSchemaField,
+  CmsLinkValue,
   IPageRepository,
   IComponentRepository,
   IMenuRepository,
@@ -443,7 +444,12 @@ export class CMS {
         { site: baseSite, page: basePage, styles: baseStyles, t },
         new Set(),
       );
-      const expandedProps = this.expandImageProps(propsWithRelations, componentVersion.schema);
+      const propsWithLinks = await this.resolveLinkFields(
+        propsWithRelations,
+        componentVersion.schema,
+        { site: baseSite, page: basePage, styles: baseStyles, t },
+      );
+      const expandedProps = this.expandImageProps(propsWithLinks, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,
@@ -1431,6 +1437,55 @@ export class CMS {
     return result;
   }
 
+  /**
+   * Resolve `link` fields in a record/prop data object: `field.key` becomes the plain
+   * URL string (usable directly as `{{ field_key }}`) and a companion
+   * `field.key + "_openInNewTab"` boolean is added — the same expansion convention
+   * `expandImageProps` uses for `_alt` on image/video/file fields, so a template
+   * written naively as `{{ field_key }}` just works.
+   *
+   * "entry" kind stores the id of whichever page was originally picked — it is never
+   * rewritten automatically. At render time it always resolves to that page's sibling
+   * (same `translationKey`) matching the CURRENT render locale, exactly like a
+   * page-linked navigation item (`resolveNavigationPageLinkUrl`), so authoring the link
+   * once carries over to every translation. Falls back to an empty URL if no published
+   * sibling exists for that locale. "url" kind passes the custom URL through unchanged.
+   */
+  private async resolveLinkFields(
+    data: Record<string, unknown>,
+    schema: ComponentSchemaField[] | null | undefined,
+    ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
+  ): Promise<Record<string, unknown>> {
+    const linkFields = (schema ?? []).filter((f) => f.type === "link");
+    if (linkFields.length === 0) return data;
+
+    const result: Record<string, unknown> = { ...data };
+    const locale = (ctx.site?.locale as string) || "";
+    let linkCtx: NavigationPageLinkContext | null = null;
+
+    for (const field of linkFields) {
+      const raw = data[field.key] as CmsLinkValue | undefined;
+      const openInNewTabKey = `${field.key}_openInNewTab`;
+
+      if (!raw || typeof raw !== "object") {
+        result[field.key] = "";
+        result[openInNewTabKey] = false;
+        continue;
+      }
+
+      if (raw.kind === "entry" && raw.pageId) {
+        linkCtx = linkCtx ?? (await this.buildNavigationPageLinkContext());
+        const url = this.resolveNavigationPageLinkUrl(raw.pageId, locale, linkCtx);
+        result[field.key] = url ?? "";
+      } else {
+        result[field.key] = raw.url ?? "";
+      }
+      result[openInNewTabKey] = !!raw.openInNewTab;
+    }
+
+    return result;
+  }
+
   private async resolveComponentEmbeds(
     html: string,
     ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
@@ -1463,7 +1518,8 @@ export class CMS {
         }
 
         const componentProps = propsMap?.[ref.toLowerCase()] ?? propsMap?.[normalizeComponentReference(component.name)] ?? {};
-        const resolvedComponentProps = await this.resolveRelationFields(componentProps, version.schema, ctx, new Set());
+        const resolvedRelationProps = await this.resolveRelationFields(componentProps, version.schema, ctx, new Set());
+        const resolvedComponentProps = await this.resolveLinkFields(resolvedRelationProps, version.schema, ctx);
 
         const rendered = await this.render.render({
           template: protectCmsPlaceholders(normalizeVariableAliases(version.templateLiquid)),
@@ -1719,7 +1775,12 @@ export class CMS {
         { site: siteContext, page: pageContext, styles: stylesContext, t },
         new Set(),
       );
-      const expandedProps = this.expandImageProps(propsWithRelations, componentVersion.schema);
+      const propsWithLinks = await this.resolveLinkFields(
+        propsWithRelations,
+        componentVersion.schema,
+        { site: siteContext, page: pageContext, styles: stylesContext, t },
+      );
+      const expandedProps = this.expandImageProps(propsWithLinks, componentVersion.schema);
       const rendered = await this.render.render({
         template: safeTemplate,
         data: expandedProps,

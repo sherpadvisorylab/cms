@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ADMIN_LOCALE_COOKIE } from "@/lib/i18n";
+import { getTranslationSiblingId } from "@/app/admin/pages/actions";
 
 interface LocaleSwitcherProps {
   supportedLocales: string[];
@@ -14,11 +16,16 @@ function readAdminLocaleCookie(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/** Matches /admin/pages/<id> or /admin/pages/<id>/(content|structure|versions) — excludes /admin/pages/new. */
+const PAGE_DETAIL_ROUTE = /^\/admin\/pages\/(?!new(?:\/|$))([^/]+)(?:\/(content|structure|versions))?\/?$/;
+
 export function LocaleSwitcher({ supportedLocales, defaultLocale }: LocaleSwitcherProps) {
   const [current, setCurrent] = useState<string>(defaultLocale);
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const fromCookie = readAdminLocaleCookie();
@@ -35,11 +42,29 @@ export function LocaleSwitcher({ supportedLocales, defaultLocale }: LocaleSwitch
 
   if (supportedLocales.length <= 1) return null;
 
-  function switchLocale(locale: string) {
+  async function switchLocale(locale: string) {
     document.cookie = `${ADMIN_LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; SameSite=Lax`;
     setOpen(false);
+    setCurrent(locale);
+
+    // Editing a specific page? Jump to its translation sibling in the new locale
+    // (same content/structure/versions sub-route), or the pages list if none exists.
+    const match = pathname?.match(PAGE_DETAIL_ROUTE);
+    if (match) {
+      const [, pageId, subRoute] = match;
+      const siblingId = await getTranslationSiblingId(pageId, locale).catch(() => null);
+      startTransition(() => {
+        if (siblingId) {
+          router.push(`/admin/pages/${siblingId}${subRoute ? `/${subRoute}` : ""}`);
+        } else {
+          router.push("/admin/pages");
+        }
+        router.refresh();
+      });
+      return;
+    }
+
     startTransition(() => {
-      setCurrent(locale);
       window.location.reload();
     });
   }

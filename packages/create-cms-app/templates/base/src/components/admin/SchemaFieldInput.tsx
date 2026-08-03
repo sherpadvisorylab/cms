@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import type { ComponentSchemaField } from "@sherpacms/domain";
+import type { ComponentSchemaField, CmsLinkValue } from "@sherpacms/domain";
 import { ImageUploadField, type ImageValue } from "./ImageUploadField";
 import { RichTextEditor } from "./RichTextEditor";
 import { validateFieldValue } from "./validators";
 import { getCollectionRecordsForRelationPicker } from "@/app/admin/collections/actions";
 
 export type SchemaFieldWithMeta = ComponentSchemaField & { required?: boolean; validator?: string };
+
+/** A page eligible to be targeted by a `link` field's "entry" kind. */
+export type LinkablePage = {
+  id: string;
+  title: string;
+  permalink: string;
+  locale: string;
+  translationKey: string | null;
+  status: string;
+};
 
 export const COL_SPAN: Record<string, string> = {
   full: "span 12",
@@ -35,11 +45,17 @@ export function FieldInput({
   value,
   onChange,
   placeholder,
+  linkablePages,
+  currentLocale,
 }: {
   field: SchemaFieldWithMeta;
   value: unknown;
   onChange: (value: unknown) => void;
   placeholder?: string;
+  /** Pages eligible for a `link` field's "entry" kind — only needed when the schema can contain one. */
+  linkablePages?: LinkablePage[];
+  /** Locale of the page currently being edited — used to resolve a `link` field's cross-locale sibling. */
+  currentLocale?: string;
 }) {
   const str = (value ?? field.defaultValue ?? "") as string;
   const ph = placeholder ?? field.placeholder ?? field.helpText;
@@ -115,10 +131,22 @@ export function FieldInput({
           field={field}
           value={(value ?? []) as Array<Record<string, unknown>>}
           onChange={onChange}
+          linkablePages={linkablePages}
+          currentLocale={currentLocale}
         />
       );
     case "relation":
       return <RelationFieldInput field={field} value={value} onChange={onChange} />;
+    case "link":
+      return (
+        <LinkFieldInput
+          field={field}
+          value={value}
+          onChange={onChange}
+          linkablePages={linkablePages ?? []}
+          currentLocale={currentLocale ?? ""}
+        />
+      );
     default:
       return (
         <input
@@ -137,11 +165,15 @@ export function ValidatedFieldInput({
   value,
   onChange,
   placeholder,
+  linkablePages,
+  currentLocale,
 }: {
   field: SchemaFieldWithMeta;
   value: unknown;
   onChange: (value: unknown) => void;
   placeholder?: string;
+  linkablePages?: LinkablePage[];
+  currentLocale?: string;
 }) {
   const [dirty, setDirty] = useState(false);
   const error = dirty ? validateFieldValue(value, field) : (
@@ -157,7 +189,14 @@ export function ValidatedFieldInput({
         onBlur={() => setDirty(true)}
         style={error ? { borderRadius: 4, outline: "1px solid var(--danger)" } : undefined}
       >
-        <FieldInput field={field} value={value} onChange={(v) => { setDirty(true); onChange(v); }} placeholder={placeholder} />
+        <FieldInput
+          field={field}
+          value={value}
+          onChange={(v) => { setDirty(true); onChange(v); }}
+          placeholder={placeholder}
+          linkablePages={linkablePages}
+          currentLocale={currentLocale}
+        />
       </div>
       {error ? (
         <p style={{ color: "var(--danger)", fontSize: "0.72rem", marginTop: 3, display: "flex", alignItems: "center", gap: 4, margin: "3px 0 0" }}>
@@ -173,7 +212,7 @@ export function ValidatedFieldInput({
 /** Returns a short preview string from the first non-empty scalar field of an item. */
 export function itemPreview(item: Record<string, unknown>, schema: ComponentSchemaField[]): string {
   for (const f of schema) {
-    if (f.type === "list" || f.type === "image_url" || f.type === "video_url" || f.type === "file_url" || f.type === "richtext" || f.type === "relation") continue;
+    if (f.type === "list" || f.type === "image_url" || f.type === "video_url" || f.type === "file_url" || f.type === "richtext" || f.type === "relation" || f.type === "link") continue;
     const v = String(item[f.key] ?? "").trim();
     if (v) return v.length > 48 ? v.slice(0, 48) + "…" : v;
   }
@@ -184,10 +223,14 @@ function ListFieldInput({
   field,
   value,
   onChange,
+  linkablePages,
+  currentLocale,
 }: {
   field: SchemaFieldWithMeta;
   value: Array<Record<string, unknown>>;
   onChange: (value: unknown) => void;
+  linkablePages?: LinkablePage[];
+  currentLocale?: string;
 }) {
   const items = Array.isArray(value) ? value : [];
   const childSchema = field.childSchema ?? [];
@@ -250,7 +293,13 @@ function ListFieldInput({
                 {childSchema.map((childField) => (
                   <div key={childField.key} style={{ gridColumn: COL_SPAN[(childField as SchemaFieldWithMeta).colWidth ?? "full"] ?? "span 12" }}>
                     <FieldLabel required={(childField as SchemaFieldWithMeta).required}>{childField.label}</FieldLabel>
-                    <ValidatedFieldInput field={childField as SchemaFieldWithMeta} value={item[childField.key]} onChange={(val) => updateItem(itemIdx, childField.key, val)} />
+                    <ValidatedFieldInput
+                      field={childField as SchemaFieldWithMeta}
+                      value={item[childField.key]}
+                      onChange={(val) => updateItem(itemIdx, childField.key, val)}
+                      linkablePages={linkablePages}
+                      currentLocale={currentLocale}
+                    />
                   </div>
                 ))}
               </div>
@@ -396,6 +445,152 @@ function RelationFieldInput({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Resolves which page to actually display as "selected" for a `link` field's "entry"
+ * kind: the stored `pageId` is never rewritten automatically, so when editing a
+ * translation of the page this value lives on, we look up the stored page's
+ * translationKey and show its sibling in `currentLocale` instead (falling back to the
+ * stored page itself if no such sibling exists). Saving without touching the field
+ * keeps the original `pageId` untouched — only the display resolves per locale.
+ */
+function resolveLinkDisplayPage(
+  pageId: string | undefined,
+  linkablePages: LinkablePage[],
+  currentLocale: string,
+): LinkablePage | null {
+  if (!pageId) return null;
+  const picked = linkablePages.find((p) => p.id === pageId);
+  if (!picked) return null;
+  if (!currentLocale || picked.locale === currentLocale || !picked.translationKey) return picked;
+  const sibling = linkablePages.find((p) => p.translationKey === picked.translationKey && p.locale === currentLocale);
+  return sibling ?? picked;
+}
+
+/**
+ * `link` field: a single search box doubling as free-text URL input — typing
+ * anything sets a "url" kind value live (so leaving free text behaves as a custom
+ * URL), while picking a suggested site page from the dropdown promotes it to an
+ * "entry" kind value (cross-locale aware via `resolveLinkDisplayPage`), shown as a
+ * removable chip. Plus an "open in a new tab" toggle. Stored value shape:
+ * `CmsLinkValue` (see @sherpacms/domain). Resolved to a plain `{ url, openInNewTab }`
+ * at public render time by `CMS.resolveLinkFields`.
+ */
+function LinkFieldInput({
+  field,
+  value,
+  onChange,
+  linkablePages,
+  currentLocale,
+}: {
+  field: SchemaFieldWithMeta;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  linkablePages: LinkablePage[];
+  currentLocale: string;
+}) {
+  const linkValue = (value && typeof value === "object" ? value : {}) as CmsLinkValue;
+  const displayPage = linkValue.kind === "entry" ? resolveLinkDisplayPage(linkValue.pageId, linkablePages, currentLocale) : null;
+
+  const [text, setText] = useState(linkValue.kind === "url" ? (linkValue.url ?? "") : "");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function pickPage(id: string) {
+    onChange({ ...linkValue, kind: "entry", pageId: id });
+    setText("");
+    setOpen(false);
+  }
+  function clearPage() {
+    onChange({ ...linkValue, kind: "url", pageId: undefined, url: "" });
+    setText("");
+  }
+  function typeUrl(next: string) {
+    setText(next);
+    onChange({ ...linkValue, kind: "url", pageId: undefined, url: next });
+  }
+  function setOpenInNewTab(openInNewTab: boolean) {
+    onChange({ ...linkValue, openInNewTab });
+  }
+
+  // Search suggestions only from pages in the locale currently being edited — you
+  // pick in your own language; resolveLinkDisplayPage still follows translationKey
+  // across locales regardless of which locale's page ends up stored.
+  const candidatePages = currentLocale
+    ? linkablePages.filter((p) => p.locale === currentLocale)
+    : linkablePages;
+  const filtered = text.trim()
+    ? candidatePages.filter((p) =>
+        p.title.toLowerCase().includes(text.trim().toLowerCase()) ||
+        p.permalink.toLowerCase().includes(text.trim().toLowerCase()),
+      )
+    : candidatePages;
+
+  return (
+    <div>
+      <div ref={containerRef} style={{ position: "relative" }}>
+        {displayPage ? (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
+            border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-light, #f8fafc)",
+          }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {displayPage.title}
+              <span style={{ fontFamily: "monospace", opacity: 0.7, marginLeft: 6 }}>{displayPage.permalink}</span>
+            </span>
+            <button type="button" className="btn-icon" onClick={clearPage} title="Remove" style={{ fontSize: "0.65rem" }}>✕</button>
+          </div>
+        ) : (
+          <input
+            className="form-control"
+            value={text}
+            onChange={(e) => { typeUrl(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder={field.placeholder ?? "Type a URL, or search a site page…"}
+          />
+        )}
+
+        {open && !displayPage && (
+          <div style={{
+            position: "absolute", zIndex: 10, top: "100%", left: 0, right: 0, marginTop: 2,
+            background: "#fff", border: "1px solid var(--border)", borderRadius: 6, maxHeight: 220,
+            overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: "8px 10px", fontSize: "0.8rem", color: "var(--text-muted)" }}>No matching pages.</div>
+            ) : (
+              filtered.map((p) => (
+                <div
+                  key={p.id}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickPage(p.id)}
+                  style={{ padding: "6px 10px", fontSize: "0.82rem", cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 8 }}
+                >
+                  <span>{p.title}</span>
+                  <span style={{ fontFamily: "monospace", opacity: 0.6 }}>{p.permalink}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={!!linkValue.openInNewTab} onChange={(e) => setOpenInNewTab(e.target.checked)} />
+        <span style={{ fontSize: "0.85rem" }}>Open in a new tab</span>
+      </label>
     </div>
   );
 }
