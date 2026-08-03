@@ -345,10 +345,15 @@ export class CMS {
     const draft = opts?.draft === true;
     const area = await this.areas.findByKey(areaKey);
 
-    // 1. Resolve page
-    let page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale);
+    // 1. Resolve page. System pages (Home, 404, …) are resolved via the area's
+    // systemPages map + translationKey/locale first — their stored permalink/slug is
+    // cosmetic and may be stale (e.g. left over from a prior reassignment), so it must
+    // not be trusted for routing. Only after that do we fall back to a plain permalink
+    // match, itself preferring the area's default locale when none is requested, to
+    // disambiguate ordinary pages whose locale variants happen to share a permalink.
+    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale);
     if (!page) {
-      page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink);
+      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? area?.defaultLocale ?? undefined);
     }
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
@@ -770,10 +775,20 @@ export class CMS {
     return normalizePermalink(page.permalink ?? page.slug);
   }
 
+  /**
+   * Resolves a permalink that matches a system page's canonical path (e.g. "/" for
+   * "home") to the right page: the area's `systemPages` map only ever records the
+   * main-language page's id, so a translated sibling (same `translationKey`) is looked
+   * up for `locale` when it differs from the main page's own locale. Deliberately
+   * ignores each page's own stored `permalink`/`slug` — those are cosmetic for system
+   * pages and can go stale (e.g. after a past reassignment), so they must not be
+   * trusted for routing.
+   */
   private async findSystemPageByCanonicalPermalink(
     areaKey: string,
     area: CmsArea | null,
     permalink: string,
+    locale?: string,
   ): Promise<CmsPage | null> {
     const normalizedPermalink = normalizePermalink(permalink);
     if (!area?.systemPages) return null;
@@ -783,10 +798,20 @@ export class CMS {
     );
     if (!systemEntry) return null;
 
-    const pageId = systemEntry[1];
-    if (!pageId) return null;
+    const mainPageId = systemEntry[1];
+    if (!mainPageId) return null;
     const allPages = await this.pages.findAll(areaKey);
-    return allPages.find((p) => p.id === pageId) ?? null;
+    const mainPage = allPages.find((p) => p.id === mainPageId) ?? null;
+    if (!mainPage) return null;
+
+    const effectiveLocale = locale ?? area?.defaultLocale ?? undefined;
+    if (!effectiveLocale || !mainPage.translationKey || mainPage.locale === effectiveLocale) {
+      return mainPage;
+    }
+    const sibling = allPages.find(
+      (p) => p.translationKey === mainPage.translationKey && p.locale === effectiveLocale,
+    );
+    return sibling ?? mainPage;
   }
 
   /**
@@ -1602,10 +1627,16 @@ export class CMS {
     opts?: { draft?: boolean; locale?: string; searchParams?: Record<string, string> },
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
+    const area = await this.areas.findByKey(areaKey);
 
-    // 1. Resolve page — findByPermalink only returns published rows, so for draft
-    //    preview we fall back to a full scan filtered by area + permalink.
-    let page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale);
+    // 1. Resolve page. System pages (Home, 404, …) are resolved via the area's
+    //    systemPages map + translationKey/locale first — see renderPage for why their
+    //    stored permalink/slug can't be trusted for routing. findByPermalink only
+    //    returns published rows, so for draft preview we fall back to a full scan.
+    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale);
+    if (!page) {
+      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? area?.defaultLocale ?? undefined);
+    }
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
       const normalizedPermalink = normalizePermalink(permalink);
@@ -1619,8 +1650,7 @@ export class CMS {
       : await this.pageVersions.getLatestPublished(page.id);
     if (!version) return null;
 
-    // 2. Load area and settings
-    const area = await this.areas.findByKey(areaKey);
+    // 2. Load settings
     const settingsObj = await this.settings.get();
 
     const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
