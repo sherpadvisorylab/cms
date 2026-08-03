@@ -190,8 +190,16 @@ export class CMS {
   /**
    * Assign a page as the system page of a given type for an area.
    *
-   * If a different page was previously the system page of that type, it is
-   * demoted: its slug gains a `_bkp` suffix and its status is set to `draft`.
+   * A system page assignment is shared by every locale translation of the
+   * assigned page (linked via `translationKey`): whichever page is passed in,
+   * the area always records the id of its sibling in `area.defaultLocale` (or
+   * the page itself if it has no such sibling). Translated siblings then
+   * resolve their inherited system-page status by translationKey rather than
+   * needing their own entry — see `getSystemPageType` in the consuming app.
+   *
+   * Reassigning a type away from its previous page does not change that
+   * page's publish status or slug — it simply stops being exempt from the
+   * normal slug requirement.
    */
   async assignSystemPage(
     areaKey: string,
@@ -201,26 +209,18 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     if (!area) throw new Error(`Area not found: ${areaKey}`);
 
-    const prevPageId = area.systemPages?.[type];
+    const allPages = await this.pages.findAll(areaKey);
+    const page = allPages.find((p) => p.id === pageId);
 
-    // Demote the previous system page (if different)
-    if (prevPageId && prevPageId !== pageId) {
-      const allPages = await this.pages.findAll(areaKey);
-      const prevPage = allPages.find((p) => p.id === prevPageId);
-      if (prevPage) {
-        await this.pages.update(prevPageId, {
-          slug: `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
-          permalink: replacePermalinkLeaf(
-            prevPage.permalink ?? `/${prevPage.slug}`,
-            `${prevPage.slug.replace(/_bkp$/, "")}_bkp`,
-          ),
-          status: "draft",
-        });
-      }
+    let resolvedPageId = pageId;
+    if (page?.translationKey && area.defaultLocale && page.locale !== area.defaultLocale) {
+      const mainSibling = allPages.find(
+        (p) => p.translationKey === page.translationKey && p.locale === area.defaultLocale,
+      );
+      if (mainSibling) resolvedPageId = mainSibling.id;
     }
 
-    // Update area
-    const systemPages = { ...(area.systemPages ?? {}), [type]: pageId };
+    const systemPages = { ...(area.systemPages ?? {}), [type]: resolvedPageId };
     await this.areas.update(area.id, { systemPages });
   }
 
@@ -1997,13 +1997,6 @@ function normalizeSiteUrl(value: string | null | undefined): string {
   const raw = (value ?? "").trim();
   if (!raw) return "";
   return raw.replace(/\/+$/g, "");
-}
-
-function replacePermalinkLeaf(permalink: string, nextSlug: string): string {
-  const normalizedPermalink = normalizePermalink(permalink);
-  if (normalizedPermalink === "/") return `/${nextSlug}`;
-  const parentPath = normalizedPermalink.replace(/\/[^/]+$/, "") || "/";
-  return parentPath === "/" ? `/${nextSlug}` : `${parentPath}/${nextSlug}`;
 }
 
 /**

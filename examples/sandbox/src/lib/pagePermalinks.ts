@@ -10,6 +10,16 @@ export function normalizeSlugSegment(slug: string | null | undefined): string {
   return (slug ?? "").trim().replace(/^\/+|\/+$/g, "");
 }
 
+/** Derives a URL-safe slug from a page title, for pages that lose their slug-exempt system-page status. */
+export function slugifyTitle(title: string): string {
+  return title
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function normalizePermalink(permalink: string | null | undefined): string {
   const raw = (permalink ?? "").trim();
   if (!raw || raw === "/") return "/";
