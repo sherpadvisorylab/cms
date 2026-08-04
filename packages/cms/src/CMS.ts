@@ -1442,7 +1442,9 @@ export class CMS {
    * URL string (usable directly as `{{ field_key }}`) and a companion
    * `field.key + "_openInNewTab"` boolean is added — the same expansion convention
    * `expandImageProps` uses for `_alt` on image/video/file fields, so a template
-   * written naively as `{{ field_key }}` just works.
+   * written naively as `{{ field_key }}` just works. Recurses one level into `list`
+   * fields' `childSchema` (e.g. a slider's `slides` list with a link field per slide),
+   * matching the "lists are one level only" rule used elsewhere in the schema.
    *
    * "entry" kind stores the id of whichever page was originally picked — it is never
    * rewritten automatically. At render time it always resolves to that page's sibling
@@ -1456,31 +1458,41 @@ export class CMS {
     schema: ComponentSchemaField[] | null | undefined,
     ctx: { site: Record<string, unknown>; page: Record<string, unknown>; styles: Record<string, unknown>; t?: Record<string, string> },
   ): Promise<Record<string, unknown>> {
-    const linkFields = (schema ?? []).filter((f) => f.type === "link");
-    if (linkFields.length === 0) return data;
+    if (!schema?.length) return data;
+
+    const hasLinkFields = (fields: ComponentSchemaField[]): boolean =>
+      fields.some((f) => f.type === "link" || (f.type === "list" && !!f.childSchema?.length && hasLinkFields(f.childSchema)));
+    if (!hasLinkFields(schema)) return data;
 
     const result: Record<string, unknown> = { ...data };
     const locale = (ctx.site?.locale as string) || "";
     let linkCtx: NavigationPageLinkContext | null = null;
 
-    for (const field of linkFields) {
-      const raw = data[field.key] as CmsLinkValue | undefined;
-      const openInNewTabKey = `${field.key}_openInNewTab`;
+    for (const field of schema) {
+      if (field.type === "link") {
+        const raw = data[field.key] as CmsLinkValue | undefined;
+        const openInNewTabKey = `${field.key}_openInNewTab`;
 
-      if (!raw || typeof raw !== "object") {
-        result[field.key] = "";
-        result[openInNewTabKey] = false;
-        continue;
-      }
+        if (!raw || typeof raw !== "object") {
+          result[field.key] = "";
+          result[openInNewTabKey] = false;
+          continue;
+        }
 
-      if (raw.kind === "entry" && raw.pageId) {
-        linkCtx = linkCtx ?? (await this.buildNavigationPageLinkContext());
-        const url = this.resolveNavigationPageLinkUrl(raw.pageId, locale, linkCtx);
-        result[field.key] = url ?? "";
-      } else {
-        result[field.key] = raw.url ?? "";
+        if (raw.kind === "entry" && raw.pageId) {
+          linkCtx = linkCtx ?? (await this.buildNavigationPageLinkContext());
+          const url = this.resolveNavigationPageLinkUrl(raw.pageId, locale, linkCtx);
+          result[field.key] = url ?? "";
+        } else {
+          result[field.key] = raw.url ?? "";
+        }
+        result[openInNewTabKey] = !!raw.openInNewTab;
+      } else if (field.type === "list" && field.childSchema?.length && Array.isArray(data[field.key])) {
+        const items = data[field.key] as Record<string, unknown>[];
+        result[field.key] = await Promise.all(
+          items.map((item) => this.resolveLinkFields(item, field.childSchema, ctx)),
+        );
       }
-      result[openInNewTabKey] = !!raw.openInNewTab;
     }
 
     return result;
