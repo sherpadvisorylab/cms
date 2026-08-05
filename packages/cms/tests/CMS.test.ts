@@ -530,6 +530,50 @@ describe("CMS", () => {
       expect(prefixedNonDefault).not.toBeNull();
     });
 
+    it("resolves the default locale from settings.branding.locales[isDefault] when neither area.defaultLocale nor branding.defaultLanguage reflect it", async () => {
+      // Real-world shape: the site was configured via the Localization settings UI
+      // (branding.locales, with "it" flagged isDefault) — the area's own defaultLocale
+      // was never set, and the legacy branding.defaultLanguage field is still sitting at
+      // its form's "en" UI default (never touched). The engine must still resolve "it" as
+      // the default, matching what /api/locale-config (and thus the routing middleware)
+      // already resolves — otherwise default-locale pages 404 at their un-prefixed permalink.
+      await cms.areas.create({
+        name: "public",
+        status: "active",
+        rootPath: "/",
+        design: {
+          headTemplate: "<head>{{site.locale}}|{{site.default_locale}}|{% for l in site.supported_locales %}{{l}},{% endfor %}</head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
+        },
+      });
+
+      await cms.settings.save({
+        id: "global",
+        branding: {
+          siteUrl: "https://example.com",
+          defaultLanguage: "en",
+          multiLanguageEnabled: true,
+          locales: [
+            { code: "it", rootPath: "/", isDefault: true },
+            { code: "en", rootPath: "/en" },
+          ],
+        },
+      });
+
+      const comp = await cms.components.create({ name: "block", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, { templateLiquid: "<p>Content</p>" });
+
+      const page = await cms.pages.create({
+        area: "public", slug: "chi-siamo", title: "Chi siamo", status: "published", structure: [], locale: "it",
+      });
+      await cms.pageVersions.createVersion(page.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      // No locale opt — exactly what the un-prefixed catch-all route passes.
+      const result = await cms.renderPage("public", "chi-siamo");
+      expect(result).not.toBeNull();
+      expect(result).toContain("it|it|it,en,");
+    });
+
     it("exposes {{page.translations}} array in Liquid", async () => {
       await cms.areas.create({
         name: "public",

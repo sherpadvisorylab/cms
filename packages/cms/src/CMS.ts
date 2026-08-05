@@ -669,15 +669,32 @@ export class CMS {
   }
 
   /**
-   * The site's effective default locale: the area's `defaultLocale` if set, else the global
-   * `settings.branding.defaultLanguage`, else "". Every routing/URL-building call site must
-   * resolve this the same way — an inline `area?.defaultLocale ?? ""` that skips the settings
-   * fallback silently breaks default-locale routing/hreflang whenever the area's own field
-   * isn't configured (which it often isn't, since branding.defaultLanguage is the older,
-   * more commonly-set field).
+   * The site's effective default locale, resolved the same way as the app-level
+   * `/api/locale-config` route (which the locale-detection middleware relies on) so routing
+   * and rendering never disagree: the area's `defaultLocale` if set, else the
+   * `isDefault`-flagged entry in `settings.branding.locales[]` — the documented authoritative
+   * source once multi-language is enabled (see `CmsSettingsBranding.defaultLanguage` JSDoc in
+   * @sherpacms/domain) — else the legacy flat `settings.branding.defaultLanguage`, else "".
+   * Every routing/URL-building call site must go through this; an inline
+   * `area?.defaultLocale ?? "..."` that skips the `locales[]` lookup silently resolves to the
+   * wrong locale (or the branding.defaultLanguage field's own "en" UI default) whenever a site
+   * configured its default locale via the Localization settings, not the area record.
    */
   private resolveDefaultLocale(area: CmsArea | null, settings: CmsSettings | null): string {
-    return area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+    if (area?.defaultLocale) return area.defaultLocale;
+    const locales = settings?.branding?.locales ?? [];
+    const defaultEntry = locales.find((l) => l.isDefault) ?? locales[0];
+    return defaultEntry?.code || settings?.branding?.defaultLanguage || "";
+  }
+
+  /** Mirrors resolveDefaultLocale's fallback chain for the list of all supported locales. */
+  private resolveSupportedLocales(area: CmsArea | null, settings: CmsSettings | null): string[] {
+    if (area?.supportedLocales?.length) return area.supportedLocales;
+    const locales = settings?.branding?.locales ?? [];
+    if (locales.length) return locales.map((l) => l.code);
+    if (settings?.branding?.supportedLocales?.length) return settings.branding.supportedLocales;
+    const defaultLocale = this.resolveDefaultLocale(area, settings);
+    return defaultLocale ? [defaultLocale] : [];
   }
 
   private buildSiteContext(
@@ -707,7 +724,7 @@ export class CMS {
     site.trackingScripts = trackingScripts;
     site.locale = effectiveLocale || this.resolveDefaultLocale(area, settings);
     site.default_locale = this.resolveDefaultLocale(area, settings);
-    site.supported_locales = area?.supportedLocales ?? [];
+    site.supported_locales = this.resolveSupportedLocales(area, settings);
 
     return site;
   }
