@@ -345,6 +345,8 @@ export class CMS {
   async renderPage(areaKey: string, permalink: string, opts?: { draft?: boolean; locale?: string; searchParams?: Record<string, string> }): Promise<string | null> {
     const draft = opts?.draft === true;
     const area = await this.areas.findByKey(areaKey);
+    const settingsObj = await this.settings.get();
+    const resolvedDefaultLocale = this.resolveDefaultLocale(area, settingsObj);
 
     // 1. Resolve page. System pages (Home, 404, …) are resolved via the area's
     // systemPages map + translationKey/locale first — their stored permalink/slug is
@@ -352,9 +354,9 @@ export class CMS {
     // not be trusted for routing. Only after that do we fall back to a plain permalink
     // match, itself preferring the area's default locale when none is requested, to
     // disambiguate ordinary pages whose locale variants happen to share a permalink.
-    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale);
+    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale ?? resolvedDefaultLocale);
     if (!page) {
-      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? area?.defaultLocale ?? undefined);
+      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? resolvedDefaultLocale);
     }
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
@@ -375,12 +377,9 @@ export class CMS {
       return null;
     }
 
-    // 2. Load area and settings
-    const settingsObj = await this.settings.get();
-
-    const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const effectiveLocale = opts?.locale ?? page.locale ?? resolvedDefaultLocale;
     const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
-    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
+    const t = await this.buildTranslationGlobals(effectiveLocale, resolvedDefaultLocale);
 
     const basePage = this.buildPageContext(page, "", translations, area);
     const baseSite = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);
@@ -478,11 +477,11 @@ export class CMS {
     const hreflangEntries = translations.map((t) => ({
       locale: t.locale,
       url: t.url,
-      isDefault: t.locale === (area?.defaultLocale ?? ""),
+      isDefault: t.locale === resolvedDefaultLocale,
     }));
     const metaTags = this.buildMetaTags(
       page as CmsPage,
-      this.buildPublicPageUrl(area, settingsObj, page, effectiveLocale, area?.defaultLocale ?? ""),
+      this.buildPublicPageUrl(area, settingsObj, page, effectiveLocale, resolvedDefaultLocale),
       hreflangEntries,
     );
     const trackingScripts = this.buildTrackingScripts(area, "body-bottom");
@@ -669,6 +668,18 @@ export class CMS {
     return map;
   }
 
+  /**
+   * The site's effective default locale: the area's `defaultLocale` if set, else the global
+   * `settings.branding.defaultLanguage`, else "". Every routing/URL-building call site must
+   * resolve this the same way — an inline `area?.defaultLocale ?? ""` that skips the settings
+   * fallback silently breaks default-locale routing/hreflang whenever the area's own field
+   * isn't configured (which it often isn't, since branding.defaultLanguage is the older,
+   * more commonly-set field).
+   */
+  private resolveDefaultLocale(area: CmsArea | null, settings: CmsSettings | null): string {
+    return area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+  }
+
   private buildSiteContext(
     area: CmsArea | null,
     settings: CmsSettings | null,
@@ -686,7 +697,7 @@ export class CMS {
     );
 
     site.name = area?.siteName || (site.name as string) || settings?.branding?.projectName || area?.displayName || area?.name || "";
-    site.permalink = page ? this.buildPublicPageUrl(area, settings, page, effectiveLocale, area?.defaultLocale ?? "") : ((site.permalink as string) || "");
+    site.permalink = page ? this.buildPublicPageUrl(area, settings, page, effectiveLocale, this.resolveDefaultLocale(area, settings)) : ((site.permalink as string) || "");
     site.logo = area?.style?.logoLight || (site.logo as string) || settings?.branding?.logoLight || "";
     site.logoDark = area?.style?.logoDark || (site.logoDark as string) || settings?.branding?.logoDark || "";
     site.favicon = area?.style?.favicon || (site.favicon as string) || settings?.branding?.favicon || "";
@@ -694,8 +705,8 @@ export class CMS {
     site.styles = stylesMarkup;
     site.scripts = scriptsMarkup;
     site.trackingScripts = trackingScripts;
-    site.locale = effectiveLocale || area?.defaultLocale || settings?.branding?.defaultLanguage || "";
-    site.default_locale = area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+    site.locale = effectiveLocale || this.resolveDefaultLocale(area, settings);
+    site.default_locale = this.resolveDefaultLocale(area, settings);
     site.supported_locales = area?.supportedLocales ?? [];
 
     return site;
@@ -711,7 +722,7 @@ export class CMS {
     const pagePermalink = this.resolveCanonicalPagePermalink(area, page);
     const rootPath = normalizeAreaRootPath(area?.rootPath);
 
-    const resolvedDefaultLocale = defaultLocale || area?.defaultLocale || settings?.branding?.defaultLanguage || "";
+    const resolvedDefaultLocale = defaultLocale || this.resolveDefaultLocale(area, settings);
     const isNonDefaultLocale = effectiveLocale && resolvedDefaultLocale && effectiveLocale !== resolvedDefaultLocale;
     const localePrefix = isNonDefaultLocale ? `/${effectiveLocale}` : "";
 
@@ -737,12 +748,13 @@ export class CMS {
     if (!page.translationKey) return [];
     const siblings = await this.pages.findPublishedByTranslationKey(page.translationKey).catch(() => []);
     if (siblings.length <= 1) return [];
+    const resolvedDefaultLocale = this.resolveDefaultLocale(area, settings);
     return siblings.map((p) => {
-      const loc = p.locale ?? area?.defaultLocale ?? "";
+      const loc = p.locale || resolvedDefaultLocale;
       return {
         locale: loc,
         label: loc.toUpperCase(),
-        url: this.buildPublicPageUrl(area, settings, p, loc, area?.defaultLocale ?? ""),
+        url: this.buildPublicPageUrl(area, settings, p, loc, resolvedDefaultLocale),
         is_current: loc === effectiveLocale,
       };
     });
@@ -1071,7 +1083,7 @@ export class CMS {
     const area = await this.areas.findByKey(areaKey);
     const settingsObj = await this.settings.get();
     const siteName = settingsObj?.branding?.projectName ?? area?.name ?? "";
-    const siteDefaultLocale = area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const siteDefaultLocale = this.resolveDefaultLocale(area, settingsObj);
     const effectiveLocale = opts?.locale ?? siteDefaultLocale;
 
     // Find the collection and record matching this permalink
@@ -1117,7 +1129,7 @@ export class CMS {
     const baseSite = this.buildSiteContext(area, settingsObj, virtualPage, "", "", "", "", effectiveLocale);
     const basePage = this.buildPageContext(virtualPage);
     const baseStyles = this.buildStylesContext(area, settingsObj);
-    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
+    const t = await this.buildTranslationGlobals(effectiveLocale, siteDefaultLocale);
 
     const localizedRecordData = this.mergeRecordLocaleContent(matchedRecord, effectiveLocale, siteDefaultLocale, matchedCollection.schema);
     const resolvedRecordData = await this.resolveRelationFields(
@@ -1696,14 +1708,16 @@ export class CMS {
   ): Promise<RenderContentResult | null> {
     const draft = opts?.draft === true;
     const area = await this.areas.findByKey(areaKey);
+    const settingsObj = await this.settings.get();
+    const resolvedDefaultLocale = this.resolveDefaultLocale(area, settingsObj);
 
     // 1. Resolve page. System pages (Home, 404, …) are resolved via the area's
     //    systemPages map + translationKey/locale first — see renderPage for why their
     //    stored permalink/slug can't be trusted for routing. findByPermalink only
     //    returns published rows, so for draft preview we fall back to a full scan.
-    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale);
+    let page = await this.findSystemPageByCanonicalPermalink(areaKey, area, permalink, opts?.locale ?? resolvedDefaultLocale);
     if (!page) {
-      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? area?.defaultLocale ?? undefined);
+      page = await this.pages.findByPermalink(areaKey, permalink, opts?.locale ?? resolvedDefaultLocale);
     }
     if (!page && draft) {
       const all = await this.pages.findAll(areaKey);
@@ -1718,12 +1732,9 @@ export class CMS {
       : await this.pageVersions.getLatestPublished(page.id);
     if (!version) return null;
 
-    // 2. Load settings
-    const settingsObj = await this.settings.get();
-
-    const effectiveLocale = opts?.locale ?? page.locale ?? area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "";
+    const effectiveLocale = opts?.locale ?? page.locale ?? resolvedDefaultLocale;
     const translations = await this.resolvePageTranslations(page, area, settingsObj, effectiveLocale);
-    const t = await this.buildTranslationGlobals(effectiveLocale, area?.defaultLocale ?? settingsObj?.branding?.defaultLanguage ?? "");
+    const t = await this.buildTranslationGlobals(effectiveLocale, resolvedDefaultLocale);
 
     const pageContext = this.buildPageContext(page, "", translations, area);
     const siteContext = this.buildSiteContext(area, settingsObj, page, "", "", "", "", effectiveLocale);

@@ -517,6 +517,17 @@ describe("CMS", () => {
       expect(result).not.toBeNull();
       expect(result).toContain('hreflang="en" href="https://example.com/en/about-us"');
       expect(result).toContain('hreflang="it" href="https://example.com/chi-siamo"');
+
+      // Regression: the un-prefixed catch-all route calls renderPage with no `locale`
+      // opt at all (it only sets one from the `/[locale]/...` rewrite's x-locale header).
+      // The default-locale page must still resolve via the area.defaultLocale/settings
+      // fallback chain, while the English-only page must stay unreachable without /en.
+      const bareDefault = await cms.renderPage("public", "chi-siamo");
+      expect(bareDefault).not.toBeNull();
+      const bareNonDefault = await cms.renderPage("public", "about-us");
+      expect(bareNonDefault).toBeNull();
+      const prefixedNonDefault = await cms.renderPage("public", "about-us", { locale: "en" });
+      expect(prefixedNonDefault).not.toBeNull();
     });
 
     it("exposes {{page.translations}} array in Liquid", async () => {
