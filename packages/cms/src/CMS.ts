@@ -1357,7 +1357,7 @@ export class CMS {
     const rendered = await this.render.render({
       template: escapedTemplate,
       data: { collection: collectionContext },
-      globals: { site: ctx.site, page: ctx.page, styles: ctx.styles },
+      globals: { site: ctx.site, page: ctx.page, styles: ctx.styles, t: ctx.t ?? {} },
     });
 
     // Restore component embeds and resolve them
