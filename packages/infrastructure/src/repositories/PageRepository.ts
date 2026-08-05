@@ -12,17 +12,19 @@ export class PageRepository implements IPageRepository {
     const matches = pages.filter(
       (page) => normalizePermalink(page.permalink ?? page.slug) === normalizedPermalink,
     );
-    if (matches.length <= 1) return matches[0] ?? null;
+    if (matches.length === 0) return null;
 
-    // Multiple published pages share this permalink — they're locale variants of the same
-    // logical page (e.g. Home in every language served at "/", disambiguated by the locale
-    // prefix at the URL level, not by permalink). Prefer the exact locale match, then the
-    // variant with no explicit locale (treated as the area's default), then just the first.
+    // Even a single page at this permalink must still match the requested locale — a page
+    // that only exists in a non-default locale (e.g. an English-only page with no Italian
+    // counterpart at this permalink) must not be reachable without its locale prefix, so it
+    // can't be returned just because it's the only candidate. Prefer the exact locale match,
+    // then the variant with no explicit locale (treated as the area's default), otherwise
+    // there's no valid match for the requested locale.
     if (locale) {
       const exact = matches.find((page) => page.locale === locale);
       if (exact) return exact;
     }
-    return matches.find((page) => !page.locale) ?? matches[0];
+    return matches.find((page) => !page.locale) ?? null;
   }
 
   async findBySlug(area: string, slug: string): Promise<CmsPage | null> {

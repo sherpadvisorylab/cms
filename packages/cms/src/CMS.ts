@@ -711,7 +711,7 @@ export class CMS {
     const pagePermalink = this.resolveCanonicalPagePermalink(area, page);
     const rootPath = normalizeAreaRootPath(area?.rootPath);
 
-    const resolvedDefaultLocale = defaultLocale || area?.defaultLocale || "";
+    const resolvedDefaultLocale = defaultLocale || area?.defaultLocale || settings?.branding?.defaultLanguage || "";
     const isNonDefaultLocale = effectiveLocale && resolvedDefaultLocale && effectiveLocale !== resolvedDefaultLocale;
     const localePrefix = isNonDefaultLocale ? `/${effectiveLocale}` : "";
 

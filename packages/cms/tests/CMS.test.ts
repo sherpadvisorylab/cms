@@ -485,6 +485,40 @@ describe("CMS", () => {
       expect(result).toContain('hreflang="x-default"');
     });
 
+    it("prefixes non-default-locale hreflang URLs with the locale even when the area has no defaultLocale set, falling back to settings.branding.defaultLanguage", async () => {
+      await cms.areas.create({
+        name: "public",
+        status: "active",
+        rootPath: "/",
+        supportedLocales: ["it", "en"],
+        design: {
+          headTemplate: "<head>{{site.metaTags}}</head>",
+          bodyTemplate: "<body>{{page.content}}</body>",
+        },
+      });
+
+      await cms.settings.save({ id: "global", branding: { siteUrl: "https://example.com", defaultLanguage: "it" } });
+
+      const comp = await cms.components.create({ name: "block", status: "published" });
+      await cms.componentVersions.createVersion(comp.id, { templateLiquid: "<p>Content</p>" });
+
+      const key = "test-translation-key-2";
+      const pageIt = await cms.pages.create({
+        area: "public", slug: "chi-siamo", title: "Chi siamo", status: "published", structure: [], locale: "it", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageIt.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const pageEn = await cms.pages.create({
+        area: "public", slug: "about-us", title: "About us", status: "published", structure: [], locale: "en", translationKey: key,
+      });
+      await cms.pageVersions.createVersion(pageEn.id, { structure: [{ componentId: comp.id, props: {} }], publish: true });
+
+      const result = await cms.renderPage("public", "chi-siamo", { locale: "it" });
+      expect(result).not.toBeNull();
+      expect(result).toContain('hreflang="en" href="https://example.com/en/about-us"');
+      expect(result).toContain('hreflang="it" href="https://example.com/chi-siamo"');
+    });
+
     it("exposes {{page.translations}} array in Liquid", async () => {
       await cms.areas.create({
         name: "public",

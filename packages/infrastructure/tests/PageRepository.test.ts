@@ -32,6 +32,17 @@ describe("PageRepository", () => {
     expect(found?.title).toBe("About");
   });
 
+  it("findByPermalink does not return a non-default-locale page when the requested locale doesn't match, even if it's the only candidate", async () => {
+    await repo.create({ area: "public", slug: "about-us", permalink: "/about-us", title: "About (EN)", locale: "en", status: "published", structure: [] });
+
+    // Requesting the default locale ("it") for a permalink that only exists as an "en" page
+    // must NOT return that page — an English-only page must stay unreachable without its
+    // locale prefix, not fall through just because it's the sole match for the permalink.
+    expect(await repo.findByPermalink("public", "/about-us", "it")).toBeNull();
+    // The exact locale request still finds it.
+    expect((await repo.findByPermalink("public", "/about-us", "en"))?.title).toBe("About (EN)");
+  });
+
   it("findByPermalink disambiguates by locale when multiple pages share a permalink (e.g. Home in every locale)", async () => {
     await repo.create({ area: "public", slug: "", permalink: "/", title: "Home IT", locale: "it", status: "published", structure: [] });
     await repo.create({ area: "public", slug: "", permalink: "/", title: "Home EN", locale: "en", status: "published", structure: [] });
